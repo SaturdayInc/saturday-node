@@ -9,7 +9,7 @@
  * ```typescript
  * import Saturday from '@saturdayinc/sdk';
  *
- * const saturday = new Saturday({ apiKey: 'sat_live_...' });
+ * const saturday = new Saturday({ apiKey: 'sk_live_...' });
  *
  * const prescription = await saturday.nutrition.calculate({
  *   activity_type: 'bike',
@@ -20,7 +20,7 @@
  *
  * // Safety metadata is ALWAYS included — athlete safety cannot be paywalled
  * console.log(prescription.safety.warnings);
- * console.log(`Carbs: ${prescription.carbohydrate.target_g_per_hr} g/hr`);
+ * console.log(`Carbs: ${prescription.carb_g_per_hr} g/hr`);
  * ```
  *
  * @packageDocumentation

@@ -18,7 +18,7 @@ npm install @saturdayinc/sdk
 ```typescript
 import Saturday from '@saturdayinc/sdk';
 
-const saturday = new Saturday({ apiKey: 'sat_live_...' });
+const saturday = new Saturday({ apiKey: 'sk_live_...' });
 
 // Calculate a nutrition prescription
 const prescription = await saturday.nutrition.calculate({
@@ -31,9 +31,9 @@ const prescription = await saturday.nutrition.calculate({
 
 // Safety metadata is ALWAYS included — athlete safety is never paywalled
 console.log(prescription.safety.warnings);
-console.log(`Carbs: ${prescription.carbohydrate.target_g_per_hr} g/hr`);
-console.log(`Sodium: ${prescription.sodium.target_mg_per_hr} mg/hr`);
-console.log(`Fluid: ${prescription.fluid.target_ml_per_hr} mL/hr`);
+console.log(`Carbs: ${prescription.carb_g_per_hr} g/hr`);
+console.log(`Sodium: ${prescription.sodium_mg_per_hr} mg/hr`);
+console.log(`Fluid: ${prescription.fluid_ml_per_hr} mL/hr`);
 ```
 
 ## Features
@@ -48,11 +48,11 @@ console.log(`Fluid: ${prescription.fluid.target_ml_per_hr} mL/hr`);
 
 ```typescript
 // API key (server-to-server)
-const saturday = new Saturday({ apiKey: 'sat_live_...' });
+const saturday = new Saturday({ apiKey: 'sk_live_...' });
 
 // OAuth2 Bearer token (athlete-delegated access)
 const saturday = new Saturday({
-  apiKey: 'sat_live_...',
+  apiKey: 'sk_live_...',
   bearerToken: 'eyJ...',
 });
 ```

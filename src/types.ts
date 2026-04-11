@@ -2,7 +2,7 @@
  * SDK configuration options.
  */
 export interface SaturdayConfig {
-  /** Your partner API key (sat_live_... or sat_test_...). */
+  /** Your partner API key (sk_live_... or sk_test_...). */
   apiKey: string;
 
   /** Base URL override. Defaults to https://api.saturday.fit */
@@ -103,45 +103,24 @@ export interface NutritionCalculateRequest {
   athlete_id?: string;
 }
 
-export interface NutrientTarget {
-  target_g_per_hr?: number;
-  target_mg_per_hr?: number;
-  target_ml_per_hr?: number;
-  range_g_per_hr?: [number, number];
-  range_mg_per_hr?: [number, number];
-  range_ml_per_hr?: [number, number];
-  total_g?: number;
-  total_mg?: number;
-  total_ml?: number;
-  confidence?: number;
-}
-
 export interface NutritionCalculateResponse {
   tier: SubscriptionTier;
-  carbohydrate: NutrientTarget;
-  sodium: NutrientTarget;
-  fluid: NutrientTarget;
-  factors_used: number;
-  factors_available: number;
-  locked_features?: {
-    product_recommendations?: { available_count: number };
-    personalization_factors?: { used_in_full: number; used_in_teaser: number };
-    features?: string[];
-  };
-  products?: Array<{
-    name: string;
-    brand: string;
-    serving: string;
-    role: 'carb' | 'sodium' | 'fluid' | 'mixed';
-    carb_g?: number;
-    sodium_mg?: number;
-    fluid_ml?: number;
-  }>;
-  preparation?: {
-    pre_activity?: string;
-    during_activity?: string;
-    post_activity?: string;
-  };
+
+  // Full tier — per-hour rates
+  carb_g_per_hr?: number;
+  sodium_mg_per_hr?: number;
+  fluid_ml_per_hr?: number;
+
+  // Full tier — totals for the activity
+  total_carb_g?: number;
+  total_sodium_mg?: number;
+  total_fluid_ml?: number;
+
+  // Teaser tier — human-readable ranges
+  carb_range_g_per_hr?: string;
+  sodium_range_mg_per_hr?: string;
+  fluid_range_ml_per_hr?: string;
+
   safety: SafetyMetadata;
   attribution?: {
     text: string;
@@ -149,16 +128,12 @@ export interface NutritionCalculateResponse {
     link: string;
     required: boolean;
   };
+
+  // Teaser tier only — upsell prompt
   subscription_cta?: {
     message: string;
     subscribe_url: string;
     features: string[];
-    partner_ref: string;
-  };
-  metadata: {
-    calculated_at: string;
-    engine_version: string;
-    request_id: string;
   };
 }
 

@@ -38,7 +38,7 @@ const SDK_VERSION = '0.1.0';
  *
  * @example
  * ```typescript
- * const saturday = new Saturday({ apiKey: 'sat_live_...' });
+ * const saturday = new Saturday({ apiKey: 'sk_live_...' });
  * const rx = await saturday.nutrition.calculate({
  *   activity_type: 'run',
  *   duration_min: 90,
@@ -121,7 +121,7 @@ export class Saturday {
       if (this.config.bearerToken) {
         headers['Authorization'] = `Bearer ${this.config.bearerToken}`;
       } else {
-        headers['X-API-Key'] = this.config.apiKey;
+        headers['Authorization'] = `Bearer ${this.config.apiKey}`;
       }
 
       const controller = new AbortController();
