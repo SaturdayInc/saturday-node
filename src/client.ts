@@ -143,7 +143,7 @@ export class Saturday {
         }
 
         // Parse error response
-        const errorBody = await response.json().catch(() => ({
+        const errorBody: any = await response.json().catch(() => ({
           error: { type: 'api_error', code: 'unknown', message: 'Unknown error' }
         }));
         const errorDetail = errorBody.error || errorBody;
