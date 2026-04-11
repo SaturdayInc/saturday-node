@@ -1,5 +1,5 @@
 {
-  "name": "@saturday/sdk",
+  "name": "@saturdayinc/sdk",
   "version": "0.1.0",
   "description": "Official TypeScript SDK for the Saturday Nutrition Intelligence API",
   "main": "dist/index.js",
