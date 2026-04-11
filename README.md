@@ -1,6 +1,6 @@
 # Saturday TypeScript SDK
 
-[![npm](https://img.shields.io/npm/v/@saturday/sdk)](https://www.npmjs.com/package/@saturday/sdk)
+[![npm](https://img.shields.io/npm/v/@saturdayinc/sdk)](https://www.npmjs.com/package/@saturdayinc/sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Official TypeScript/Node.js SDK for the [Saturday Nutrition Intelligence API](https://docs.saturday.fit).
@@ -10,13 +10,13 @@ Personalized fuel, hydration, and electrolyte prescriptions for endurance athlet
 ## Install
 
 ```bash
-npm install @saturday/sdk
+npm install @saturdayinc/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import Saturday from '@saturday/sdk';
+import Saturday from '@saturdayinc/sdk';
 
 const saturday = new Saturday({ apiKey: 'sat_live_...' });
 

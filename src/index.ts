@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import Saturday from '@saturday/sdk';
+ * import Saturday from '@saturdayinc/sdk';
  *
  * const saturday = new Saturday({ apiKey: 'sat_live_...' });
  *
