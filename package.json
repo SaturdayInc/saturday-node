@@ -1,0 +1,40 @@
+{
+  "name": "@saturday/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the Saturday Nutrition Intelligence API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "jest"
+  },
+  "keywords": [
+    "saturday",
+    "nutrition",
+    "endurance",
+    "hydration",
+    "electrolytes",
+    "sports-nutrition",
+    "api"
+  ],
+  "author": "Saturday Inc. <api@saturday.fit>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SaturdayInc/saturday-node.git"
+  },
+  "homepage": "https://docs.saturday.fit",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  }
+}
