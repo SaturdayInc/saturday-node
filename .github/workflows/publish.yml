@@ -11,15 +11,39 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # v6 runs on the Node 24 action runtime (v4 ran on Node 20, force-migrated
+      # by GitHub on 2026-06-16). package-manager-cache:false keeps behavior
+      # identical to v4 — the only change is the action runtime, not our build.
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - run: npm ci
       - run: npm run build
-      - run: npm publish --access public
+
+      # Idempotent publish with one retry. The v0.2.0 release failed its first
+      # attempt on a transient npm 404 (the registry masks auth blips as 404 on
+      # the publish PUT) and only succeeded on a manual re-run. The retry recovers
+      # that automatically; the npm-view guard makes any re-run safe — if the
+      # version is already live we skip instead of failing with the confusing
+      # "cannot publish over the previously published versions" error.
+      - name: Publish to npm (idempotent + retry)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version > /dev/null 2>&1; then
+            echo "✅ $name@$version is already published — nothing to do."
+            exit 0
+          fi
+          echo "Publishing $name@$version ..."
+          npm publish --access public || {
+            echo "First publish attempt failed; retrying in 25s ..."
+            sleep 25
+            npm publish --access public
+          }
