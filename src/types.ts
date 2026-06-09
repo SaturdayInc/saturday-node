@@ -146,11 +146,15 @@ export interface Athlete {
   name?: string;
   email?: string;
   sex?: Sex;
-  age?: number;
+  /** Birth year (e.g. 1990) — the API stores year of birth, not age. */
+  year_of_birth?: number;
   weight_kg?: number;
-  subscription_active: boolean;
-  created_at: string;
-  updated_at: string;
+  /** ID of the athlete's Saturday subscription, when one is active. Empty/absent if not subscribed. */
+  subscription_id?: string;
+  /** Epoch seconds. */
+  created_at: number;
+  /** Epoch seconds. */
+  updated_at: number;
 }
 
 export interface CreateAthleteRequest {
@@ -158,7 +162,8 @@ export interface CreateAthleteRequest {
   name?: string;
   email?: string;
   sex?: Sex;
-  age?: number;
+  /** Birth year (e.g. 1990) — the API stores year of birth, not age. */
+  year_of_birth?: number;
   weight_kg?: number;
 }
 
@@ -190,26 +195,32 @@ export interface AthleteSettings {
 export interface Activity {
   id: string;
   athlete_id: string;
-  activity_type: ActivityType;
+  /** Activity type. The API field is `type` (not `activity_type`). */
+  type: ActivityType;
   name?: string;
   duration_min: number;
   intensity_level?: number;
   thermal_stress_level?: number;
-  is_race?: boolean;
+  /** Whether this is a race. The API field is `is_race_event`. */
+  is_race_event?: boolean;
   scheduled_at?: string;
-  has_prescription: boolean;
-  prescription_stale: boolean;
-  created_at: string;
-  updated_at: string;
+  has_prescription?: boolean;
+  prescription_stale?: boolean;
+  /** Epoch seconds. */
+  created_at: number;
+  /** Epoch seconds. */
+  updated_at: number;
 }
 
 export interface CreateActivityRequest {
-  activity_type: ActivityType;
+  /** Activity type. The API field is `type` (not `activity_type`). */
+  type: ActivityType;
   name?: string;
   duration_min: number;
   intensity_level?: number;
   thermal_stress_level?: number;
-  is_race?: boolean;
+  /** Whether this is a race. The API field is `is_race_event`. */
+  is_race_event?: boolean;
   scheduled_at?: string;
 }
 
@@ -298,11 +309,27 @@ export interface GearItem {
 
 // --- Pagination ---
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
+/**
+ * Cursor-paginated list response.
+ *
+ * The array lives under a resource-named key (`athletes`, `activities`),
+ * not a generic `data` key. Pass `cursor` back on the next request to page
+ * forward; `has_more` indicates whether another page exists.
+ */
+export interface AthleteListResponse {
+  athletes: Athlete[];
+  has_more: boolean;
+  /** Opaque cursor for the next page. Pass as the `cursor` query param. */
+  cursor?: string;
+  total?: number;
+}
+
+export interface ActivityListResponse {
+  activities: Activity[];
+  has_more: boolean;
+  /** Opaque cursor for the next page. Pass as the `cursor` query param. */
+  cursor?: string;
+  total?: number;
 }
 
 // --- Error ---

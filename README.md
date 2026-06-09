@@ -61,7 +61,7 @@ const saturday = new Saturday({
 
 | Resource | Description |
 |----------|-------------|
-| `saturday.nutrition` | Calculate prescriptions, batch, compare |
+| `saturday.nutrition` | Calculate prescriptions, batch calculate |
 | `saturday.athletes` | Athlete CRUD, settings, batch create, GDPR export |
 | `saturday.activities` | Activity CRUD, prescription calculation, feedback |
 | `saturday.products` | Product search, barcode lookup, curated list |
