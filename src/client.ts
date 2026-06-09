@@ -16,6 +16,20 @@ import type {
   GearItem,
   AthleteListResponse,
   ActivityListResponse,
+  CoachWindow,
+  CoachFocus,
+  CoachScope,
+  CoachPreset,
+  Roster,
+  RosterDigest,
+  FuelingRollup,
+  AthleteReport,
+  SessionDetail,
+  AlertRulesDoc,
+  CoachReportSettings,
+  CoachWebhookEndpoint,
+  CoachWebhookWithSecret,
+  CoachWebhookEvent,
 } from './types';
 import {
   SaturdayError,
@@ -28,7 +42,7 @@ import {
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.1.1';
+const SDK_VERSION = '0.3.0';
 
 /**
  * Saturday Nutrition Intelligence API client.
@@ -77,6 +91,13 @@ export class Saturday {
   /** Knowledge base search. */
   readonly knowledge: KnowledgeResource;
 
+  /**
+   * Coach API — roster fueling reads + the coach's own alerting/report config
+   * (Module 5). Requires a coach API key (`cp_live_`/`cp_test_`, passed as
+   * `apiKey`) or an OAuth2 coach-scoped bearer token, and the Pro-Coach+ tier.
+   */
+  readonly coach: CoachResource;
+
   constructor(config: SaturdayConfig) {
     this.config = {
       apiKey: config.apiKey,
@@ -95,6 +116,7 @@ export class Saturday {
     this.organizations = new OrganizationsResource(this);
     this.gear = new GearResource(this);
     this.knowledge = new KnowledgeResource(this);
+    this.coach = new CoachResource(this);
   }
 
   /**
@@ -475,4 +497,140 @@ class KnowledgeResource {
   async getArticle(articleId: string): Promise<any> {
     return this.client.request('GET', `/v1/knowledge/articles/${articleId}`);
   }
+}
+
+/**
+ * Coach API resource — `/v1/coach/*`.
+ *
+ * READS scope to the coach's own roster (every `athleteUid` is roster-confined;
+ * a non-roster athlete returns a 404 NotFoundError). WRITES only ever touch the
+ * coach's OWN config — athlete fueling data is read-only via this API. Requires
+ * the Pro-Coach+ tier; a lapsed coach's reads/writes return 404.
+ *
+ * @example
+ * ```typescript
+ * // Coach API key (cp_live_...) is passed as apiKey:
+ * const saturday = new Saturday({ apiKey: 'cp_live_...' });
+ * const digest = await saturday.coach.rosterDigest({ window: 7 });
+ * await saturday.coach.applyPreset({ scope: 'overall', preset: 'balanced' });
+ * ```
+ */
+class CoachResource {
+  constructor(private client: Saturday) {}
+
+  // --- Reads ---
+
+  /** List the roster with per-athlete needs-attention markers. */
+  async roster(params?: { window?: CoachWindow }): Promise<Roster> {
+    const qs = params?.window ? `?window=${params.window}` : '';
+    return this.client.request('GET', `/v1/coach/roster${qs}`);
+  }
+
+  /** The flagged-only digest: only athletes who crossed a concern bar this window. */
+  async rosterDigest(params?: { window?: CoachWindow }): Promise<RosterDigest> {
+    const qs = params?.window ? `?window=${params.window}` : '';
+    return this.client.request('GET', `/v1/coach/roster/digest${qs}`);
+  }
+
+  /** One athlete's in-window fueling rollup + concern summary (roster-confined). */
+  async fuelingRollup(athleteUid: string, params?: { window?: CoachWindow; focus?: CoachFocus }): Promise<FuelingRollup> {
+    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/fueling-rollup${coachQuery(params)}`);
+  }
+
+  /** The AI fueling report (narrative + structured). Pass `refresh: true` to force regeneration. */
+  async report(athleteUid: string, params?: { window?: CoachWindow; focus?: CoachFocus; refresh?: boolean }): Promise<AthleteReport> {
+    const q = new URLSearchParams();
+    if (params?.window) q.set('window', String(params.window));
+    if (params?.focus) q.set('focus', params.focus);
+    if (params?.refresh) q.set('refresh', 'true');
+    const qs = q.toString();
+    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/report${qs ? '?' + qs : ''}`);
+  }
+
+  /** The report as a downloadable PDF (returns the raw bytes). */
+  async reportPdf(athleteUid: string, params?: { window?: CoachWindow; focus?: CoachFocus }): Promise<ArrayBuffer> {
+    const q = new URLSearchParams({ format: 'pdf' });
+    if (params?.window) q.set('window', String(params.window));
+    if (params?.focus) q.set('focus', params.focus);
+    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/report?${q}`);
+  }
+
+  /** Drill into one session by activity id (planned-vs-actual + markers). */
+  async sessionDetail(athleteUid: string, activityId: string): Promise<SessionDetail> {
+    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/sessions/${activityId}`);
+  }
+
+  // --- Config: alert rules ---
+
+  /** Read the alert rules set at exactly one scope (not the merged resolution). */
+  async getNotificationRules(params?: { scope?: CoachScope; scopeId?: string }): Promise<AlertRulesDoc> {
+    return this.client.request('GET', `/v1/coach/config/notification-rules${scopeQuery(params)}`);
+  }
+
+  /** Replace the alert rules at a scope (idempotent upsert — re-running the same set is a no-op). */
+  async setNotificationRules(scope: CoachScope, rules: AlertRulesDoc, scopeId?: string): Promise<{ ok: boolean; scope: string }> {
+    return this.client.request('PUT', '/v1/coach/config/notification-rules', { scope, scope_id: scopeId, rules });
+  }
+
+  /** Apply a named preset (`hands_off` / `balanced` / `hands_on`) at a scope. */
+  async applyPreset(opts: { scope: CoachScope; preset: CoachPreset; scopeId?: string }): Promise<{ ok: boolean; preset: string }> {
+    return this.client.request('POST', '/v1/coach/config/preset', { scope: opts.scope, scope_id: opts.scopeId, preset: opts.preset });
+  }
+
+  // --- Config: AI report + concern settings ---
+
+  /** Read the AI-report + concern-threshold settings at a scope. */
+  async getReportSettings(params?: { scope?: CoachScope; scopeId?: string }): Promise<CoachReportSettings> {
+    return this.client.request('GET', `/v1/coach/config/report-settings${scopeQuery(params)}`);
+  }
+
+  /** Upsert AI-report + concern-threshold settings at a scope (unset fields fall through). */
+  async setReportSettings(scope: CoachScope, settings: CoachReportSettings, scopeId?: string): Promise<{ ok: boolean; scope: string }> {
+    return this.client.request('PUT', '/v1/coach/config/report-settings', { scope, scope_id: scopeId, settings });
+  }
+
+  // --- Webhooks ---
+
+  /** List the coach's webhook endpoints (secrets never returned). */
+  async listWebhooks(): Promise<{ endpoints: CoachWebhookEndpoint[] }> {
+    return this.client.request('GET', '/v1/coach/webhooks');
+  }
+
+  /** Register a webhook endpoint. The signing secret is returned ONCE — store it. */
+  async registerWebhook(url: string, events?: CoachWebhookEvent[]): Promise<CoachWebhookWithSecret> {
+    return this.client.request('POST', '/v1/coach/webhooks', { url, events });
+  }
+
+  /** Delete a webhook endpoint by id. */
+  async deleteWebhook(id: string): Promise<{ ok: boolean }> {
+    return this.client.request('DELETE', `/v1/coach/webhooks/${id}`);
+  }
+
+  /** Disable a webhook endpoint (stops delivery without deleting it). */
+  async disableWebhook(id: string): Promise<{ ok: boolean; active: boolean }> {
+    return this.client.request('POST', `/v1/coach/webhooks/${id}/disable`);
+  }
+
+  /** Re-enable a previously disabled webhook endpoint. */
+  async enableWebhook(id: string): Promise<{ ok: boolean; active: boolean }> {
+    return this.client.request('POST', `/v1/coach/webhooks/${id}/enable`);
+  }
+}
+
+/** Build the ?window=&focus= query for a coach per-athlete read. */
+function coachQuery(params?: { window?: CoachWindow; focus?: CoachFocus }): string {
+  const q = new URLSearchParams();
+  if (params?.window) q.set('window', String(params.window));
+  if (params?.focus) q.set('focus', params.focus);
+  const qs = q.toString();
+  return qs ? '?' + qs : '';
+}
+
+/** Build the ?scope=&scope_id= query for a coach config read. */
+function scopeQuery(params?: { scope?: CoachScope; scopeId?: string }): string {
+  const q = new URLSearchParams();
+  if (params?.scope) q.set('scope', params.scope);
+  if (params?.scopeId) q.set('scope_id', params.scopeId);
+  const qs = q.toString();
+  return qs ? '?' + qs : '';
 }

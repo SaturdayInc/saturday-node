@@ -342,3 +342,166 @@ export interface SaturdayErrorDetail {
   documentation_url?: string;
   request_id?: string;
 }
+
+// --- Coach API (Module 5 · /v1/coach/*) ---
+//
+// The coach surface reads a coach's roster fueling data and writes the coach's
+// OWN alerting/report config. Reached with either a coach API key (cp_live_ /
+// cp_test_, passed as `apiKey`) or an OAuth2 coach-scoped bearer token. Requires
+// the Pro-Coach+ tier; athlete data is READ-ONLY (a coach can never author an
+// athlete's data via the API). Every {uid} is confined to the coach's roster —
+// a non-roster athlete returns 404 (never an existence oracle).
+
+/** Look-back window for coach reads. Always one of 7, 14, or 30 days. */
+export type CoachWindow = 7 | 14 | 30;
+
+/** Report focus mode. */
+export type CoachFocus = 'worst' | 'rolling' | 'key';
+
+/** Config scope precedence: athlete > group > overall (most-specific wins). */
+export type CoachScope = 'overall' | 'group' | 'athlete';
+
+/** Concern trigger types (the shared concern definition). */
+export type CoachTrigger =
+  | 'under_fuel' | 'symptom' | 'low_rating' | 'hyponatremia_pattern'
+  | 'dial_down' | 'sleep_trend' | 'went_quiet';
+
+/** Delivery channels for an alert. SMS is not yet supported. */
+export type CoachChannel = 'in_portal' | 'email' | 'push' | 'webhook';
+
+/** Alert cadence: real-time urgent vs bundled daily digest. */
+export type CoachCadence = 'realtime' | 'digest';
+
+/** Named starting-point preset for a whole scope. */
+export type CoachPreset = 'hands_off' | 'balanced' | 'hands_on';
+
+/** Concern-event types a webhook can subscribe to. */
+export type CoachWebhookEvent = 'concern.detected' | 'athlete.needs_attention';
+
+/** Per-athlete needs-attention summary on the roster. */
+export interface RosterEntry {
+  athlete_uid: string;
+  flagged: boolean;
+  flagged_count: number;
+  top_reasons: string[];
+  session_count: number;
+}
+
+/** The coach's roster with per-athlete needs-attention markers. */
+export interface Roster {
+  coach_uid: string;
+  window: number;
+  athletes: RosterEntry[];
+}
+
+/** Flagged-only roster digest (athletes who fueled well are omitted). */
+export interface RosterDigest {
+  coach_uid: string;
+  window: number;
+  flagged_count: number;
+  total_count: number;
+  flagged: RosterEntry[];
+}
+
+/** The resolved cutoffs in effect for a coach×athlete (echoed on a rollup). */
+export interface CoachSettingsResolved {
+  report_window_days: number;
+  report_focus: string;
+  concern_carb_cutoff: number;
+  concern_sodium_cutoff: number;
+  concern_fluid_cutoff: number;
+  hyponatremia_fluid_min: number;
+  hyponatremia_sodium_max: number;
+}
+
+/** One athlete's in-window fueling rollup + concern summary. */
+export interface FuelingRollup {
+  athlete_uid: string;
+  window: number;
+  focus: string;
+  /** The per-session projection (same as the portal table). Shape is opaque pass-through. */
+  sessions: Array<Record<string, unknown>>;
+  concern: Record<string, unknown>;
+  settings_resolved: CoachSettingsResolved;
+}
+
+/** The AI fueling report: narrative + the structured concern summary behind it. */
+export interface AthleteReport {
+  athlete_uid: string;
+  window: number;
+  focus: string;
+  narrative: string;
+  concern: Record<string, unknown>;
+  generated_at: number;
+  latest_session_ms: number;
+  from_cache: boolean;
+}
+
+/** One session's full projection + the concern markers it crossed. */
+export interface SessionDetail {
+  athlete_uid: string;
+  session: Record<string, unknown> | null;
+  markers: Array<Record<string, unknown>>;
+}
+
+/** One trigger's configuration at a scope. Thresholds are fractions in (0,1]; null falls through. */
+export interface TriggerRule {
+  enabled: boolean;
+  urgent_threshold?: number;
+  amber_threshold?: number;
+  channels?: CoachChannel[];
+  cadence?: CoachCadence;
+}
+
+/** A bounded 2-trigger AND combinator (both legs on the same session). */
+export interface Combinator {
+  trigger_a: CoachTrigger;
+  trigger_b: CoachTrigger;
+  channel: CoachChannel;
+  cadence?: CoachCadence;
+}
+
+/** Quiet hours during which non-urgent alerts are held. */
+export interface QuietHours {
+  enabled: boolean;
+  start?: string; // "HH:MM"
+  end?: string;   // "HH:MM"
+  tz?: string;    // IANA tz name
+}
+
+/** The full alert rule set at one scope (PUT replaces the whole set — idempotent). */
+export interface AlertRulesDoc {
+  notification_rules?: Record<string, TriggerRule>;
+  combinators?: Combinator[];
+  quiet_hours?: QuietHours;
+  preset?: CoachPreset | 'custom';
+}
+
+/** AI-report + concern-threshold settings at a scope. Unset fields fall through to the broader scope. */
+export interface CoachReportSettings {
+  ai_report_window_days?: CoachWindow;
+  ai_report_focus?: CoachFocus;
+  concern_carb_cutoff?: number;
+  concern_sodium_cutoff?: number;
+  concern_fluid_cutoff?: number;
+  hyponatremia_fluid_min?: number;
+  hyponatremia_sodium_max?: number;
+}
+
+/** A registered webhook endpoint (secret only returned at registration). */
+export interface CoachWebhookEndpoint {
+  id: string;
+  coach_uid: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  created_at: number;
+  updated_at: number;
+  fail_count: number;
+  disabled_at?: number;
+}
+
+/** The registration response — carries the signing secret ONCE. */
+export interface CoachWebhookWithSecret extends CoachWebhookEndpoint {
+  secret: string;
+}
