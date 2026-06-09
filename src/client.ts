@@ -14,7 +14,8 @@ import type {
   WebhookFull,
   Organization,
   GearItem,
-  PaginatedResponse,
+  AthleteListResponse,
+  ActivityListResponse,
 } from './types';
 import {
   SaturdayError,
@@ -217,14 +218,6 @@ class NutritionResource {
   }> {
     return this.client.request('POST', '/v1/nutrition/calculate/batch', { scenarios });
   }
-
-  /** Compare prescriptions across different scenarios. */
-  async compare(scenarios: NutritionCalculateRequest[]): Promise<{
-    scenarios: NutritionCalculateResponse[];
-    comparison: { carb_range: string; sodium_range: string; fluid_range: string };
-  }> {
-    return this.client.request('POST', '/v1/nutrition/calculate/compare', { scenarios });
-  }
 }
 
 class AthletesResource {
@@ -238,10 +231,10 @@ class AthletesResource {
     return this.client.request('GET', `/v1/athletes/${athleteId}`);
   }
 
-  async list(params?: { limit?: number; offset?: number; search?: string }): Promise<PaginatedResponse<Athlete>> {
+  async list(params?: { limit?: number; cursor?: string; search?: string }): Promise<AthleteListResponse> {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
-    if (params?.offset) query.set('offset', String(params.offset));
+    if (params?.cursor) query.set('cursor', params.cursor);
     if (params?.search) query.set('search', params.search);
     const qs = query.toString();
     return this.client.request('GET', `/v1/athletes${qs ? '?' + qs : ''}`);
@@ -289,11 +282,11 @@ class ActivitiesResource {
     return this.client.request('GET', `/v1/athletes/${athleteId}/activities/${activityId}`);
   }
 
-  async list(athleteId: string, params?: { limit?: number; offset?: number; activity_type?: string }): Promise<PaginatedResponse<Activity>> {
+  async list(athleteId: string, params?: { limit?: number; cursor?: string; type?: string }): Promise<ActivityListResponse> {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
-    if (params?.offset) query.set('offset', String(params.offset));
-    if (params?.activity_type) query.set('activity_type', params.activity_type);
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.type) query.set('type', params.type);
     const qs = query.toString();
     return this.client.request('GET', `/v1/athletes/${athleteId}/activities${qs ? '?' + qs : ''}`);
   }
@@ -308,7 +301,7 @@ class ActivitiesResource {
 
   /** Calculate/recalculate a nutrition prescription for this activity. */
   async calculatePrescription(athleteId: string, activityId: string): Promise<NutritionCalculateResponse> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/prescription`);
+    return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/calculate`);
   }
 
   /** Get the stored prescription for an activity. */
@@ -318,11 +311,8 @@ class ActivitiesResource {
 
   /** Submit post-activity feedback on prescription quality. */
   async submitFeedback(athleteId: string, activityId: string, feedback: {
-    overall_rating: number;
-    carb_feedback?: 'too_little' | 'just_right' | 'too_much';
-    sodium_feedback?: 'too_little' | 'just_right' | 'too_much';
-    fluid_feedback?: 'too_little' | 'just_right' | 'too_much';
-    issues?: string[];
+    /** Overall prescription quality, 1 (poor) to 5 (excellent). */
+    rating: number;
     notes?: string;
   }): Promise<{ id: string; message: string }> {
     return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/feedback`, feedback);

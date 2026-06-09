@@ -42,4 +42,6 @@ export type {
   AIConversation,
   Webhook,
   Organization,
+  AthleteListResponse,
+  ActivityListResponse,
 } from './types';
