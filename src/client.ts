@@ -30,6 +30,7 @@ import type {
   CoachWebhookEndpoint,
   CoachWebhookWithSecret,
   CoachWebhookEvent,
+  OnboardingQuestionsResponse,
 } from './types';
 import {
   SaturdayError,
@@ -42,7 +43,7 @@ import {
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.3.0';
+const SDK_VERSION = '0.4.0';
 
 /**
  * Saturday Nutrition Intelligence API client.
@@ -91,6 +92,9 @@ export class Saturday {
   /** Knowledge base search. */
   readonly knowledge: KnowledgeResource;
 
+  /** Athlete-onboarding question schema (the headless collection mechanism). */
+  readonly onboarding: OnboardingResource;
+
   /**
    * Coach API — roster fueling reads + the coach's own alerting/report config
    * (Module 5). Requires a coach API key (`cp_live_`/`cp_test_`, passed as
@@ -116,6 +120,7 @@ export class Saturday {
     this.organizations = new OrganizationsResource(this);
     this.gear = new GearResource(this);
     this.knowledge = new KnowledgeResource(this);
+    this.onboarding = new OnboardingResource(this);
     this.coach = new CoachResource(this);
   }
 
@@ -496,6 +501,32 @@ class KnowledgeResource {
 
   async getArticle(articleId: string): Promise<any> {
     return this.client.request('GET', `/v1/knowledge/articles/${articleId}`);
+  }
+}
+
+/**
+ * Onboarding resource — the headless mechanism for collecting an athlete's
+ * fueling profile in your own UI. `questions()` returns the versioned schema
+ * (the same definitions the hosted page renders); render it natively and write
+ * answers via `athletes.updateSettings()` or athlete create/update. Exact
+ * numbers require a complete profile — every calculate response's `precision`
+ * object tells you what's still missing.
+ *
+ * **Attribution is required** when you render these questions in your UI — the
+ * schema response carries the attribution object, same contract as calculations.
+ *
+ * @example
+ * ```typescript
+ * const { questions } = await saturday.onboarding.questions();
+ * for (const q of questions) renderQuestion(q); // your UI
+ * ```
+ */
+class OnboardingResource {
+  constructor(private client: Saturday) {}
+
+  /** Fetch the versioned onboarding question schema. */
+  async questions(): Promise<OnboardingQuestionsResponse> {
+    return this.client.request('GET', '/v1/onboarding/questions');
   }
 }
 

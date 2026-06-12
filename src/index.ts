@@ -34,6 +34,15 @@ export type {
   NutritionCalculateRequest,
   NutritionCalculateResponse,
   SafetyMetadata,
+  // Graduated precision (API_OB)
+  Precision,
+  MissingField,
+  BandImpact,
+  OnboardingInvite,
+  // Onboarding (headless schema)
+  OnboardingQuestion,
+  OnboardingOption,
+  OnboardingQuestionsResponse,
   Athlete,
   CreateAthleteRequest,
   Activity,
