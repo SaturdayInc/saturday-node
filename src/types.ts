@@ -129,11 +129,116 @@ export interface NutritionCalculateResponse {
     required: boolean;
   };
 
+  /**
+   * Graduated precision (API_OB, 2026-06). Present on every tier once the gate
+   * is live. `profile_complete: false` means the response carries honest
+   * **bands** (`carb_range_g_per_hr` etc.) — never falsely exact, never wider
+   * than free-tier teaser ranges. `missing_fields` is sorted most-impactful-
+   * first (your collection roadmap), and `onboarding.url` is a durable,
+   * athlete-scoped link to the hosted onboarding page. See the Athlete
+   * Onboarding guide.
+   */
+  precision?: Precision;
+
   // Teaser tier only — upsell prompt
   subscription_cta?: {
     message: string;
     subscribe_url: string;
     features: string[];
+  };
+}
+
+/**
+ * The honesty object attached to every prescription response when the
+ * graduated-precision gate is on (API_OB).
+ */
+export interface Precision {
+  /** True → the response carries exact numbers; false → honest bands. */
+  profile_complete: boolean;
+  /**
+   * Unanswered fields, sorted most-impactful-first. Each entry names what
+   * answering it would narrow — build your collection UX directly from this.
+   * Omitted when the profile is complete.
+   */
+  missing_fields?: MissingField[];
+  /** Plain-language note naming the critical missing fields. */
+  message?: string;
+  /** Where the athlete answers the gaps. Omitted when the profile is complete. */
+  onboarding?: OnboardingInvite;
+}
+
+/** One unanswered profile/activity field and what answering it narrows. */
+export interface MissingField {
+  /** The field name to collect (e.g. `sweat_level`). */
+  field: string;
+  /** Safety-core fields are `required: true`; recommended fields `false`. */
+  required: boolean;
+  /** How much this one field's answer would narrow each output (per hour). */
+  band_impact: BandImpact;
+}
+
+/** A field's contribution to band width, per output, in per-hour units. */
+export interface BandImpact {
+  carb_g_per_hr: number;
+  sodium_mg_per_hr: number;
+  fluid_ml_per_hr: number;
+}
+
+/** Points the athlete at the paths to precision. */
+export interface OnboardingInvite {
+  /** Hosted onboarding page (`https://saturday.fit/onboard?ot=...`), athlete-scoped. */
+  url?: string;
+  /** Human-readable invite copy (includes the app-once path mention). */
+  message: string;
+}
+
+// --- Onboarding (headless schema) ---
+
+/** A single onboarding question from the versioned schema. */
+export interface OnboardingQuestion {
+  /** The field name the answer writes (e.g. `sweat_level`, `year_of_birth`). */
+  field: string;
+  /** Render hint: `single_select` | `multi_select` | `year_of_birth` | `weight`. */
+  type: 'single_select' | 'multi_select' | 'year_of_birth' | 'weight';
+  /** Safety-core questions are required; exactness needs all questions answered. */
+  required: boolean;
+  /** English question copy (the `l10n_key` resolves localized copy in your UI). */
+  title_en: string;
+  /** Localization key for `title_en`. */
+  l10n_key?: string;
+  /** The exact answer values Saturday stores (odd-point scales, not sliders). */
+  options?: OnboardingOption[];
+  /** Numeric inputs (`year_of_birth`, `weight`) carry a min/max bound. */
+  min?: number;
+  max?: number;
+}
+
+/** One selectable answer for a single/multi-select onboarding question. */
+export interface OnboardingOption {
+  /** The value written when chosen (string or number per the field). */
+  value: string | number;
+  /** English label. */
+  label_en: string;
+  /** Localization key for `label_en`. */
+  l10n_key?: string;
+  /** Multi-select questions may pre-check sensible defaults (e.g. `performance`). */
+  pre_checked?: boolean;
+}
+
+/**
+ * The `GET /v1/onboarding/questions` response — the versioned question schema,
+ * the single source of truth the hosted page also renders. **Attribution is
+ * required** when you render these questions in your own UI.
+ */
+export interface OnboardingQuestionsResponse {
+  /** Schema version (drives the schema-evolution grandfather promise). */
+  schema_version: string;
+  questions: OnboardingQuestion[];
+  attribution?: {
+    text: string;
+    logo_url: string;
+    link: string;
+    required: boolean;
   };
 }
 
