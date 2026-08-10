@@ -7,7 +7,10 @@ import type {
   Activity,
   CreateActivityRequest,
   AthleteSettings,
-  Product,
+  ProductCategory,
+  ProductLookupResponse,
+  ProductSearchResponse,
+  CuratedProductsResponse,
   AIConversation,
   AIMessage,
   Webhook,
@@ -349,27 +352,27 @@ class ActivitiesResource {
 class ProductsResource {
   constructor(private client: Saturday) {}
 
-  async getByBarcode(barcode: string): Promise<Product> {
-    return this.client.request('GET', `/v1/products/${barcode}`);
+  async getByBarcode(barcode: string, athleteId: string): Promise<ProductLookupResponse> {
+    const qs = new URLSearchParams({ athlete_id: athleteId });
+    return this.client.request('GET', `/v1/products/${barcode}?${qs}`);
   }
 
-  async search(query: string, params?: { category?: string; limit?: number }): Promise<{ products: Product[]; total: number }> {
-    const qs = new URLSearchParams({ q: query });
-    if (params?.category) qs.set('category', params.category);
-    if (params?.limit) qs.set('limit', String(params.limit));
+  async search(query: string, athleteId: string): Promise<ProductSearchResponse> {
+    const qs = new URLSearchParams({ q: query, athlete_id: athleteId });
     return this.client.request('GET', `/v1/products/search?${qs}`);
   }
 
-  async listCurated(params?: { category?: string; limit?: number }): Promise<{ products: Product[]; total: number }> {
-    const qs = new URLSearchParams();
-    if (params?.category) qs.set('category', params.category);
-    if (params?.limit) qs.set('limit', String(params.limit));
-    const qsStr = qs.toString();
-    return this.client.request('GET', `/v1/products/curated${qsStr ? '?' + qsStr : ''}`);
+  /** Pass `next_cursor` from the previous response to advance (10 per page). */
+  async listCurated(athleteId: string, cursor?: string): Promise<CuratedProductsResponse> {
+    const qs = new URLSearchParams({ athlete_id: athleteId });
+    if (cursor) qs.set('cursor', cursor);
+    return this.client.request('GET', `/v1/products/curated?${qs}`);
   }
 
-  async listCategories(): Promise<{ categories: Array<{ slug: string; name: string; product_count: number }> }> {
-    return this.client.request('GET', '/v1/products/categories');
+  /** The taxonomy is the free tier: every athlete gets the same answer. */
+  async listCategories(athleteId: string): Promise<{ categories: ProductCategory[] }> {
+    const qs = new URLSearchParams({ athlete_id: athleteId });
+    return this.client.request('GET', `/v1/products/categories?${qs}`);
   }
 }
 
