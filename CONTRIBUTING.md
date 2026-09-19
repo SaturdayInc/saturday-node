@@ -1,18 +1,16 @@
 # Contributing
 
-Thank you for your interest in contributing to the Saturday SDK.
+## Bug reports
 
-## Bug Reports
-
-Please file an issue on this repository with:
+File an issue on this repository with:
 - SDK version
-- Language/runtime version
+- Node.js and TypeScript versions
 - Minimal reproduction steps
-- Expected vs actual behavior
+- Expected and actual behavior
 
 ## Development
 
-Install dependencies, build the TypeScript sources, and run the isolated HTTP tests:
+Install dependencies, build the TypeScript sources, and run the tests:
 
 ```bash
 npm ci
@@ -20,8 +18,8 @@ npm run build
 npm test -- --runInBand
 ```
 
-Update `src/` against the current [API documentation](https://docs.saturday.fit/introduction). Add regression coverage in `test/` for behavior changes. Tests use mocked responses and do not require an API key.
+Update `src/` against the current [API documentation](https://docs.saturday.fit/introduction). Add regression coverage in `test/` for behavior changes. Tests use mocked responses and need no API key.
 
-## Code of Conduct
+## Code of conduct
 
-Be kind. Be constructive. We're building tools that help athletes stay safe.
+Be kind and constructive.
