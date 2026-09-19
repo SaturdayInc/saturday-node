@@ -964,7 +964,7 @@ export interface CoachConnectCharge {
   stripe_fees_cents: number;
   net_to_coach_cents: number;
   currency: string;
-  status: 'succeeded' | 'pending' | 'failed' | 'refunded' | 'disputed';
+  status: 'succeeded' | 'pending' | 'failed' | 'refunded' | 'disputed' | 'dispute_lost';
   refund_amount_cents?: number;
   captured_at: number;
   stripe_webhook_event_id: string;

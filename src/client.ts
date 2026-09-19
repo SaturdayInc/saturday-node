@@ -699,7 +699,7 @@ class CoachResource {
 
   // --- Billing (read-only; the key must carry billing:read) ---
 
-  /** The live seat picture. Pass `orgId` to read the coach's own organization as payer. */
+  /** The live seat picture. Pass `orgId` to read the coach's organization as payer. */
   async seatState(params?: { orgId?: string }): Promise<CoachSeatState> {
     const qs = params?.orgId ? `?org_id=${encodeURIComponent(params.orgId)}` : '';
     return this.client.request('GET', `/v1/coach/billing/seat-state${qs}`);
