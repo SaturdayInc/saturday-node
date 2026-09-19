@@ -49,6 +49,8 @@ import {
   ValidationError,
   NotFoundError,
 } from './errors';
+import { AIStreamError, streamAI } from './ai-stream';
+import type { AIStreamEvent, AIStreamOptions } from './ai-stream';
 
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
@@ -217,6 +219,16 @@ export class Saturday {
       code: 'max_retries_exceeded',
       message: 'Maximum retry attempts exceeded',
     });
+  }
+
+  /** @internal AI writes have no automatic retry, even on 429 or 5xx. */
+  streamRequest(path: string, body: unknown, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
+    return streamAI(`${this.config.baseUrl}${path}`, {
+      'Content-Type': 'application/json',
+      'User-Agent': `saturday-node/${SDK_VERSION}`,
+      'X-SDK-Version': SDK_VERSION,
+      Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
+    }, body, this.config.timeout, options, (status, detail, headers) => this.mapError(status, detail, headers));
   }
 
   private mapError(status: number, detail: any, headers: Headers): SaturdayError {
@@ -395,20 +407,27 @@ class ProductsResource {
 class AIResource {
   constructor(private client: Saturday) {}
 
-  /** Unsupported SSE response; use direct HTTP until https://github.com/SaturdayInc/saturday-node/issues/12 is resolved. */
+  /** @deprecated Use createConversationStream. This method fails locally without sending an AI request. */
   async createConversation(athleteId: string, initialMessage?: string): Promise<AIConversation> {
-    return this.client.request('POST', '/v1/ai/conversations', {
-      athlete_id: athleteId,
-      initial_message: initialMessage,
-    });
+    throw new AIStreamError('streaming_required', 'Use ai.createConversationStream(athleteId, message) and consume every event. No request was sent.');
   }
 
-  /** Unsupported SSE response; use direct HTTP until https://github.com/SaturdayInc/saturday-node/issues/12 is resolved. */
+  /** @deprecated Use sendMessageStream. This method fails locally without sending an AI request. */
   async sendMessage(convId: string, message: string): Promise<AIMessage> {
-    return this.client.request('POST', `/v1/ai/conversations/${convId}/messages`, { message });
+    throw new AIStreamError('streaming_required', 'Use ai.sendMessageStream(convId, message) and consume every event. No request was sent.');
   }
 
-  /** Get conversation history. */
+  /** Start a conversation and receive the existing SSE event stream, without retries. */
+  createConversationStream(athleteId: string, message: string, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
+    return this.client.streamRequest('/v1/ai/conversations', { athlete_id: athleteId, message }, options);
+  }
+
+  /** Send one message and receive all events, including warnings and server errors. */
+  sendMessageStream(convId: string, message: string, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
+    return this.client.streamRequest(`/v1/ai/conversations/${encodeURIComponent(convId)}/messages`, { message }, options);
+  }
+
+  /** Get stored JSON history. The limit argument is retained for compatibility but ignored by the server. */
   async getMessages(convId: string, params?: { limit?: number }): Promise<{ messages: AIMessage[] }> {
     const qs = params?.limit ? `?limit=${params.limit}` : '';
     return this.client.request('GET', `/v1/ai/conversations/${convId}/messages${qs}`);
@@ -424,7 +443,7 @@ class AIResource {
     return this.client.request('DELETE', `/v1/ai/conversations/${convId}`);
   }
 
-  /** List conversations for an athlete. */
+  /** List up to 50 conversations. The limit argument is retained for compatibility but ignored by the server. */
   async listConversations(athleteId: string, params?: { limit?: number }): Promise<{ conversations: AIConversation[] }> {
     const qs = params?.limit ? `?limit=${params.limit}` : '';
     return this.client.request('GET', `/v1/athletes/${athleteId}/ai/conversations${qs}`);
