@@ -44,7 +44,7 @@ Teaser responses and incomplete profiles return ranges. A `full` tier alone does
 ## Features
 
 - TypeScript resource types, with [known activity-prescription alignment gaps](https://github.com/SaturdayInc/saturday-node/issues/6)
-- Automatic retry with exponential backoff (429s and 5xx)
+- Automatic retry with exponential backoff for JSON operations; AI stream writes are never replayed
 - Typed errors (AuthenticationError, RateLimitError, ValidationError, NotFoundError)
 - API key and OAuth2 Bearer token authentication
 - Safety types prominently surfaced (`SafetyMetadata`, `not_instructions`)
@@ -70,7 +70,7 @@ const delegatedClient = new Saturday({
 | `saturday.athletes` | Athlete CRUD, settings, batch create, GDPR export |
 | `saturday.activities` | Activity CRUD, prescription calculation, feedback |
 | `saturday.products` | Product search, barcode lookup, curated list |
-| `saturday.ai` | Conversation metadata and history; see AI writes below |
+| `saturday.ai` | AI event streams plus JSON conversation metadata and history |
 | `saturday.webhooks` | Webhook registration and management |
 | `saturday.organizations` | Team/org management and member directories |
 | `saturday.gear` | Athlete gear inventory |
@@ -78,18 +78,38 @@ const delegatedClient = new Saturday({
 
 ## AI writes
 
-`ai.createConversation()` and `ai.sendMessage()` currently do not support the API's server-sent event (SSE) responses. Conversation creation also uses an outdated request field. Use direct HTTP for these two operations while [streaming support is being aligned](https://github.com/SaturdayInc/saturday-node/issues/12). The metadata and history read methods use JSON.
+Use `ai.createConversationStream(athleteId, message)` and `ai.sendMessageStream(conversationId, message)`. They return async generators of `{ event, data, rawData, id? }`, preserving unknown event names and JSON fields. The metadata/history read methods still return JSON.
 
-For a partner with AI access enabled, this request starts a conversation and prints the complete event stream, including safety warnings and errors:
+Compatibility change: the legacy `ai.createConversation()` and `ai.sendMessage()` signatures are retained but now reject locally with `AIStreamError` code `streaming_required`, before any HTTP request. They cannot return their old metadata/message promises from the actual SSE wire response. Migrate to the explicit stream methods; no timestamps or metadata are invented.
 
-```bash
-curl --no-buffer --fail-with-body https://api.saturday.fit/v1/ai/conversations \
-  -H "Authorization: Bearer $SATURDAY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"athlete_id":"YOUR_ATHLETE_ID","message":"Help me review my fueling plan"}'
+```typescript
+import Saturday, { AIStreamError } from '@saturdayinc/sdk';
+
+const client = new Saturday({ apiKey: 'sk_live_...' });
+const controller = new AbortController();
+try {
+  for await (const event of client.ai.createConversationStream(
+    'YOUR_ATHLETE_ID', 'Help me review my fueling plan',
+    { signal: controller.signal, timeout: 30000 },
+  )) {
+    // Keep safety_warning, error, tool/action and unknown events, not only text.
+    console.log(event.event, event.data);
+  }
+} catch (error) {
+  if (error instanceof AIStreamError) console.error(error.error.code, error.event);
+  throw error; // No automatic retry: the server may already have accepted the write.
+}
 ```
 
-The first `message_start` event supplies `conversation_id`. Send subsequent messages to `POST /v1/ai/conversations/{conversation_id}/messages` with a `message` field and consume the same SSE format. Do not parse a successful stream as JSON or discard `safety_warning` and `error` events.
+The `message_start` event supplies `data.conversation_id`. Current names include `text_delta`, `safety_warning`, `error`, `tool_call`, `tool_result`, `action`, `replay` and `message_end`. `data` is `unknown`: narrow it before accessing fields. `rawData` retains the original SSE data text. `message_end` is not a success verdict: server error events are yielded, then iteration raises `stream_error` after the response finishes. Warnings, including generation-halted safety warnings, must remain visible even if no exception is raised.
+
+Each stream POST is attempted exactly once, including HTTP 429/5xx, connection errors, parse failures, cancellation and premature EOF. `maxRetries` does not apply. Malformed JSON/UTF-8 raises `malformed_stream`; missing final framing or `message_end` raises `incomplete_stream`. Preserve already received events as partial output, not a complete answer. These writes have no idempotency key; inspect conversation state before deciding whether to submit another message.
+
+Redirects are refused with `AIStreamError` code `redirect`, so the SDK never forwards the POST to another URL. Connection failures use `connection_error`; HTTP failures retain the usual typed Saturday errors and parsed server details.
+
+Persist the received events if you need an exact record. Stored conversation history is not a guaranteed replay of streamed assistant output.
+
+The timeout is a total deadline in milliseconds, covering headers and the entire body; it defaults to the client's timeout. An `AbortSignal` cancels a pending read. Breaking a `for await` loop closes the response and releases its reader. Always finish or close an iterator; abandoning it without either leaves cleanup to the deadline. Cancellation cannot undo inference already accepted by the server. No reconnect is triggered by an SSE `retry` or `replay` field/event.
 
 ## Documentation
 

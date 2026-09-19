@@ -29,6 +29,8 @@
 
 export { Saturday as default } from './client';
 export { Saturday } from './client';
+export { AIStreamError } from './ai-stream';
+export type { AIStreamEvent, AIStreamOptions } from './ai-stream';
 export { SaturdayError, AuthenticationError, RateLimitError, ValidationError, NotFoundError } from './errors';
 export type {
   SaturdayConfig,
