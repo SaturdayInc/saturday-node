@@ -18,9 +18,10 @@
  *   thermal_stress_level: 7,
  * });
  *
- * // Safety metadata is ALWAYS included — athlete safety cannot be paywalled
+ * // Safety metadata is included on every tier.
  * console.log(prescription.safety.warnings);
- * console.log(`Carbs: ${prescription.carb_g_per_hr} g/hr`);
+ * const carbs = prescription.carb_range_g_per_hr ?? prescription.carb_g_per_hr ?? 0;
+ * console.log(`Carbs: ${carbs} g/hr`);
  * ```
  *
  * @packageDocumentation

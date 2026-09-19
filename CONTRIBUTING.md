@@ -12,8 +12,15 @@ Please file an issue on this repository with:
 
 ## Development
 
-This SDK is generated from Saturday's OpenAPI specification and polished for production use.
-See `REGENERATION.md` in the root SDK directory for the update workflow.
+Install dependencies, build the TypeScript sources, and run the isolated HTTP tests:
+
+```bash
+npm ci
+npm run build
+npm test -- --runInBand
+```
+
+Update `src/` against the current [API documentation](https://docs.saturday.fit/introduction). Add regression coverage in `test/` for behavior changes. Tests use mocked responses and do not require an API key.
 
 ## Code of Conduct
 

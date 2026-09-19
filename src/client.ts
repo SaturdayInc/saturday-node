@@ -110,7 +110,7 @@ export class Saturday {
       apiKey: config.apiKey,
       baseUrl: config.baseUrl || DEFAULT_BASE_URL,
       timeout: config.timeout || DEFAULT_TIMEOUT,
-      maxRetries: config.maxRetries || DEFAULT_MAX_RETRIES,
+      maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       bearerToken: config.bearerToken,
     };
 
@@ -131,7 +131,7 @@ export class Saturday {
    * Make an authenticated API request with retry logic.
    * Retries on 429 (rate limit) and 5xx (server errors) with exponential backoff.
    */
-  async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async request<T>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<T> {
     const url = `${this.config.baseUrl}${path}`;
     let lastError: SaturdayError | undefined;
 
@@ -170,6 +170,7 @@ export class Saturday {
 
         if (response.ok) {
           if (response.status === 204) return undefined as T;
+          if (responseType === 'arrayBuffer') return await response.arrayBuffer() as T;
           return await response.json() as T;
         }
 
@@ -379,7 +380,7 @@ class ProductsResource {
 class AIResource {
   constructor(private client: Saturday) {}
 
-  /** Start a new AI coaching conversation for an athlete. */
+  /** Unsupported SSE response; use direct HTTP until https://github.com/SaturdayInc/saturday-node/issues/12 is resolved. */
   async createConversation(athleteId: string, initialMessage?: string): Promise<AIConversation> {
     return this.client.request('POST', '/v1/ai/conversations', {
       athlete_id: athleteId,
@@ -387,7 +388,7 @@ class AIResource {
     });
   }
 
-  /** Send a message and receive the AI response (non-streaming). */
+  /** Unsupported SSE response; use direct HTTP until https://github.com/SaturdayInc/saturday-node/issues/12 is resolved. */
   async sendMessage(convId: string, message: string): Promise<AIMessage> {
     return this.client.request('POST', `/v1/ai/conversations/${convId}/messages`, { message });
   }
@@ -586,7 +587,7 @@ class CoachResource {
     const q = new URLSearchParams({ format: 'pdf' });
     if (params?.window) q.set('window', String(params.window));
     if (params?.focus) q.set('focus', params.focus);
-    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/report?${q}`);
+    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/report?${q}`, undefined, 'arrayBuffer');
   }
 
   /** Drill into one session by activity id (planned-vs-actual + markers). */
