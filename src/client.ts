@@ -166,8 +166,6 @@ export class Saturday {
           signal: controller.signal,
         });
 
-        clearTimeout(timeoutId);
-
         if (response.ok) {
           if (response.status === 204) return undefined as T;
           if (responseType === 'arrayBuffer') return await response.arrayBuffer() as T;
@@ -175,9 +173,10 @@ export class Saturday {
         }
 
         // Parse error response
-        const errorBody: any = await response.json().catch(() => ({
-          error: { type: 'api_error', code: 'unknown', message: 'Unknown error' }
-        }));
+        const errorBody: any = await response.json().catch((error: unknown) => {
+          if ((error as Error)?.name === 'AbortError') throw error;
+          return { error: { type: 'api_error', code: 'unknown', message: 'Unknown error' } };
+        });
         const errorDetail = errorBody.error || errorBody;
 
         // Map to typed errors
@@ -191,7 +190,6 @@ export class Saturday {
 
         throw error;
       } catch (e) {
-        clearTimeout(timeoutId);
         if (e instanceof SaturdayError) throw e;
         if ((e as Error).name === 'AbortError') {
           throw new SaturdayError(0, {
@@ -201,6 +199,8 @@ export class Saturday {
           });
         }
         throw e;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
