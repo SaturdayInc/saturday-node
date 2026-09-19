@@ -1,5 +1,6 @@
 import { SaturdayError } from './errors';
 import type { ReadableStreamDefaultReader } from 'node:stream/web';
+import { performance } from 'node:perf_hooks';
 
 /** A wire event, including future event names and unmodified JSON fields. */
 export interface AIStreamEvent {
@@ -77,6 +78,17 @@ class EventParser {
   }
 }
 
+function* lineBytes(bytes: Uint8Array): Generator<Uint8Array> {
+  let start = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] === 10 || bytes[i] === 13) {
+      yield bytes.subarray(start, i + 1);
+      start = i + 1;
+    }
+  }
+  if (start < bytes.length) yield bytes.subarray(start);
+}
+
 /** @internal Single-attempt POST transport, separate from JSON request retries. */
 export async function* streamAI(
   url: string,
@@ -88,6 +100,7 @@ export async function* streamAI(
 ): AsyncGenerator<AIStreamEvent> {
   const timeout = options.timeout ?? defaultTimeout;
   if (!Number.isFinite(timeout) || timeout <= 0) throw new RangeError('AI stream timeout must be a positive finite number.');
+  const deadline = performance.now() + timeout;
   const controller = new AbortController();
   let response: Response | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
@@ -116,17 +129,27 @@ export async function* streamAI(
   let timedOut = false;
   const timer = setTimeout(() => { timedOut = true; abort(); }, timeout);
   const checkAbort = () => {
+    if (performance.now() >= deadline) { timedOut = true; abort(); }
     if (controller.signal.aborted) throw new AIStreamError('cancelled', 'AI stream stopped.');
   };
+  const transport = async <T>(operation: () => Promise<T>): Promise<T> => {
+    try { return await operation(); } catch {
+      throw new AIStreamError('connection_error', 'AI stream connection failed. The request may have been accepted; it was not replayed.');
+    }
+  };
+  let callerThrew = false;
   try {
-    response = await fetch(url, { method: 'POST', redirect: 'manual', headers: { ...headers, Accept: 'text/event-stream' }, body: JSON.stringify(body), signal: controller.signal });
+    checkAbort();
+    response = await transport(() => fetch(url, { method: 'POST', redirect: 'manual', headers: { ...headers, Accept: 'text/event-stream' }, body: JSON.stringify(body), signal: controller.signal }));
+    checkAbort();
     if (response.status >= 300 && response.status < 400) {
       throw new AIStreamError('redirect', 'AI request was redirected. It was not forwarded or replayed.');
     }
     if (!response.ok) {
       let detail: any;
-      try { detail = await response.json(); } catch (error) {
-        if (controller.signal.aborted) throw error;
+      const errorBody = await transport(() => response!.text());
+      checkAbort();
+      try { detail = JSON.parse(errorBody); } catch {
         detail = { code: 'unknown', message: 'AI request failed with a non-JSON error response.' };
       }
       detail = detail?.error ?? detail;
@@ -146,23 +169,28 @@ export async function* streamAI(
     let serverError: AIStreamEvent | undefined;
     for (;;) {
       checkAbort();
-      const { value, done } = await reader.read();
-      let text: string;
-      try { text = done ? decoder.decode() : decoder.decode(value, { stream: true }); } catch {
-        throw new AIStreamError('malformed_stream', 'AI stream contains invalid or incomplete UTF-8. The request was not replayed.');
-      }
-      for (const event of parser.push(text)) {
-        checkAbort();
-        if (event.event === 'message_start' || event.event === 'message_end') {
-          const id = (event.data as { conversation_id?: unknown } | null)?.conversation_id;
-          if (typeof id !== 'string' || !id || (event.event === 'message_end' && id !== conversationId)) {
-            throw new AIStreamError('malformed_stream', 'AI stream has an invalid conversation boundary. The request was not replayed.', event);
-          }
-          if (event.event === 'message_start') conversationId = id;
+      const { value, done } = await transport(() => reader!.read());
+      // Decode line by line so later corrupt bytes cannot erase prior complete events.
+      for (const bytes of done ? [undefined] : lineBytes(value)) {
+        let text: string;
+        try { text = decoder.decode(bytes, { stream: !done }); } catch {
+          throw new AIStreamError('malformed_stream', 'AI stream contains invalid or incomplete UTF-8. The request was not replayed.');
         }
-        if (event.event === 'error') serverError = event;
-        if (event.event === 'message_end') ended = true;
-        yield event;
+        for (const event of parser.push(text)) {
+          checkAbort();
+          if (event.event === 'message_start' || event.event === 'message_end') {
+            const id = (event.data as { conversation_id?: unknown } | null)?.conversation_id;
+            if (typeof id !== 'string' || !id ||
+                (event.event === 'message_start' && conversationId !== undefined) ||
+                (event.event === 'message_end' && (ended || id !== conversationId))) {
+              throw new AIStreamError('malformed_stream', 'AI stream has an invalid conversation boundary. The request was not replayed.', event);
+            }
+            if (event.event === 'message_start') conversationId = id;
+          }
+          if (event.event === 'error') serverError = event;
+          if (event.event === 'message_end') ended = true;
+          try { yield event; } catch (error) { callerThrew = true; throw error; }
+        }
       }
       if (done) break;
     }
@@ -171,10 +199,10 @@ export async function* streamAI(
     parser.finish();
     if (!ended) throw new AIStreamError('incomplete_stream', 'AI stream ended without message_end. The request was not replayed.');
   } catch (error) {
+    if (callerThrew) throw error;
     if (timedOut) throw new AIStreamError('timeout', `AI stream exceeded its ${timeout}ms deadline. The request may have been accepted; it was not replayed.`);
     if (options.signal?.aborted) throw new AIStreamError('cancelled', 'AI stream was cancelled. The request may have been accepted; it was not replayed.');
-    if (error instanceof SaturdayError) throw error;
-    throw new AIStreamError('connection_error', 'AI stream connection failed. The request may have been accepted; it was not replayed.');
+    throw error;
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', abort);

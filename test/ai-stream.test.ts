@@ -66,6 +66,9 @@ test.each([
   ['non-JSON number', start + 'event: text_delta\ndata: {"delta":NaN}\n\n', 'malformed_stream'],
   ['end without start', end, 'malformed_stream'],
   ['wrong conversation end', start + frame('message_end', { conversation_id: 'other' }), 'malformed_stream'],
+  ['duplicate start', start + start + end, 'malformed_stream'],
+  ['duplicate end', start + end + end, 'malformed_stream'],
+  ['reopened conversation', start + end + frame('message_start', { conversation_id: 'two' }) + frame('text_delta', { delta: 'partial' }), 'malformed_stream'],
 ])('rejects %s without replay', async (_name, body, code) => {
   mockStream(Buffer.from(body));
   await expect(collect((client().ai as any).sendMessageStream('conv', 'hello'))).rejects.toMatchObject({ error: { code } });
@@ -86,6 +89,14 @@ test.each([true, false])('exposes error events and never reports success, with m
   await expect(read()).rejects.toMatchObject({ error: { code: 'stream_error' }, event: { data: { message: 'generation failed', future: 1 } } });
   expect(seen.map(e => e.event)).toContain('safety_warning');
   expect(global.fetch).toHaveBeenCalledTimes(1);
+});
+
+test('still preserves warnings, unknown events and errors after message_end', async () => {
+  mockStream(Buffer.from(start + end + frame('safety_warning', { message: 'Keep visible' }) + frame('future_event', { flag: true }) + frame('error', { message: 'late failure' })));
+  const seen: string[] = [];
+  const read = async () => { for await (const event of client().ai.sendMessageStream('conv', 'hello')) seen.push(event.event); };
+  await expect(read()).rejects.toMatchObject({ error: { code: 'stream_error' } });
+  expect(seen).toEqual(['message_start', 'message_end', 'safety_warning', 'future_event', 'error']);
 });
 
 test.each([400, 401, 429, 503])('keeps HTTP %s details and never retries a write', async status => {
@@ -124,12 +135,30 @@ test('delivers a warning before a later malformed event in the same chunk', asyn
   expect(seen).toEqual(['message_start', 'safety_warning']);
 });
 
+test('delivers complete warnings before invalid UTF8 in the same chunk', async () => {
+  mockStream(Buffer.concat([Buffer.from(start + frame('safety_warning', { message: 'Keep visible' })), Buffer.from([0xff])]));
+  const seen: string[] = [];
+  const read = async () => { for await (const event of client().ai.sendMessageStream('conv', 'hello')) seen.push(event.event); };
+  await expect(read()).rejects.toMatchObject({ error: { code: 'malformed_stream' } });
+  expect(seen).toEqual(['message_start', 'safety_warning']);
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+});
+
 test('deadline still applies while the consumer pauses with buffered events', async () => {
   const body = mockStream(Buffer.from(start + end));
   const stream = client().ai.sendMessageStream('conv', 'hello', { timeout: 10 });
   await stream.next();
   await new Promise(resolve => setTimeout(resolve, 25));
   expect(body.locked).toBe(false);
+  await expect(stream.next()).rejects.toMatchObject({ error: { code: 'timeout' } });
+});
+
+test('a synchronous consumer pause cannot bypass the absolute deadline', async () => {
+  mockStream(Buffer.from(start + end));
+  const stream = client().ai.sendMessageStream('conv', 'hello', { timeout: 20 });
+  await stream.next();
+  const until = Date.now() + 60;
+  while (Date.now() < until) { /* Deliberately prevent timer callbacks. */ }
   await expect(stream.next()).rejects.toMatchObject({ error: { code: 'timeout' } });
 });
 
@@ -145,6 +174,16 @@ test('an already aborted call sends no request', async () => {
   const abort = new AbortController(); abort.abort();
   await expect(collect((client().ai as any).sendMessageStream('conv', 'hello', { signal: abort.signal }))).rejects.toMatchObject({ error: { code: 'cancelled' } });
   expect(global.fetch).not.toHaveBeenCalled();
+});
+
+test('an explicit iterator throw preserves the caller error and closes the body', async () => {
+  const body = mockStream(Buffer.from(start + end));
+  const stream = client().ai.sendMessageStream('conv', 'hello');
+  await stream.next();
+  const error = new Error('caller failure');
+  await expect(stream.throw(error)).rejects.toBe(error);
+  expect(body.locked).toBe(false);
+  expect(global.fetch).toHaveBeenCalledTimes(1);
 });
 
 test('the exact AI README example consumes warning and unknown events', async () => {
