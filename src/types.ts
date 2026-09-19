@@ -784,3 +784,225 @@ export interface CoachWebhookEndpoint {
 export interface CoachWebhookWithSecret extends CoachWebhookEndpoint {
   secret: string;
 }
+
+// --- Coach billing (read-only; a key carrying billing:read) ---
+//
+// The figures the portal's Billing pages show, for the coach who minted the key.
+// Every amount is an integer number of cents in the row's `currency`; every
+// timestamp is Unix milliseconds. There is no billing write scope.
+
+/** Which ledger directions a page carries. */
+export type CoachLedgerView = 'all' | 'expenditures' | 'inflows';
+
+/** The live seat picture from the roster header. */
+export interface CoachSeatState {
+  tier: string;
+  included_total: number;
+  included_used: number;
+  coach_paid_count: number;
+  next_athlete_price_cents: number;
+  volume_tier: number;
+  volume_discount_pct: number;
+  total_monthly_cents: number;
+  is_fair_use: boolean;
+}
+
+/** One row of the coach's financial ledger. */
+export interface CoachLedgerEntry {
+  id: string;
+  entry_id: string;
+  user_uid: string;
+  direction: 'charge' | 'receipt' | 'refund' | 'covered_by';
+  amount_cents: number;
+  currency: string;
+  category: string;
+  counterparty_type: string;
+  counterparty_id?: string;
+  counterparty_display_name: string;
+  source_type: string;
+  source_reference_id: string;
+  description: string;
+  occurred_at: number;
+  created_at: number;
+  period_start?: number;
+  period_end?: number;
+  receipt_url?: string;
+  metadata?: Record<string, unknown>;
+  related_relationship_id?: string;
+  related_arrangement_id?: string;
+  tags?: string[];
+  charge_group_id?: string;
+  settlement_status?: string;
+}
+
+/** One page of ledger entries; `next_cursor` is present only when another page exists. */
+export interface CoachLedgerPage {
+  entries: CoachLedgerEntry[];
+  next_cursor?: string;
+}
+
+/** One platform tier subscription. */
+export interface CoachTierSubscription {
+  subscription_id: string;
+  subscriber_type: string;
+  subscriber_id: string;
+  tier: string;
+  channel: string;
+  source_sku: string;
+  stripe_subscription_id?: string;
+  iap_original_transaction_id?: string;
+  status: string;
+  trial_ends_at?: number;
+  current_period_start: number;
+  current_period_end: number;
+  amount_cents: number;
+  discount_code?: string;
+  lifetime_discount_applied: boolean;
+  auto_renew: boolean;
+  created_at: number;
+  updated_at: number;
+  canceled_at?: number;
+  grace_until?: number;
+  source_purchase_doc_id?: string;
+  purchased_assistant_seats?: number;
+}
+
+/** Whether any source currently grants the coach access, and which. */
+export interface CoachSubscriptionStatus {
+  has_purchase: boolean;
+  has_tier_sub: boolean;
+  is_active: boolean;
+  source?: string;
+  product_id?: string;
+  tier_id?: string;
+  expiry_date_ms?: number;
+  is_lifetime?: boolean;
+  has_coverage?: boolean;
+}
+
+/** The coach's active tier subscriptions and access status. */
+export interface CoachTierStatus {
+  subscriptions: CoachTierSubscription[];
+  count: number;
+  status: CoachSubscriptionStatus;
+}
+
+/** The coach's Stripe Connect account record. */
+export interface CoachConnectAccount {
+  coach_uid: string;
+  stripe_account_id: string;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  details_submitted: boolean;
+  card_payments_status?: string;
+  transfers_status?: string;
+  requirements_currently_due_count: number;
+  country: string;
+  default_currency: string;
+  capabilities?: Record<string, string>;
+  onboarded_at?: number;
+  disabled_reason?: string;
+  closed?: boolean;
+  updated_at: number;
+}
+
+/** Connect account status plus month and lifetime totals; `connect_account` is null without an account. */
+export interface CoachConnectSummary {
+  connect_account: CoachConnectAccount | null;
+  is_onboarded: boolean;
+  active_arrangements: number;
+  month_charges_cents: number;
+  month_fees_cents: number;
+  month_net_cents: number;
+  lifetime_charges_cents: number;
+  lifetime_fees_cents: number;
+  lifetime_net_cents: number;
+  platform_fee_bps: number;
+}
+
+/** Fee totals across the coach's settled charges. */
+export interface CoachEarningsSummary {
+  coach_uid: string;
+  total_gross_cents: number;
+  total_stripe_fee_cents: number;
+  total_platform_fee_cents: number;
+  total_net_cents: number;
+  charge_count: number;
+  settled_count: number;
+  settling_count: number;
+  currency: string;
+}
+
+/** The gross-to-net decomposition of one charge. */
+export interface CoachChargeBreakdown {
+  charge_group_id: string;
+  gross_amount_cents: number;
+  stripe_fees_cents: number;
+  platform_fee_cents: number;
+  net_to_coach_cents: number;
+  currency: string;
+  settlement_status: string;
+  occurred_at: number;
+  athlete_uid?: string;
+  athlete_display_name?: string;
+}
+
+/** The earnings roll-up plus recent breakdowns (`breakdowns` is `[]` when there are none). */
+export interface CoachConnectEarnings {
+  summary: CoachEarningsSummary;
+  breakdowns: CoachChargeBreakdown[];
+}
+
+/** One Stripe Connect charge with its fee decomposition. */
+export interface CoachConnectCharge {
+  charge_id: string;
+  arrangement_id?: string;
+  coach_uid: string;
+  athlete_uid: string;
+  amount_cents: number;
+  platform_fee_cents: number;
+  stripe_fees_cents: number;
+  net_to_coach_cents: number;
+  currency: string;
+  status: 'succeeded' | 'pending' | 'failed' | 'refunded' | 'disputed';
+  refund_amount_cents?: number;
+  captured_at: number;
+  stripe_webhook_event_id: string;
+}
+
+/** One page of Connect charges; `total` counts this page. */
+export interface CoachConnectChargesPage {
+  charges: CoachConnectCharge[];
+  total: number;
+  next_cursor?: string;
+}
+
+/** A coach-to-athlete billing arrangement. */
+export interface CoachBillingArrangement {
+  arrangement_id: string;
+  coach_uid: string;
+  athlete_uid: string;
+  stripe_connect_account_id: string;
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
+  billing_mode: 'recurring' | 'one_time' | 'invoice';
+  amount_cents: number;
+  currency: string;
+  interval?: string;
+  trial_days?: number;
+  promo_code?: string;
+  refund_policy?: string;
+  status: 'active' | 'paused' | 'canceled' | 'past_due';
+  platform_fee_bps: number;
+  terms_text?: string;
+  created_at: number;
+  activated_at?: number;
+  paused_at?: number;
+  canceled_at?: number;
+}
+
+/** Every billing arrangement the coach has configured. */
+export interface CoachConnectArrangements {
+  arrangements: CoachBillingArrangement[];
+  total: number;
+}

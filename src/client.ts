@@ -38,6 +38,14 @@ import type {
   AlertRulesDoc,
   CoachReportSettings,
   CoachWebhookEndpoint,
+  CoachLedgerView,
+  CoachSeatState,
+  CoachLedgerPage,
+  CoachTierStatus,
+  CoachConnectSummary,
+  CoachConnectEarnings,
+  CoachConnectChargesPage,
+  CoachConnectArrangements,
   CoachWebhookWithSecret,
   CoachWebhookEvent,
   OnboardingQuestionsResponse,
@@ -57,7 +65,7 @@ const DEFAULT_TIMEOUT = 30000;
 // AI turns run up to the API's 60 s request cap, so an unconfigured stream deadline is longer than the JSON default.
 const DEFAULT_STREAM_TIMEOUT = 60000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.6.1';
+const SDK_VERSION = '0.7.0';
 
 /**
  * Saturday Nutrition Intelligence API client.
@@ -687,6 +695,53 @@ class CoachResource {
   /** Re-enable a previously disabled webhook endpoint. */
   async enableWebhook(id: string): Promise<{ ok: boolean; active: boolean }> {
     return this.client.request('POST', `/v1/coach/webhooks/${id}/enable`);
+  }
+
+  // --- Billing (read-only; the key must carry billing:read) ---
+
+  /** The live seat picture. Pass `orgId` to read the coach's own organization as payer. */
+  async seatState(params?: { orgId?: string }): Promise<CoachSeatState> {
+    const qs = params?.orgId ? `?org_id=${encodeURIComponent(params.orgId)}` : '';
+    return this.client.request('GET', `/v1/coach/billing/seat-state${qs}`);
+  }
+
+  /** One page of the coach's financial ledger, newest first. Pass `next_cursor` back as `cursor`. */
+  async ledger(params?: { view?: CoachLedgerView; limit?: number; cursor?: string }): Promise<CoachLedgerPage> {
+    const q = new URLSearchParams();
+    if (params?.view) q.set('view', params.view);
+    if (params?.limit !== undefined) q.set('limit', String(params.limit));
+    if (params?.cursor) q.set('cursor', params.cursor);
+    const qs = q.toString();
+    return this.client.request('GET', `/v1/coach/billing/ledger${qs ? '?' + qs : ''}`);
+  }
+
+  /** The coach's active tier subscriptions and access status. */
+  async tierStatus(): Promise<CoachTierStatus> {
+    return this.client.request('GET', '/v1/coach/billing/tier-status');
+  }
+
+  /** Stripe Connect account status plus this month's and lifetime totals. */
+  async connectSummary(): Promise<CoachConnectSummary> {
+    return this.client.request('GET', '/v1/coach/billing/connect/summary');
+  }
+
+  /** Earnings totals across settled charges plus the most recent per-charge breakdowns. */
+  async connectEarnings(): Promise<CoachConnectEarnings> {
+    return this.client.request('GET', '/v1/coach/billing/connect/earnings');
+  }
+
+  /** One page of Connect charges, newest first. Pass `next_cursor` back as `cursor`. */
+  async connectTransactions(params?: { limit?: number; cursor?: string }): Promise<CoachConnectChargesPage> {
+    const q = new URLSearchParams();
+    if (params?.limit !== undefined) q.set('limit', String(params.limit));
+    if (params?.cursor) q.set('cursor', params.cursor);
+    const qs = q.toString();
+    return this.client.request('GET', `/v1/coach/billing/connect/transactions${qs ? '?' + qs : ''}`);
+  }
+
+  /** Every billing arrangement the coach has configured, in any status. */
+  async connectArrangements(): Promise<CoachConnectArrangements> {
+    return this.client.request('GET', '/v1/coach/billing/connect/arrangements');
   }
 }
 
