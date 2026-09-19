@@ -1,7 +1,7 @@
 {
   "_meta": {
     "backend_sha": "e11d52f7e491e02e0fb7a68a267978e8a1a3d803",
-    "source": "pkg/api Go JSON types and HandleGetActivityPrescription; synthetic values, no API calls"
+    "source": "pkg/api Go JSON types and stored-prescription/list/settings HTTP handlers; synthetic values, no API calls"
   },
   "activity": {
     "id": "act_1",
@@ -507,6 +507,70 @@
     "failed": 0,
     "request_id": "req_6"
   },
+  "list_activities_empty": {
+    "activities": [],
+    "pagination": {
+      "total": 0,
+      "has_more": false
+    },
+    "request_id": ""
+  },
+  "list_activities_next": {
+    "activities": [
+      {
+        "id": "act_1",
+        "athlete_id": "ath_1",
+        "partner_id": "partner_1",
+        "type": "bike",
+        "duration_min": 120,
+        "external_id": "partner-act",
+        "prescription": {
+          "total_carb_g": 120,
+          "total_sodium_mg": 1200,
+          "total_fluid_ml": 1400,
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 600,
+          "fluid_ml_per_hr": 700,
+          "calculated_at": 1700000000
+        },
+        "created_at": 1700000000,
+        "updated_at": 1700000000
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "has_more": true,
+      "next_cursor": "1700000000"
+    },
+    "request_id": ""
+  },
+  "list_athletes_empty": {
+    "athletes": [],
+    "pagination": {
+      "total": 0,
+      "has_more": false
+    },
+    "request_id": ""
+  },
+  "list_athletes_next": {
+    "athletes": [
+      {
+        "id": "ath_1",
+        "partner_id": "partner_1",
+        "name": "Fixture Athlete",
+        "settings": {},
+        "created_at": 1700000000,
+        "updated_at": 1700000000,
+        "profile_complete": false
+      }
+    ],
+    "pagination": {
+      "total": 1,
+      "has_more": true,
+      "next_cursor": "1700000000"
+    },
+    "request_id": ""
+  },
   "nutrition_banded": {
     "tier": "full",
     "carb_range_g_per_hr": "50-70",
@@ -657,6 +721,29 @@
       "link": "https://saturday.fit",
       "required": false
     }
+  },
+  "settings_empty": {},
+  "settings_full": {
+    "sweat_level": 5,
+    "saltiness": 5,
+    "satiety_level": 5,
+    "fitness_level": 5,
+    "carb_experience": "range_40_60",
+    "usual_carb_consumption": "range_60_80",
+    "carb_upper_limit_override": 90,
+    "muscle_cramps": true,
+    "gut_distress": true,
+    "performance": true,
+    "hunger": true,
+    "heat_tolerance": true,
+    "faintness": true,
+    "drinking_resistance": true,
+    "thirst": true,
+    "concerns_answered": true
+  },
+  "settings_updated": {
+    "sweat_level": 5,
+    "concerns_answered": true
   },
   "stored_banded": {
     "prescription": {

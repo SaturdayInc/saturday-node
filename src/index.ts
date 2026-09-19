@@ -58,6 +58,7 @@ export type {
   OnboardingOption,
   OnboardingQuestionsResponse,
   Athlete,
+  AthleteSettings,
   CreateAthleteRequest,
   Activity,
   CreateActivityRequest,
@@ -74,6 +75,7 @@ export type {
   Organization,
   AthleteListResponse,
   ActivityListResponse,
+  PaginationMeta,
   // Coach API (Module 5)
   CoachWindow,
   CoachFocus,

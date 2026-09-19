@@ -138,7 +138,7 @@ export interface NutritionCalculateResponse extends TrialMetadata {
   fluid_range_ml_per_hr?: string;
 
   safety: SafetyMetadata;
-  attribution?: Attribution;
+  attribution: Attribution;
 
   /**
    * Missing-input details and an optional athlete-scoped onboarding link.
@@ -266,8 +266,8 @@ export interface Athlete {
   weight_kg?: number;
   /** ID of the athlete's Saturday subscription, when one is active. Empty/absent if not subscribed. */
   subscription_id?: string;
-  settings?: Record<string, unknown>;
-  profile_complete?: boolean;
+  settings: AthleteSettings;
+  profile_complete: boolean;
   subscription_status?: string;
   partner_plan?: string;
   org_id?: string;
@@ -285,10 +285,12 @@ export interface CreateAthleteRequest {
   /** Birth year (e.g. 1990) — the API stores year of birth, not age. */
   year_of_birth?: number;
   weight_kg?: number;
+  settings?: AthleteSettings;
+  partner_plan?: string;
+  org_id?: string;
 }
 
 export interface AthleteSettings {
-  athlete_id: string;
   sweat_level?: number;
   saltiness?: number;
   satiety_level?: number;
@@ -296,18 +298,15 @@ export interface AthleteSettings {
   carb_experience?: CarbExperience;
   usual_carb_consumption?: UsualCarbConsumption;
   carb_upper_limit_override?: number;
-  concerns?: {
-    muscle_cramps?: boolean;
-    gut_distress?: boolean;
-    performance?: boolean;
-    hunger?: boolean;
-    heat_tolerance?: boolean;
-    faintness?: boolean;
-    drinking_resistance?: boolean;
-    thirst?: boolean;
-  };
-  meal_before_min?: number;
-  updated_at?: string;
+  muscle_cramps?: boolean;
+  gut_distress?: boolean;
+  performance?: boolean;
+  hunger?: boolean;
+  heat_tolerance?: boolean;
+  faintness?: boolean;
+  drinking_resistance?: boolean;
+  thirst?: boolean;
+  concerns_answered?: boolean;
 }
 
 // --- Activities ---
@@ -315,7 +314,7 @@ export interface AthleteSettings {
 export interface Activity {
   id: string;
   athlete_id: string;
-  partner_id?: string;
+  partner_id: string;
   /** Activity type. The API field is `type` (not `activity_type`). */
   type: ActivityType;
   /** @deprecated Not returned by the activity API. */
@@ -592,27 +591,24 @@ export interface GearItem {
 
 // --- Pagination ---
 
-/**
- * Cursor-paginated list response.
- *
- * The array lives under a resource-named key (`athletes`, `activities`),
- * not a generic `data` key. Pass `cursor` back on the next request to page
- * forward; `has_more` indicates whether another page exists.
- */
+export interface PaginationMeta {
+  /** Number of records on this page. */
+  total: number;
+  has_more: boolean;
+  /** Pass as the cursor query parameter for the next page. */
+  next_cursor?: string;
+}
+
 export interface AthleteListResponse {
   athletes: Athlete[];
-  has_more: boolean;
-  /** Opaque cursor for the next page. Pass as the `cursor` query param. */
-  cursor?: string;
-  total?: number;
+  pagination: PaginationMeta;
+  request_id: string;
 }
 
 export interface ActivityListResponse {
   activities: Activity[];
-  has_more: boolean;
-  /** Opaque cursor for the next page. Pass as the `cursor` query param. */
-  cursor?: string;
-  total?: number;
+  pagination: PaginationMeta;
+  request_id: string;
 }
 
 // --- Error ---

@@ -7,6 +7,8 @@
 - Add `activities.importActivities`, with calculation opt-in, and type feedback responses as the returned feedback object.
 - Align request version headers with the existing package version. No package version bump in this change.
 - Accept the backend-supported `intersex` value in the `Sex` type.
+- Correct athlete/activity list types to nested `pagination` with `next_cursor`. Request query defaults and raw responses are unchanged.
+- Correct athlete settings to flat concern flags, remove invented settings fields, and document full-replacement semantics. Add supported settings/plan/org fields to athlete creation and deprecate ignored list filters.
 
 ## 0.6.0
 

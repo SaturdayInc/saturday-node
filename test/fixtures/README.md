@@ -1,6 +1,6 @@
 # Contract fixtures
 
-`contracts.json` is generated from fuel-backend's Go JSON types and its real stored-prescription handler, using synthetic data and an in-memory service. It makes no API, Firestore, inference, auth, or trial calls. The backend commit is recorded in `_meta`.
+`contracts.json` is generated from fuel-backend's Go JSON types and its real stored-prescription, list and settings handlers, using synthetic data and in-memory services. It makes no API, Firestore, inference, auth, or trial calls. The backend commit is recorded in `_meta`.
 
 Regenerate from a checked-out backend module, with Go 1.26+:
 

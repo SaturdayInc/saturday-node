@@ -96,6 +96,12 @@ Batch calculations return flat `results[]`, not indexed prescription wrappers. A
 
 The corrected declarations can expose TypeScript errors in code that relied on the former shapes. Update field access rather than casting to the old flat nutrition type. No response flattening or runtime conversion is performed.
 
+Athlete and activity list responses keep the resource array under `athletes` or `activities`. Pagination is nested: check `page.pagination.has_more` and pass `page.pagination.next_cursor` as the next request's `cursor` option. `page.pagination.total` counts records on that page, not the entire collection.
+
+The legacy athlete-list `search` and activity-list `type` options are currently ignored by the backend. They remain accepted for source compatibility, but do not filter results.
+
+Athlete settings use flat concern flags, such as `{ sweat_level: 5, gut_distress: true }`, not a nested `concerns` object. `athletes.updateSettings()` replaces the complete settings for a partner-managed athlete; omitted settings reset. Send the complete intended settings, including values you want to preserve. The SDK does not fetch or merge settings implicitly.
+
 ## AI writes
 
 `ai.createConversation()` and `ai.sendMessage()` currently do not support the API's server-sent event (SSE) responses. Conversation creation also uses an outdated request field. Use direct HTTP for these two operations while [streaming support is being aligned](https://github.com/SaturdayInc/saturday-node/issues/12). The metadata and history read methods use JSON.

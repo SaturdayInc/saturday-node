@@ -265,7 +265,12 @@ class AthletesResource {
     return this.client.request('GET', `/v1/athletes/${athleteId}`);
   }
 
-  async list(params?: { limit?: number; cursor?: string; search?: string }): Promise<AthleteListResponse> {
+  async list(params?: {
+    limit?: number;
+    cursor?: string;
+    /** @deprecated Ignored by the current API. */
+    search?: string;
+  }): Promise<AthleteListResponse> {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.cursor) query.set('cursor', params.cursor);
@@ -286,7 +291,8 @@ class AthletesResource {
     return this.client.request('GET', `/v1/athletes/${athleteId}/settings`);
   }
 
-  async updateSettings(athleteId: string, settings: Partial<AthleteSettings>): Promise<AthleteSettings> {
+  /** Replaces partner-managed athlete settings; send the complete intended settings. */
+  async updateSettings(athleteId: string, settings: AthleteSettings): Promise<AthleteSettings> {
     return this.client.request('PATCH', `/v1/athletes/${athleteId}/settings`, settings);
   }
 
@@ -312,7 +318,12 @@ class ActivitiesResource {
     return this.client.request('GET', `/v1/athletes/${athleteId}/activities/${activityId}`);
   }
 
-  async list(athleteId: string, params?: { limit?: number; cursor?: string; type?: string }): Promise<ActivityListResponse> {
+  async list(athleteId: string, params?: {
+    limit?: number;
+    cursor?: string;
+    /** @deprecated Ignored by the current API. */
+    type?: string;
+  }): Promise<ActivityListResponse> {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.cursor) query.set('cursor', params.cursor);
