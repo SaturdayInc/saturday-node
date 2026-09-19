@@ -1,0 +1,703 @@
+{
+  "_meta": {
+    "backend_sha": "e11d52f7e491e02e0fb7a68a267978e8a1a3d803",
+    "source": "pkg/api Go JSON types and HandleGetActivityPrescription; synthetic values, no API calls"
+  },
+  "activity": {
+    "id": "act_1",
+    "athlete_id": "ath_1",
+    "partner_id": "partner_1",
+    "type": "bike",
+    "duration_min": 120,
+    "external_id": "partner-act",
+    "prescription": {
+      "total_carb_g": 120,
+      "total_sodium_mg": 1200,
+      "total_fluid_ml": 1400,
+      "carb_g_per_hr": 60,
+      "sodium_mg_per_hr": 600,
+      "fluid_ml_per_hr": 700,
+      "calculated_at": 1700000000
+    },
+    "created_at": 1700000000,
+    "updated_at": 1700000000
+  },
+  "activity_banded": {
+    "total_carb_g": 0,
+    "total_sodium_mg": 0,
+    "total_fluid_ml": 0,
+    "carb_g_per_hr": 0,
+    "sodium_mg_per_hr": 0,
+    "fluid_ml_per_hr": 0,
+    "calculated_at": 1700000000,
+    "profile_complete": false,
+    "carb_range_g_per_hr": "50-70",
+    "sodium_range_mg_per_hr": "500-700",
+    "fluid_range_ml_per_hr": "600-800"
+  },
+  "activity_exact": {
+    "total_carb_g": 120,
+    "total_sodium_mg": 1200,
+    "total_fluid_ml": 1400,
+    "carb_g_per_hr": 60,
+    "sodium_mg_per_hr": 600,
+    "fluid_ml_per_hr": 700,
+    "calculated_at": 1700000000
+  },
+  "activity_full": {
+    "tier": "full",
+    "prescription": {
+      "total_carb_g": 120,
+      "total_sodium_mg": 1200,
+      "total_fluid_ml": 1400,
+      "carb_g_per_hr": 60,
+      "sodium_mg_per_hr": 600,
+      "fluid_ml_per_hr": 700,
+      "calculated_at": 1700000000
+    },
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    }
+  },
+  "activity_full_banded": {
+    "tier": "full",
+    "prescription": {
+      "total_carb_g": 0,
+      "total_sodium_mg": 0,
+      "total_fluid_ml": 0,
+      "carb_g_per_hr": 0,
+      "sodium_mg_per_hr": 0,
+      "fluid_ml_per_hr": 0,
+      "calculated_at": 1700000000,
+      "profile_complete": false,
+      "carb_range_g_per_hr": "50-70",
+      "sodium_range_mg_per_hr": "500-700",
+      "fluid_range_ml_per_hr": "600-800"
+    },
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "precision": {
+      "profile_complete": false,
+      "missing_fields": [
+        {
+          "field": "sweat_level",
+          "required": true,
+          "band_impact": {
+            "carb_g_per_hr": 0,
+            "sodium_mg_per_hr": 0,
+            "fluid_ml_per_hr": 100
+          },
+          "display_label": "how much you sweat"
+        }
+      ],
+      "onboarding": {
+        "message": "Complete your profile"
+      }
+    }
+  },
+  "activity_teaser": {
+    "tier": "teaser",
+    "carb_range_g_per_hr": "40-80",
+    "sodium_range_mg_per_hr": "400-800",
+    "fluid_range_ml_per_hr": "500-900",
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "subscription_cta": {
+      "message": "Subscribe",
+      "subscribe_url": "https://saturday.fit/",
+      "features": [
+        "Exact targets"
+      ]
+    },
+    "precision": {
+      "profile_complete": false,
+      "missing_fields": [
+        {
+          "field": "sweat_level",
+          "required": true,
+          "band_impact": {
+            "carb_g_per_hr": 0,
+            "sodium_mg_per_hr": 0,
+            "fluid_ml_per_hr": 100
+          },
+          "display_label": "how much you sweat"
+        }
+      ],
+      "onboarding": {
+        "message": "Complete your profile"
+      }
+    },
+    "trial_ends_at": 1700000500000,
+    "trial_cap_reached": true,
+    "trial_cap_note": "Daily cap reached"
+  },
+  "activity_trial": {
+    "tier": "full",
+    "prescription": {
+      "total_carb_g": 120,
+      "total_sodium_mg": 1200,
+      "total_fluid_ml": 1400,
+      "carb_g_per_hr": 60,
+      "sodium_mg_per_hr": 600,
+      "fluid_ml_per_hr": 700,
+      "calculated_at": 1700000000
+    },
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "tier_source": "trial",
+    "trial_ends_at": 1700000500000,
+    "trial_calls_remaining_today": 0
+  },
+  "athlete": {
+    "id": "ath_1",
+    "partner_id": "partner_1",
+    "name": "Fixture Athlete",
+    "settings": {},
+    "created_at": 1700000000,
+    "updated_at": 1700000000,
+    "profile_complete": false
+  },
+  "athletes_all_failed": {
+    "created": [],
+    "errors": [
+      {
+        "index": 0,
+        "code": "invalid_value",
+        "message": "Invalid input"
+      }
+    ],
+    "total": 1,
+    "succeeded": 0,
+    "failed": 1,
+    "request_id": "req_5"
+  },
+  "athletes_partial": {
+    "created": [
+      {
+        "id": "ath_1",
+        "partner_id": "partner_1",
+        "name": "Fixture Athlete",
+        "settings": {},
+        "created_at": 1700000000,
+        "updated_at": 1700000000,
+        "profile_complete": false
+      }
+    ],
+    "errors": [
+      {
+        "index": 1,
+        "code": "invalid_value",
+        "message": "Invalid input"
+      }
+    ],
+    "total": 2,
+    "succeeded": 1,
+    "failed": 1,
+    "request_id": "req_4"
+  },
+  "batch_all_failed": {
+    "results": [],
+    "errors": [
+      {
+        "index": 0,
+        "code": "invalid_value",
+        "message": "Invalid input"
+      }
+    ],
+    "total": 1,
+    "succeeded": 0,
+    "failed": 1,
+    "estimated_ms": 0,
+    "elapsed_ms": 0,
+    "request_id": "req_2"
+  },
+  "batch_estimate": {
+    "results": [],
+    "total": 2,
+    "succeeded": 0,
+    "failed": 0,
+    "estimated_ms": 100,
+    "elapsed_ms": 0,
+    "request_id": "req_3"
+  },
+  "batch_partial": {
+    "results": [
+      {
+        "tier": "full",
+        "carb_g_per_hr": 60,
+        "sodium_mg_per_hr": 600,
+        "fluid_ml_per_hr": 700,
+        "total_carb_g": 120,
+        "total_sodium_mg": 1200,
+        "total_fluid_ml": 1400,
+        "safety": {
+          "max_safe_fluid_ml_per_hr": 1500,
+          "max_safe_sodium_mg_per_hr": 3000,
+          "confidence_score": 0,
+          "requires_human_review": false,
+          "warnings": null,
+          "not_instructions": true
+        },
+        "attribution": {
+          "text": "Powered by Saturday",
+          "logo_url": "https://saturday.fit/logo.png",
+          "link": "https://saturday.fit",
+          "required": false
+        }
+      },
+      {
+        "tier": "full",
+        "carb_range_g_per_hr": "50-70",
+        "sodium_range_mg_per_hr": "500-700",
+        "fluid_range_ml_per_hr": "600-800",
+        "safety": {
+          "max_safe_fluid_ml_per_hr": 1500,
+          "max_safe_sodium_mg_per_hr": 3000,
+          "confidence_score": 0,
+          "requires_human_review": false,
+          "warnings": null,
+          "not_instructions": true
+        },
+        "attribution": {
+          "text": "Powered by Saturday",
+          "logo_url": "https://saturday.fit/logo.png",
+          "link": "https://saturday.fit",
+          "required": false
+        },
+        "precision": {
+          "profile_complete": false,
+          "missing_fields": [
+            {
+              "field": "sweat_level",
+              "required": true,
+              "band_impact": {
+                "carb_g_per_hr": 0,
+                "sodium_mg_per_hr": 0,
+                "fluid_ml_per_hr": 100
+              },
+              "display_label": "how much you sweat"
+            }
+          ],
+          "onboarding": {
+            "message": "Complete your profile"
+          }
+        }
+      }
+    ],
+    "errors": [
+      {
+        "index": 1,
+        "code": "invalid_value",
+        "message": "Invalid input"
+      }
+    ],
+    "total": 3,
+    "succeeded": 2,
+    "failed": 1,
+    "estimated_ms": 100,
+    "elapsed_ms": 100,
+    "request_id": "req_1"
+  },
+  "feedback": {
+    "rating": 4,
+    "notes": "Fixture feedback",
+    "created_at": 1700000000
+  },
+  "import_all_failed": {
+    "imported": [],
+    "errors": [
+      {
+        "index": 0,
+        "code": "invalid_value",
+        "message": "Invalid input"
+      }
+    ],
+    "total": 1,
+    "succeeded": 0,
+    "failed": 1,
+    "request_id": "req_9"
+  },
+  "import_calc_failed": {
+    "imported": [
+      {
+        "id": "act_1",
+        "athlete_id": "ath_1",
+        "partner_id": "partner_1",
+        "type": "bike",
+        "duration_min": 120,
+        "external_id": "partner-act",
+        "prescription": {
+          "total_carb_g": 120,
+          "total_sodium_mg": 1200,
+          "total_fluid_ml": 1400,
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 600,
+          "fluid_ml_per_hr": 700,
+          "calculated_at": 1700000000
+        },
+        "created_at": 1700000000,
+        "updated_at": 1700000000
+      }
+    ],
+    "total": 1,
+    "succeeded": 1,
+    "failed": 0,
+    "request_id": "req_8",
+    "prescriptions": [
+      {
+        "index": 0,
+        "activity_id": "act_1",
+        "code": "storage_error",
+        "message": "Unable to calculate"
+      }
+    ]
+  },
+  "import_calculated": {
+    "imported": [
+      {
+        "id": "act_1",
+        "athlete_id": "ath_1",
+        "partner_id": "partner_1",
+        "type": "bike",
+        "duration_min": 120,
+        "external_id": "partner-act",
+        "prescription": {
+          "total_carb_g": 120,
+          "total_sodium_mg": 1200,
+          "total_fluid_ml": 1400,
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 600,
+          "fluid_ml_per_hr": 700,
+          "calculated_at": 1700000000
+        },
+        "created_at": 1700000000,
+        "updated_at": 1700000000
+      }
+    ],
+    "total": 1,
+    "succeeded": 1,
+    "failed": 0,
+    "request_id": "req_7",
+    "prescriptions": [
+      {
+        "index": 0,
+        "activity_id": "act_1",
+        "result": {
+          "tier": "full",
+          "prescription": {
+            "total_carb_g": 0,
+            "total_sodium_mg": 0,
+            "total_fluid_ml": 0,
+            "carb_g_per_hr": 0,
+            "sodium_mg_per_hr": 0,
+            "fluid_ml_per_hr": 0,
+            "calculated_at": 1700000000,
+            "profile_complete": false,
+            "carb_range_g_per_hr": "50-70",
+            "sodium_range_mg_per_hr": "500-700",
+            "fluid_range_ml_per_hr": "600-800"
+          },
+          "safety": {
+            "max_safe_fluid_ml_per_hr": 1500,
+            "max_safe_sodium_mg_per_hr": 3000,
+            "confidence_score": 0,
+            "requires_human_review": false,
+            "warnings": null,
+            "not_instructions": true
+          },
+          "attribution": {
+            "text": "Powered by Saturday",
+            "logo_url": "https://saturday.fit/logo.png",
+            "link": "https://saturday.fit",
+            "required": false
+          },
+          "precision": {
+            "profile_complete": false,
+            "missing_fields": [
+              {
+                "field": "sweat_level",
+                "required": true,
+                "band_impact": {
+                  "carb_g_per_hr": 0,
+                  "sodium_mg_per_hr": 0,
+                  "fluid_ml_per_hr": 100
+                },
+                "display_label": "how much you sweat"
+              }
+            ],
+            "onboarding": {
+              "message": "Complete your profile"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "import_plain": {
+    "imported": [
+      {
+        "id": "act_1",
+        "athlete_id": "ath_1",
+        "partner_id": "partner_1",
+        "type": "bike",
+        "duration_min": 120,
+        "external_id": "partner-act",
+        "prescription": {
+          "total_carb_g": 120,
+          "total_sodium_mg": 1200,
+          "total_fluid_ml": 1400,
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 600,
+          "fluid_ml_per_hr": 700,
+          "calculated_at": 1700000000
+        },
+        "created_at": 1700000000,
+        "updated_at": 1700000000
+      }
+    ],
+    "total": 1,
+    "succeeded": 1,
+    "failed": 0,
+    "request_id": "req_6"
+  },
+  "nutrition_banded": {
+    "tier": "full",
+    "carb_range_g_per_hr": "50-70",
+    "sodium_range_mg_per_hr": "500-700",
+    "fluid_range_ml_per_hr": "600-800",
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "precision": {
+      "profile_complete": false,
+      "missing_fields": [
+        {
+          "field": "sweat_level",
+          "required": true,
+          "band_impact": {
+            "carb_g_per_hr": 0,
+            "sodium_mg_per_hr": 0,
+            "fluid_ml_per_hr": 100
+          },
+          "display_label": "how much you sweat"
+        }
+      ],
+      "onboarding": {
+        "message": "Complete your profile"
+      }
+    }
+  },
+  "nutrition_exact": {
+    "tier": "full",
+    "carb_g_per_hr": 60,
+    "sodium_mg_per_hr": 600,
+    "fluid_ml_per_hr": 700,
+    "total_carb_g": 120,
+    "total_sodium_mg": 1200,
+    "total_fluid_ml": 1400,
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    }
+  },
+  "nutrition_teaser": {
+    "tier": "teaser",
+    "carb_range_g_per_hr": "50-70",
+    "sodium_range_mg_per_hr": "500-700",
+    "fluid_range_ml_per_hr": "600-800",
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "subscription_cta": {
+      "message": "Subscribe",
+      "subscribe_url": "https://saturday.fit/",
+      "features": [
+        "Exact targets"
+      ]
+    },
+    "precision": {
+      "profile_complete": false,
+      "missing_fields": [
+        {
+          "field": "sweat_level",
+          "required": true,
+          "band_impact": {
+            "carb_g_per_hr": 0,
+            "sodium_mg_per_hr": 0,
+            "fluid_ml_per_hr": 100
+          },
+          "display_label": "how much you sweat"
+        }
+      ],
+      "onboarding": {
+        "message": "Complete your profile"
+      }
+    },
+    "trial_cap_reached": true,
+    "trial_cap_note": "Daily cap reached"
+  },
+  "nutrition_trial": {
+    "tier": "full",
+    "carb_g_per_hr": 60,
+    "sodium_mg_per_hr": 600,
+    "fluid_ml_per_hr": 700,
+    "total_carb_g": 120,
+    "total_sodium_mg": 1200,
+    "total_fluid_ml": 1400,
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "tier_source": "trial",
+    "trial_ends_at": 1700000500000,
+    "trial_calls_remaining_today": 0
+  },
+  "nutrition_zero": {
+    "tier": "full",
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    }
+  },
+  "stored_banded": {
+    "prescription": {
+      "total_carb_g": 0,
+      "total_sodium_mg": 0,
+      "total_fluid_ml": 0,
+      "carb_g_per_hr": 0,
+      "sodium_mg_per_hr": 0,
+      "fluid_ml_per_hr": 0,
+      "calculated_at": 1700000000,
+      "profile_complete": false,
+      "carb_range_g_per_hr": "50-70",
+      "sodium_range_mg_per_hr": "500-700",
+      "fluid_range_ml_per_hr": "600-800"
+    },
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    }
+  },
+  "stored_exact": {
+    "prescription": {
+      "total_carb_g": 120,
+      "total_sodium_mg": 1200,
+      "total_fluid_ml": 1400,
+      "carb_g_per_hr": 60,
+      "sodium_mg_per_hr": 600,
+      "fluid_ml_per_hr": 700,
+      "calculated_at": 1700000000
+    },
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    }
+  }
+}

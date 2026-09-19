@@ -21,7 +21,7 @@ export interface SaturdayConfig {
 // --- Core Enums ---
 
 export type ActivityType = 'bike' | 'run' | 'swim' | 'row' | 'ski' | 'lift' | 'hike';
-export type Sex = 'male' | 'female';
+export type Sex = 'male' | 'female' | 'intersex';
 export type SubscriptionTier = 'full' | 'teaser';
 export type CarbExperience = 'range_0_30' | 'range_40_60' | 'range_gt_70';
 export type UsualCarbConsumption = 'range_lt_60' | 'range_60_80' | 'range_80_100' | 'range_gt_100';
@@ -57,7 +57,7 @@ export interface SafetyMetadata {
   requires_human_review: boolean;
 
   /** Human-readable safety warnings. */
-  warnings: string[];
+  warnings: string[] | null;
 
   /**
    * Legal flag — these are recommendations, not medical instructions.
@@ -103,7 +103,23 @@ export interface NutritionCalculateRequest {
   athlete_id?: string;
 }
 
-export interface NutritionCalculateResponse {
+export interface Attribution {
+  text: string;
+  logo_url: string;
+  link: string;
+  required: boolean;
+}
+
+export interface TrialMetadata {
+  tier_source?: string;
+  /** Epoch milliseconds. */
+  trial_ends_at?: number;
+  trial_calls_remaining_today?: number;
+  trial_cap_reached?: boolean;
+  trial_cap_note?: string;
+}
+
+export interface NutritionCalculateResponse extends TrialMetadata {
   tier: SubscriptionTier;
 
   // Full tier — per-hour rates
@@ -122,21 +138,11 @@ export interface NutritionCalculateResponse {
   fluid_range_ml_per_hr?: string;
 
   safety: SafetyMetadata;
-  attribution?: {
-    text: string;
-    logo_url: string;
-    link: string;
-    required: boolean;
-  };
+  attribution?: Attribution;
 
   /**
-   * Graduated precision (API_OB, 2026-06). Present on every tier once the gate
-   * is live. `profile_complete: false` means the response carries honest
-   * **bands** (`carb_range_g_per_hr` etc.) — never falsely exact, never wider
-   * than free-tier teaser ranges. `missing_fields` is sorted most-impactful-
-   * first (your collection roadmap), and `onboarding.url` is a durable,
-   * athlete-scoped link to the hosted onboarding page. See the Athlete
-   * Onboarding guide.
+   * Missing-input details and an optional athlete-scoped onboarding link.
+   * A full tier with incomplete inputs can still carry ranges.
    */
   precision?: Precision;
 
@@ -178,6 +184,7 @@ export interface MissingField {
   required: boolean;
   /** How much this one field's answer would narrow each output (per hour). */
   band_impact: BandImpact;
+  display_label?: string;
 }
 
 /** A field's contribution to band width, per output, in per-hour units. */
@@ -259,6 +266,11 @@ export interface Athlete {
   weight_kg?: number;
   /** ID of the athlete's Saturday subscription, when one is active. Empty/absent if not subscribed. */
   subscription_id?: string;
+  settings?: Record<string, unknown>;
+  profile_complete?: boolean;
+  subscription_status?: string;
+  partner_plan?: string;
+  org_id?: string;
   /** Epoch seconds. */
   created_at: number;
   /** Epoch seconds. */
@@ -303,16 +315,25 @@ export interface AthleteSettings {
 export interface Activity {
   id: string;
   athlete_id: string;
+  partner_id?: string;
   /** Activity type. The API field is `type` (not `activity_type`). */
   type: ActivityType;
+  /** @deprecated Not returned by the activity API. */
   name?: string;
   duration_min: number;
   intensity_level?: number;
   thermal_stress_level?: number;
   /** Whether this is a race. The API field is `is_race_event`. */
   is_race_event?: boolean;
+  meal_before_min?: number;
+  external_id?: string;
+  prescription?: ActivityPrescription;
+  feedback?: ActivityFeedback;
+  /** @deprecated Not returned by the activity API. */
   scheduled_at?: string;
+  /** @deprecated Use the presence of prescription instead. */
   has_prescription?: boolean;
+  /** @deprecated Not returned by the activity API. */
   prescription_stale?: boolean;
   /** Epoch seconds. */
   created_at: number;
@@ -323,13 +344,106 @@ export interface Activity {
 export interface CreateActivityRequest {
   /** Activity type. The API field is `type` (not `activity_type`). */
   type: ActivityType;
+  /** @deprecated Ignored by the activity API; keep display names in your system. */
   name?: string;
   duration_min: number;
   intensity_level?: number;
   thermal_stress_level?: number;
   /** Whether this is a race. The API field is `is_race_event`. */
   is_race_event?: boolean;
+  meal_before_min?: number;
+  external_id?: string;
+  /** @deprecated Ignored by the activity API. */
   scheduled_at?: string;
+}
+
+export interface ActivityPrescription {
+  total_carb_g: number;
+  total_sodium_mg: number;
+  total_fluid_ml: number;
+  carb_g_per_hr: number;
+  sodium_mg_per_hr: number;
+  fluid_ml_per_hr: number;
+  /** Epoch seconds. */
+  calculated_at: number;
+  /** False means the ranges carry the result; numeric fields are zero. */
+  profile_complete?: boolean;
+  carb_range_g_per_hr?: string;
+  sodium_range_mg_per_hr?: string;
+  fluid_range_ml_per_hr?: string;
+  carriage_tactic_id?: string;
+  activity_subtype?: string;
+}
+
+export interface PrescriptionEnvelope extends TrialMetadata {
+  tier: SubscriptionTier;
+  prescription?: ActivityPrescription;
+  carb_range_g_per_hr?: string;
+  sodium_range_mg_per_hr?: string;
+  fluid_range_ml_per_hr?: string;
+  safety: SafetyMetadata;
+  attribution: Attribution;
+  subscription_cta?: SubscriptionCTA;
+  precision?: Precision;
+}
+
+export interface StoredPrescriptionResponse {
+  prescription: ActivityPrescription;
+  safety: SafetyMetadata;
+}
+
+export interface ActivityFeedback {
+  rating?: number;
+  notes?: string;
+  /** Epoch seconds. */
+  created_at: number;
+}
+
+export interface BatchError {
+  index: number;
+  code: string;
+  message: string;
+}
+
+export interface BatchSummary {
+  errors?: BatchError[];
+  total: number;
+  succeeded: number;
+  failed: number;
+  request_id: string;
+}
+
+export interface BatchCalculateResponse extends BatchSummary {
+  results: NutritionCalculateResponse[];
+  estimated_ms: number;
+  elapsed_ms: number;
+}
+
+export interface BatchAthleteResponse extends BatchSummary {
+  created: Athlete[];
+}
+
+export interface ImportActivityRequest {
+  type: ActivityType;
+  duration_min: number;
+  intensity_level?: number;
+  thermal_stress_level?: number;
+  is_race_event?: boolean;
+  external_id?: string;
+  calculate?: boolean;
+}
+
+export interface ImportPrescriptionItem {
+  index: number;
+  activity_id: string;
+  result?: PrescriptionEnvelope;
+  code?: string;
+  message?: string;
+}
+
+export interface ActivityImportResponse extends BatchSummary {
+  imported: Activity[];
+  prescriptions?: ImportPrescriptionItem[];
 }
 
 // --- Products ---

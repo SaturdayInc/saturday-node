@@ -2,6 +2,13 @@ import type {
   SaturdayConfig,
   NutritionCalculateRequest,
   NutritionCalculateResponse,
+  BatchCalculateResponse,
+  BatchAthleteResponse,
+  PrescriptionEnvelope,
+  StoredPrescriptionResponse,
+  ImportActivityRequest,
+  ActivityImportResponse,
+  ActivityFeedback,
   Athlete,
   CreateAthleteRequest,
   Activity,
@@ -46,7 +53,7 @@ import {
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.5.0';
+const SDK_VERSION = '0.6.0';
 
 /**
  * Saturday Nutrition Intelligence API client.
@@ -241,12 +248,8 @@ class NutritionResource {
     return this.client.request('POST', '/v1/nutrition/calculate', req);
   }
 
-  /** Batch calculate prescriptions for multiple scenarios (max 50). */
-  async batchCalculate(scenarios: NutritionCalculateRequest[]): Promise<{
-    results: Array<{ index: number; prescription?: NutritionCalculateResponse; error?: any }>;
-    succeeded: number;
-    failed: number;
-  }> {
+  /** Batch calculate up to 50 scenarios; quota is charged per scenario. */
+  async batchCalculate(scenarios: NutritionCalculateRequest[]): Promise<BatchCalculateResponse> {
     return this.client.request('POST', '/v1/nutrition/calculate/batch', { scenarios });
   }
 }
@@ -287,12 +290,8 @@ class AthletesResource {
     return this.client.request('PATCH', `/v1/athletes/${athleteId}/settings`, settings);
   }
 
-  /** Batch create up to 100 athletes. */
-  async batchCreate(athletes: CreateAthleteRequest[]): Promise<{
-    athletes: Array<{ index: number; athlete?: Athlete; error?: string }>;
-    succeeded: number;
-    failed: number;
-  }> {
+  /** Batch create up to 100 athletes; quota is charged per athlete. */
+  async batchCreate(athletes: CreateAthleteRequest[]): Promise<BatchAthleteResponse> {
     return this.client.request('POST', '/v1/athletes/batch', { athletes });
   }
 
@@ -331,13 +330,18 @@ class ActivitiesResource {
   }
 
   /** Calculate/recalculate a nutrition prescription for this activity. */
-  async calculatePrescription(athleteId: string, activityId: string): Promise<NutritionCalculateResponse> {
+  async calculatePrescription(athleteId: string, activityId: string): Promise<PrescriptionEnvelope> {
     return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/calculate`);
   }
 
   /** Get the stored prescription for an activity. */
-  async getPrescription(athleteId: string, activityId: string): Promise<NutritionCalculateResponse> {
+  async getPrescription(athleteId: string, activityId: string): Promise<StoredPrescriptionResponse> {
     return this.client.request('GET', `/v1/athletes/${athleteId}/activities/${activityId}/prescription`);
+  }
+
+  /** Import up to 200 activities; calculation is opt-in, quota is per activity. */
+  async importActivities(athleteId: string, activities: ImportActivityRequest[], options?: { calculate?: boolean }): Promise<ActivityImportResponse> {
+    return this.client.request('POST', `/v1/athletes/${athleteId}/activities/import`, { activities, ...options });
   }
 
   /** Submit post-activity feedback on prescription quality. */
@@ -345,7 +349,7 @@ class ActivitiesResource {
     /** Overall prescription quality, 1 (poor) to 5 (excellent). */
     rating: number;
     notes?: string;
-  }): Promise<{ id: string; message: string }> {
+  }): Promise<ActivityFeedback> {
     return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/feedback`, feedback);
   }
 }
