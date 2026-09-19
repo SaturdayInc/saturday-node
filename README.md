@@ -13,7 +13,7 @@ Personalized fuel, hydration, and electrolyte prescriptions for endurance athlet
 npm install @saturdayinc/sdk
 ```
 
-## Quick Start
+## Quick start
 
 ```typescript
 import Saturday from '@saturdayinc/sdk';
@@ -39,42 +39,60 @@ console.log(`Sodium: ${sodium} mg/hr`);
 console.log(`Fluid: ${fluid} mL/hr`);
 ```
 
-Teaser responses and incomplete profiles return ranges. A `full` tier alone does not guarantee exact numbers. Exact zero values may be omitted from the response, so the example displays them as `0`. See [Athlete Onboarding](https://docs.saturday.fit/guides/onboarding).
+Teaser-tier responses and incomplete profiles return ranges rather than exact numbers, and the `full` tier alone does not guarantee exact values. A zero value may be omitted from the response, so the example prints `0` for it. See [Athlete Onboarding](https://docs.saturday.fit/guides/onboarding).
 
 ## Features
 
-- TypeScript response types for nutrition, activity prescriptions, and batch results
-- Automatic retry with exponential backoff for JSON operations; AI stream writes are never replayed
-- Typed errors (AuthenticationError, RateLimitError, ValidationError, NotFoundError)
+- TypeScript types for requests, responses, and errors
+- Automatic retry on `429` and `5xx` responses for JSON operations: up to 3 retries, with 1 s, 2 s, and 4 s backoff. AI stream writes are never replayed
+- Typed errors: `AuthenticationError`, `RateLimitError`, `ValidationError`, `NotFoundError`, `AIStreamError`
 - API key and OAuth2 Bearer token authentication
-- Safety types prominently surfaced (`SafetyMetadata`, `not_instructions`)
+- `SafetyMetadata` type with `not_instructions` on every prescription
+
+## Configuration
+
+```typescript
+const saturday = new Saturday({
+  apiKey: 'sk_test_...',
+  baseUrl: 'https://api.saturday.fit', // default
+  timeout: 30000, // per attempt, in milliseconds, including the body read; default 30000
+  maxRetries: 3, // default; 0 disables retries
+});
+```
 
 ## Authentication
 
 ```typescript
-// API key (server-to-server)
+// Partner API key (server-to-server)
 const serverClient = new Saturday({ apiKey: 'sk_live_...' });
 
-// OAuth2 Bearer token (athlete-delegated access)
+// OAuth2 Bearer token (athlete-delegated access); it takes precedence over the API key
 const delegatedClient = new Saturday({
   apiKey: 'sk_live_...',
   bearerToken: 'eyJ...',
 });
+
+// Coach API key, for the coach resource
+const coachClient = new Saturday({ apiKey: 'cp_live_...' });
 ```
+
+Partner keys carry the `sk_live_` or `sk_test_` prefix; coach keys carry `cp_live_` or `cp_test_`.
 
 ## Resources
 
 | Resource | Description |
 |----------|-------------|
 | `saturday.nutrition` | Calculate prescriptions, batch calculate |
-| `saturday.athletes` | Athlete CRUD, settings, batch create, GDPR export |
+| `saturday.athletes` | Athlete CRUD, settings, batch create, GDPR data export |
 | `saturday.activities` | Activity CRUD, prescription calculation, import, feedback |
-| `saturday.products` | Product search, barcode lookup, curated list |
-| `saturday.ai` | AI event streams plus JSON conversation metadata and history |
+| `saturday.products` | Product search, barcode lookup, curated list, categories |
+| `saturday.ai` | AI event streams, plus JSON conversation metadata, history, listing, and deletion; see AI writes below |
 | `saturday.webhooks` | Webhook registration and management |
-| `saturday.organizations` | Team/org management and member directories |
+| `saturday.organizations` | Team and organization management with members |
 | `saturday.gear` | Athlete gear inventory |
 | `saturday.knowledge` | Sports nutrition knowledge base search |
+| `saturday.onboarding` | The versioned onboarding question schema, for collecting an athlete's profile in your UI |
+| `saturday.coach` | Roster fueling reads, the coach's alert and report configuration, and coach webhooks, with a coach key |
 
 ## Prescription and batch responses
 
@@ -139,12 +157,12 @@ The timeout is a total deadline in milliseconds, covering headers and the entire
 
 ## Documentation
 
-Full API documentation: [docs.saturday.fit](https://docs.saturday.fit)
+Full API reference: [docs.saturday.fit](https://docs.saturday.fit)
 
 ## Requirements
 
 - Node.js 18+ (uses native `fetch`)
-- TypeScript 5.0+ (for type inference)
+- TypeScript 5.0+ for the bundled types
 
 ## License
 
