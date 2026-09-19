@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "backend_sha": "e11d52f7e491e02e0fb7a68a267978e8a1a3d803",
-    "source": "pkg/api Go JSON types and stored-prescription/list/settings HTTP handlers; synthetic values, no API calls"
+    "backend_sha": "20e1af4ee08e00cd673706580923843fd2ee5fc8",
+    "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, and the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling; synthetic values, no API calls"
   },
   "activity": {
     "id": "act_1",
@@ -344,6 +344,221 @@
     "estimated_ms": 100,
     "elapsed_ms": 100,
     "request_id": "req_1"
+  },
+  "billing_connect_arrangements": {
+    "arrangements": [
+      {
+        "arrangement_id": "arr_1",
+        "coach_uid": "coach_abc",
+        "athlete_uid": "ath_123",
+        "stripe_connect_account_id": "acct_1",
+        "stripe_customer_id": "cus_1",
+        "stripe_subscription_id": "sub_1",
+        "billing_mode": "recurring",
+        "amount_cents": 5000,
+        "currency": "usd",
+        "interval": "month",
+        "trial_days": 7,
+        "refund_policy": "prorated",
+        "status": "active",
+        "platform_fee_bps": 1000,
+        "created_at": 1749400000000,
+        "activated_at": 1749400000000
+      }
+    ],
+    "total": 1
+  },
+  "billing_connect_earnings": {
+    "summary": {
+      "coach_uid": "coach_abc",
+      "total_gross_cents": 240000,
+      "total_stripe_fee_cents": 8400,
+      "total_platform_fee_cents": 24000,
+      "total_net_cents": 207600,
+      "charge_count": 48,
+      "settled_count": 46,
+      "settling_count": 2,
+      "currency": "usd"
+    },
+    "breakdowns": [
+      {
+        "charge_group_id": "ch_1",
+        "gross_amount_cents": 5000,
+        "stripe_fees_cents": 175,
+        "platform_fee_cents": 500,
+        "net_to_coach_cents": 4325,
+        "currency": "usd",
+        "settlement_status": "settled",
+        "occurred_at": 1749480000000,
+        "athlete_uid": "ath_123",
+        "athlete_display_name": "A. Rider"
+      }
+    ]
+  },
+  "billing_connect_earnings_empty": {
+    "summary": {
+      "coach_uid": "coach_abc",
+      "total_gross_cents": 0,
+      "total_stripe_fee_cents": 0,
+      "total_platform_fee_cents": 0,
+      "total_net_cents": 0,
+      "charge_count": 0,
+      "settled_count": 0,
+      "settling_count": 0,
+      "currency": "usd"
+    },
+    "breakdowns": []
+  },
+  "billing_connect_summary": {
+    "connect_account": {
+      "coach_uid": "coach_abc",
+      "stripe_account_id": "acct_1",
+      "charges_enabled": true,
+      "payouts_enabled": true,
+      "details_submitted": true,
+      "card_payments_status": "active",
+      "transfers_status": "active",
+      "requirements_currently_due_count": 0,
+      "country": "US",
+      "default_currency": "usd",
+      "capabilities": {
+        "card_payments": "active"
+      },
+      "onboarded_at": 1749500000000,
+      "updated_at": 1749500000000
+    },
+    "is_onboarded": true,
+    "active_arrangements": 3,
+    "month_charges_cents": 15000,
+    "month_fees_cents": 2025,
+    "month_net_cents": 12975,
+    "lifetime_charges_cents": 240000,
+    "lifetime_fees_cents": 32400,
+    "lifetime_net_cents": 207600,
+    "platform_fee_bps": 1000
+  },
+  "billing_connect_summary_none": {
+    "connect_account": null,
+    "is_onboarded": false,
+    "active_arrangements": 0,
+    "month_charges_cents": 0,
+    "month_fees_cents": 0,
+    "month_net_cents": 0,
+    "lifetime_charges_cents": 0,
+    "lifetime_fees_cents": 0,
+    "lifetime_net_cents": 0,
+    "platform_fee_bps": 1000
+  },
+  "billing_connect_transactions": {
+    "charges": [
+      {
+        "charge_id": "ch_1",
+        "arrangement_id": "arr_1",
+        "coach_uid": "coach_abc",
+        "athlete_uid": "ath_123",
+        "amount_cents": 5000,
+        "platform_fee_cents": 500,
+        "stripe_fees_cents": 175,
+        "net_to_coach_cents": 4325,
+        "currency": "usd",
+        "status": "succeeded",
+        "captured_at": 1749480000000,
+        "stripe_webhook_event_id": "evt_1"
+      }
+    ],
+    "total": 1,
+    "next_cursor": "1749480000000|ch_1"
+  },
+  "billing_connect_transactions_end": {
+    "charges": [],
+    "total": 0
+  },
+  "billing_ledger_empty": {
+    "entries": []
+  },
+  "billing_ledger_page": {
+    "entries": [
+      {
+        "amount_cents": 5000,
+        "category": "coaching_fee_received",
+        "charge_group_id": "ch_1",
+        "counterparty_display_name": "A. Rider",
+        "counterparty_id": "ath_123",
+        "counterparty_type": "athlete",
+        "created_at": 1749480000000,
+        "currency": "usd",
+        "description": "Coaching fee from A. Rider",
+        "direction": "receipt",
+        "entry_id": "e_1",
+        "id": "e_1",
+        "occurred_at": 1749480000000,
+        "settlement_status": "settled",
+        "source_reference_id": "ch_1",
+        "source_type": "stripe_charge",
+        "user_uid": "coach_abc"
+      }
+    ],
+    "next_cursor": "1749480000000|e_1"
+  },
+  "billing_seat_state": {
+    "tier": "business",
+    "included_total": 50,
+    "included_used": 12,
+    "coach_paid_count": 0,
+    "next_athlete_price_cents": 0,
+    "volume_tier": 0,
+    "volume_discount_pct": 0,
+    "total_monthly_cents": 0,
+    "is_fair_use": true
+  },
+  "billing_seat_state_pro": {
+    "tier": "pro_coach",
+    "included_total": 2,
+    "included_used": 2,
+    "coach_paid_count": 3,
+    "next_athlete_price_cents": 1299,
+    "volume_tier": 1,
+    "volume_discount_pct": 0,
+    "total_monthly_cents": 3897,
+    "is_fair_use": false
+  },
+  "billing_tier_status": {
+    "subscriptions": [
+      {
+        "subscription_id": "ts_1",
+        "subscriber_type": "user",
+        "subscriber_id": "coach_abc",
+        "tier": "business",
+        "channel": "web_stripe",
+        "source_sku": "price_1",
+        "stripe_subscription_id": "sub_biz",
+        "status": "active",
+        "current_period_start": 1748000000000,
+        "current_period_end": 1750600000000,
+        "amount_cents": 9900,
+        "lifetime_discount_applied": false,
+        "auto_renew": true,
+        "created_at": 1748000000000,
+        "updated_at": 1748000000000
+      }
+    ],
+    "count": 1,
+    "status": {
+      "has_purchase": false,
+      "has_tier_sub": true,
+      "is_active": true,
+      "source": "tier_subscription",
+      "tier_id": "business"
+    }
+  },
+  "billing_tier_status_empty": {
+    "subscriptions": [],
+    "count": 0,
+    "status": {
+      "has_purchase": false,
+      "has_tier_sub": false,
+      "is_active": false
+    }
   },
   "feedback": {
     "rating": 4,
@@ -785,221 +1000,6 @@
       "requires_human_review": false,
       "warnings": null,
       "not_instructions": true
-    }
-  },
-  "billing_connect_arrangements": {
-    "arrangements": [
-      {
-        "arrangement_id": "arr_1",
-        "coach_uid": "coach_abc",
-        "athlete_uid": "ath_123",
-        "stripe_connect_account_id": "acct_1",
-        "stripe_customer_id": "cus_1",
-        "stripe_subscription_id": "sub_1",
-        "billing_mode": "recurring",
-        "amount_cents": 5000,
-        "currency": "usd",
-        "interval": "month",
-        "trial_days": 7,
-        "refund_policy": "prorated",
-        "status": "active",
-        "platform_fee_bps": 1000,
-        "created_at": 1749400000000,
-        "activated_at": 1749400000000
-      }
-    ],
-    "total": 1
-  },
-  "billing_connect_earnings": {
-    "summary": {
-      "coach_uid": "coach_abc",
-      "total_gross_cents": 240000,
-      "total_stripe_fee_cents": 8400,
-      "total_platform_fee_cents": 24000,
-      "total_net_cents": 207600,
-      "charge_count": 48,
-      "settled_count": 46,
-      "settling_count": 2,
-      "currency": "usd"
-    },
-    "breakdowns": [
-      {
-        "charge_group_id": "ch_1",
-        "gross_amount_cents": 5000,
-        "stripe_fees_cents": 175,
-        "platform_fee_cents": 500,
-        "net_to_coach_cents": 4325,
-        "currency": "usd",
-        "settlement_status": "settled",
-        "occurred_at": 1749480000000,
-        "athlete_uid": "ath_123",
-        "athlete_display_name": "A. Rider"
-      }
-    ]
-  },
-  "billing_connect_earnings_empty": {
-    "summary": {
-      "coach_uid": "coach_abc",
-      "total_gross_cents": 0,
-      "total_stripe_fee_cents": 0,
-      "total_platform_fee_cents": 0,
-      "total_net_cents": 0,
-      "charge_count": 0,
-      "settled_count": 0,
-      "settling_count": 0,
-      "currency": "usd"
-    },
-    "breakdowns": []
-  },
-  "billing_connect_summary": {
-    "connect_account": {
-      "coach_uid": "coach_abc",
-      "stripe_account_id": "acct_1",
-      "charges_enabled": true,
-      "payouts_enabled": true,
-      "details_submitted": true,
-      "card_payments_status": "active",
-      "transfers_status": "active",
-      "requirements_currently_due_count": 0,
-      "country": "US",
-      "default_currency": "usd",
-      "capabilities": {
-        "card_payments": "active"
-      },
-      "onboarded_at": 1749500000000,
-      "updated_at": 1749500000000
-    },
-    "is_onboarded": true,
-    "active_arrangements": 3,
-    "month_charges_cents": 15000,
-    "month_fees_cents": 2025,
-    "month_net_cents": 12975,
-    "lifetime_charges_cents": 240000,
-    "lifetime_fees_cents": 32400,
-    "lifetime_net_cents": 207600,
-    "platform_fee_bps": 1000
-  },
-  "billing_connect_summary_none": {
-    "connect_account": null,
-    "is_onboarded": false,
-    "active_arrangements": 0,
-    "month_charges_cents": 0,
-    "month_fees_cents": 0,
-    "month_net_cents": 0,
-    "lifetime_charges_cents": 0,
-    "lifetime_fees_cents": 0,
-    "lifetime_net_cents": 0,
-    "platform_fee_bps": 1000
-  },
-  "billing_connect_transactions": {
-    "charges": [
-      {
-        "charge_id": "ch_1",
-        "arrangement_id": "arr_1",
-        "coach_uid": "coach_abc",
-        "athlete_uid": "ath_123",
-        "amount_cents": 5000,
-        "platform_fee_cents": 500,
-        "stripe_fees_cents": 175,
-        "net_to_coach_cents": 4325,
-        "currency": "usd",
-        "status": "succeeded",
-        "captured_at": 1749480000000,
-        "stripe_webhook_event_id": "evt_1"
-      }
-    ],
-    "total": 1,
-    "next_cursor": "1749480000000"
-  },
-  "billing_connect_transactions_end": {
-    "charges": [],
-    "total": 0
-  },
-  "billing_ledger_empty": {
-    "entries": []
-  },
-  "billing_ledger_page": {
-    "entries": [
-      {
-        "amount_cents": 5000,
-        "category": "coaching_fee_received",
-        "charge_group_id": "ch_1",
-        "counterparty_display_name": "A. Rider",
-        "counterparty_id": "ath_123",
-        "counterparty_type": "athlete",
-        "created_at": 1749480000000,
-        "currency": "usd",
-        "description": "Coaching fee from A. Rider",
-        "direction": "receipt",
-        "entry_id": "e_1",
-        "id": "e_1",
-        "occurred_at": 1749480000000,
-        "settlement_status": "settled",
-        "source_reference_id": "ch_1",
-        "source_type": "stripe_charge",
-        "user_uid": "coach_abc"
-      }
-    ],
-    "next_cursor": "1749480000000"
-  },
-  "billing_seat_state": {
-    "tier": "business",
-    "included_total": 50,
-    "included_used": 12,
-    "coach_paid_count": 0,
-    "next_athlete_price_cents": 0,
-    "volume_tier": 0,
-    "volume_discount_pct": 0,
-    "total_monthly_cents": 0,
-    "is_fair_use": true
-  },
-  "billing_seat_state_pro": {
-    "tier": "pro_coach",
-    "included_total": 2,
-    "included_used": 2,
-    "coach_paid_count": 3,
-    "next_athlete_price_cents": 1299,
-    "volume_tier": 1,
-    "volume_discount_pct": 0,
-    "total_monthly_cents": 3897,
-    "is_fair_use": false
-  },
-  "billing_tier_status": {
-    "subscriptions": [
-      {
-        "subscription_id": "ts_1",
-        "subscriber_type": "user",
-        "subscriber_id": "coach_abc",
-        "tier": "business",
-        "channel": "web_stripe",
-        "source_sku": "price_1",
-        "stripe_subscription_id": "sub_biz",
-        "status": "active",
-        "current_period_start": 1748000000000,
-        "current_period_end": 1750600000000,
-        "amount_cents": 9900,
-        "lifetime_discount_applied": false,
-        "auto_renew": true,
-        "created_at": 1748000000000,
-        "updated_at": 1748000000000
-      }
-    ],
-    "count": 1,
-    "status": {
-      "has_purchase": false,
-      "has_tier_sub": true,
-      "is_active": true,
-      "source": "tier_subscription",
-      "tier_id": "business"
-    }
-  },
-  "billing_tier_status_empty": {
-    "subscriptions": [],
-    "count": 0,
-    "status": {
-      "has_purchase": false,
-      "has_tier_sub": false,
-      "is_active": false
     }
   }
 }
