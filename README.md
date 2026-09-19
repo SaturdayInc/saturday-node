@@ -104,7 +104,7 @@ Athlete settings use flat concern flags, such as `{ sweat_level: 5, gut_distress
 
 ## AI writes
 
-Use `ai.createConversationStream(athleteId, message)` and `ai.sendMessageStream(conversationId, message)`. They return async generators of `{ event, data, rawData, id? }`, preserving unknown event names and JSON fields. The metadata/history read methods still return JSON.
+Use `ai.createConversationStream(athleteId, message)` and `ai.sendMessageStream(conversationId, message)`. They return async generators of `{ event, data, rawData, id? }`, preserving unknown event names and JSON fields. `id` is present only when the server sent an SSE `id:` line for that event; the server sends none today. The metadata/history read methods still return JSON.
 
 Compatibility change: the legacy `ai.createConversation()` and `ai.sendMessage()` signatures are retained but now reject locally with `AIStreamError` code `streaming_required`, before any HTTP request. They cannot return their old metadata/message promises from the actual SSE wire response. Migrate to the explicit stream methods; no timestamps or metadata are invented.
 
@@ -116,26 +116,26 @@ const controller = new AbortController();
 try {
   for await (const event of client.ai.createConversationStream(
     'YOUR_ATHLETE_ID', 'Help me review my fueling plan',
-    { signal: controller.signal, timeout: 30000 },
+    { signal: controller.signal, timeout: 60000 },
   )) {
     // Keep safety_warning, error, tool/action and unknown events, not only text.
     console.log(event.event, event.data);
   }
 } catch (error) {
   if (error instanceof AIStreamError) console.error(error.error.code, error.event);
-  throw error; // No automatic retry: the server may already have accepted the write.
+  throw error; // No automatic retry: the server may have accepted the write.
 }
 ```
 
 The `message_start` event supplies `data.conversation_id`. Current names include `text_delta`, `safety_warning`, `error`, `tool_call`, `tool_result`, `action`, `replay` and `message_end`. `data` is `unknown`: narrow it before accessing fields. `rawData` retains the original SSE data text. `message_end` is not a success verdict: server error events are yielded, then iteration raises `stream_error` after the response finishes. Warnings, including generation-halted safety warnings, must remain visible even if no exception is raised.
 
-Each stream POST is attempted exactly once, including HTTP 429/5xx, connection errors, parse failures, cancellation and premature EOF. `maxRetries` does not apply. Malformed JSON/UTF-8 raises `malformed_stream`; missing final framing or `message_end` raises `incomplete_stream`. Preserve already received events as partial output, not a complete answer. These writes have no idempotency key; inspect conversation state before deciding whether to submit another message.
+Each stream POST is attempted exactly once, including HTTP 429/5xx, connection errors, parse failures, cancellation and premature EOF. `maxRetries` does not apply. Malformed JSON/UTF-8 raises `malformed_stream`; missing final framing or `message_end` raises `incomplete_stream`. Preserve received events as partial output, not a complete answer. These writes have no idempotency key; inspect conversation state before deciding whether to submit another message.
 
 Redirects are refused with `AIStreamError` code `redirect`, so the SDK never forwards the POST to another URL. Connection failures use `connection_error`; HTTP failures retain the usual typed Saturday errors and parsed server details.
 
 Persist the received events if you need an exact record. Stored conversation history is not a guaranteed replay of streamed assistant output.
 
-The timeout is a total deadline in milliseconds, covering headers and the entire body; it defaults to the client's timeout. An `AbortSignal` cancels a pending read. Breaking a `for await` loop closes the response and releases its reader. Always finish or close an iterator; abandoning it without either leaves cleanup to the deadline. Cancellation cannot undo inference already accepted by the server. No reconnect is triggered by an SSE `retry` or `replay` field/event.
+The timeout is a total deadline in milliseconds, covering headers and the entire body. It defaults to the client `timeout` when one is configured, else 60 s: a turn with tool calls can run up to the API's 60 s request cap. An `AbortSignal` cancels a pending read. Breaking a `for await` loop closes the response and releases its reader. Always finish or close an iterator; abandoning it without either leaves cleanup to the deadline. Cancellation cannot undo inference the server has accepted. No reconnect is triggered by an SSE `retry` or `replay` field/event.
 
 ## Documentation
 
