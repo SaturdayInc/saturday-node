@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	"saturdaymorning.fit/appsbackend/pkg/api"
+	"saturdaymorning.fit/appsbackend/pkg/coachbilling"
+	"saturdaymorning.fit/appsbackend/pkg/connect"
+	"saturdaymorning.fit/appsbackend/pkg/purchase"
 )
 
 type activityReader struct {
@@ -135,7 +138,7 @@ func main() {
 		HeatTolerance: true, Faintness: true, DrinkingResistance: true, Thirst: true, ConcernsAnswered: true,
 	}
 	fixtures := map[string]any{
-		"_meta":                 map[string]string{"backend_sha": *sha, "source": "pkg/api Go JSON types and stored-prescription/list/settings HTTP handlers; synthetic values, no API calls"},
+		"_meta":                 map[string]string{"backend_sha": *sha, "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, and the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling; synthetic values, no API calls"},
 		"activity_exact":        exact,
 		"activity_banded":       band,
 		"nutrition_exact":       nutrition,
@@ -169,6 +172,9 @@ func main() {
 		"import_calc_failed":    api.ActivityImportResponse{Imported: []api.Activity{activity}, Total: 1, Succeeded: 1, RequestID: "req_8", Prescriptions: []api.ImportPrescriptionItem{{Index: 0, ActivityID: "act_1", Code: "storage_error", Message: "Unable to calculate"}}},
 		"import_all_failed":     api.ActivityImportResponse{Imported: []api.Activity{}, Errors: []api.BatchError{{Index: 0, Code: "invalid_value", Message: "Invalid input"}}, Total: 1, Failed: 1, RequestID: "req_9"},
 	}
+	for name, fixture := range billingFixtures() {
+		fixtures[name] = fixture
+	}
 	file, err := os.Create(*out)
 	if err != nil {
 		panic(err)
@@ -180,4 +186,29 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("Wrote %d contract fixtures to %s\n", len(fixtures)-1, *out)
+}
+
+// billingFixtures marshals the coach billing reads from the structs the Coach API
+// serves (pkg/purchase, pkg/connect, pkg/coachbilling), one populated and one empty
+// shape per endpoint, so the SDK types are checked against real serialization.
+func billingFixtures() map[string]any {
+	acct := &connect.ConnectAccount{CoachUID: "coach_abc", StripeAccountID: "acct_1", ChargesEnabled: true, PayoutsEnabled: true, DetailsSubmitted: true, CardPaymentsStatus: "active", TransfersStatus: "active", Country: "US", DefaultCurrency: "usd", Capabilities: map[string]string{"card_payments": "active"}, OnboardedAt: 1749500000000, UpdatedAt: 1749500000000}
+	charge := connect.ConnectCharge{ChargeID: "ch_1", ArrangementID: "arr_1", CoachUID: "coach_abc", AthleteUID: "ath_123", AmountCents: 5000, PlatformFeeCents: 500, StripeFeesCents: 175, NetToCoachCents: 4325, Currency: "usd", Status: "succeeded", CapturedAt: 1749480000000, StripeWebhookEventID: "evt_1"}
+	arr := connect.BillingArrangement{ArrangementID: "arr_1", CoachUID: "coach_abc", AthleteUID: "ath_123", StripeConnectAcctID: "acct_1", StripeCustomerID: "cus_1", StripeSubscriptionID: "sub_1", BillingMode: "recurring", AmountCents: 5000, Currency: "usd", Interval: "month", TrialDays: 7, RefundPolicy: "prorated", Status: "active", PlatformFeeBPS: 1000, CreatedAt: 1749400000000, ActivatedAt: 1749400000000}
+	sub := purchase.TierSubscription{SubscriptionID: "ts_1", SubscriberType: "user", SubscriberID: "coach_abc", Tier: "business", Channel: "web_stripe", SourceSKU: "price_1", StripeSubscriptionID: "sub_biz", Status: "active", CurrentPeriodStart: 1748000000000, CurrentPeriodEnd: 1750600000000, AmountCents: 9900, AutoRenew: true, CreatedAt: 1748000000000, UpdatedAt: 1748000000000}
+	return map[string]any{
+		"billing_seat_state":               &purchase.SeatState{Tier: "business", IncludedTotal: 50, IncludedUsed: 12, IsFairUse: true},
+		"billing_seat_state_pro":           &purchase.SeatState{Tier: "pro_coach", IncludedTotal: 2, IncludedUsed: 2, CoachPaidCount: 3, NextAthletePriceCents: 1299, VolumeTier: 1, TotalMonthlyCents: 3897},
+		"billing_ledger_page":              &coachbilling.LedgerPage{Entries: []map[string]any{{"id": "e_1", "entry_id": "e_1", "user_uid": "coach_abc", "direction": "receipt", "amount_cents": 5000, "currency": "usd", "category": "coaching_fee_received", "counterparty_type": "athlete", "counterparty_id": "ath_123", "counterparty_display_name": "A. Rider", "source_type": "stripe_charge", "source_reference_id": "ch_1", "description": "Coaching fee from A. Rider", "occurred_at": 1749480000000, "created_at": 1749480000000, "charge_group_id": "ch_1", "settlement_status": "settled"}}, NextCursor: "1749480000000|e_1"},
+		"billing_ledger_empty":             &coachbilling.LedgerPage{Entries: []map[string]any{}},
+		"billing_tier_status":              &coachbilling.TierStatus{Subscriptions: []purchase.TierSubscription{sub}, Count: 1, Status: &purchase.SubscriptionStatus{HasTierSub: true, IsActive: true, Source: "tier_subscription", TierID: "business"}},
+		"billing_tier_status_empty":        &coachbilling.TierStatus{Subscriptions: []purchase.TierSubscription{}, Status: &purchase.SubscriptionStatus{}},
+		"billing_connect_summary":          &connect.DashboardSummary{ConnectAccount: acct, IsOnboarded: true, ActiveArrangements: 3, MonthCharges: 15000, MonthFees: 2025, MonthNet: 12975, LifetimeCharges: 240000, LifetimeFees: 32400, LifetimeNet: 207600, PlatformFeeBPS: 1000},
+		"billing_connect_summary_none":     &connect.DashboardSummary{PlatformFeeBPS: 1000},
+		"billing_connect_earnings":         &coachbilling.ConnectEarnings{Summary: &connect.CoachEarningsSummary{CoachUID: "coach_abc", TotalGrossCents: 240000, TotalStripeFeeCents: 8400, TotalPlatformFeeCents: 24000, TotalNetCents: 207600, ChargeCount: 48, SettledCount: 46, SettlingCount: 2, Currency: "usd"}, Breakdowns: []connect.ChargeBreakdown{{ChargeGroupID: "ch_1", GrossAmountCents: 5000, StripeFeesCents: 175, PlatformFeeCents: 500, NetToCoachCents: 4325, Currency: "usd", SettlementStatus: "settled", OccurredAt: 1749480000000, AthleteUID: "ath_123", AthleteDisplayName: "A. Rider"}}},
+		"billing_connect_earnings_empty":   &coachbilling.ConnectEarnings{Summary: &connect.CoachEarningsSummary{CoachUID: "coach_abc", Currency: "usd"}, Breakdowns: []connect.ChargeBreakdown{}},
+		"billing_connect_transactions":     &coachbilling.ChargesPage{Charges: []connect.ConnectCharge{charge}, Total: 1, NextCursor: "1749480000000|ch_1"},
+		"billing_connect_transactions_end": &coachbilling.ChargesPage{Charges: []connect.ConnectCharge{}},
+		"billing_connect_arrangements":     &connect.DashboardArrangements{Arrangements: []connect.BillingArrangement{arr}, Total: 1},
+	}
 }

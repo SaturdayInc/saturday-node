@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- Add the read-only coach billing reads: `coach.seatState`, `coach.ledger`, `coach.tierStatus`, `coach.connectSummary`, `coach.connectEarnings`, `coach.connectTransactions` and `coach.connectArrangements`, with typed responses (`CoachSeatState`, `CoachLedgerPage`, `CoachTierStatus`, `CoachConnectSummary`, `CoachConnectEarnings`, `CoachConnectChargesPage`, `CoachConnectArrangements`). They need a coach API key carrying the new `billing:read` scope; amounts are integer cents and timestamps Unix milliseconds, as the portal shows them.
+
 ## 0.6.1
 
 - An AI stream deadline defaults to 60 s, matching the API's request cap, when the client has no `timeout` configured. An explicit client `timeout` or per-call `timeout` still applies.

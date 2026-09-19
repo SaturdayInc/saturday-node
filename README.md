@@ -92,7 +92,7 @@ Partner keys carry the `sk_live_` or `sk_test_` prefix; coach keys carry `cp_liv
 | `saturday.gear` | Athlete gear inventory |
 | `saturday.knowledge` | Sports nutrition knowledge base search |
 | `saturday.onboarding` | The versioned onboarding question schema, for collecting an athlete's profile in your UI |
-| `saturday.coach` | Roster fueling reads, the coach's alert and report configuration, and coach webhooks, with a coach key |
+| `saturday.coach` | Roster fueling reads, the coach's alert and report configuration, coach webhooks, and read-only billing (`seatState`, `ledger`, `tierStatus`, `connectSummary`, `connectEarnings`, `connectTransactions`, `connectArrangements`; the key must carry `billing:read`), with a coach key |
 
 ## Prescription and batch responses
 

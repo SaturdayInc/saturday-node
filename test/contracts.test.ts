@@ -26,6 +26,13 @@ it('type-checks backend-generated payloads and resource returns without inventin
     athletes_partial: 'BatchAthleteResponse', athletes_all_failed: 'BatchAthleteResponse',
     import_plain: 'ActivityImportResponse', import_calculated: 'ActivityImportResponse',
     import_calc_failed: 'ActivityImportResponse', import_all_failed: 'ActivityImportResponse',
+    billing_seat_state: 'CoachSeatState', billing_seat_state_pro: 'CoachSeatState',
+    billing_ledger_page: 'CoachLedgerPage', billing_ledger_empty: 'CoachLedgerPage',
+    billing_tier_status: 'CoachTierStatus', billing_tier_status_empty: 'CoachTierStatus',
+    billing_connect_summary: 'CoachConnectSummary', billing_connect_summary_none: 'CoachConnectSummary',
+    billing_connect_earnings: 'CoachConnectEarnings', billing_connect_earnings_empty: 'CoachConnectEarnings',
+    billing_connect_transactions: 'CoachConnectChargesPage', billing_connect_transactions_end: 'CoachConnectChargesPage',
+    billing_connect_arrangements: 'CoachConnectArrangements',
   };
   const source = `import Saturday, {${[...new Set([...Object.values(mappings), 'Attribution'])].join(',')}} from '../src';\n`
     + Object.entries(mappings).map(([name, type]) => `const ${name}: ${type} = ${JSON.stringify(fixtures[name])};`).join('\n')
@@ -44,6 +51,23 @@ it('type-checks backend-generated payloads and resource returns without inventin
       const hasMore: boolean = activityPage.pagination.has_more;
       const preferences: AthleteSettings = await client.athletes.getSettings('ath_1');
       const changed: AthleteSettings = await client.athletes.updateSettings('ath_1', {sweat_level: 5, gut_distress: false});
+      const seats: CoachSeatState = await client.coach.seatState({orgId: 'org_1'});
+      const ledger: CoachLedgerPage = await client.coach.ledger({view: 'inflows', limit: 50, cursor: '1749480000000'});
+      const tier: CoachTierStatus = await client.coach.tierStatus();
+      const summary: CoachConnectSummary = await client.coach.connectSummary();
+      const earnings: CoachConnectEarnings = await client.coach.connectEarnings();
+      const charges: CoachConnectChargesPage = await client.coach.connectTransactions({limit: 20});
+      const arrangements: CoachConnectArrangements = await client.coach.connectArrangements();
+      const fairUse: boolean = seats.is_fair_use;
+      const nextCursor: string | undefined = ledger.next_cursor;
+      const firstDirection: 'charge' | 'receipt' | 'refund' | 'covered_by' = ledger.entries[0].direction;
+      const accountCountry: string | undefined = summary.connect_account?.country;
+      const net: number = earnings.summary.total_net_cents + charges.charges[0].net_to_coach_cents + arrangements.arrangements[0].amount_cents;
+      const active: boolean = tier.status.is_active;
+      // @ts-expect-error ledger pagination is a top-level next_cursor, not a nested object
+      ledger.pagination;
+      // @ts-expect-error the seat picture carries integer cents, not a formatted price
+      seats.next_athlete_price;
       const athlete: Athlete = await client.athletes.create({name: 'Fixture', settings: {sweat_level: 5}, partner_plan: 'annual', org_id: 'org_1'});
       const profileComplete: boolean = athlete.profile_complete;
       const savedSettings: AthleteSettings = athlete.settings;
@@ -161,4 +185,26 @@ it.each(['settings_full', 'settings_empty', 'settings_updated'])('preserves raw 
   expect(mock.mock.calls[1][0]).toBe('https://api.saturday.fit/v1/athletes/ath_1/settings');
   expect(mock.mock.calls[1][1].method).toBe('PATCH');
   expect(JSON.parse(mock.mock.calls[1][1].body)).toEqual(settings);
+});
+
+it.each([
+  ['billing_seat_state', 'seatState', {}, '/v1/coach/billing/seat-state'],
+  ['billing_seat_state', 'seatState', { orgId: 'org_1' }, '/v1/coach/billing/seat-state?org_id=org_1'],
+  ['billing_ledger_page', 'ledger', { view: 'inflows', limit: 50, cursor: '1749480000000' }, '/v1/coach/billing/ledger?view=inflows&limit=50&cursor=1749480000000'],
+  ['billing_ledger_empty', 'ledger', {}, '/v1/coach/billing/ledger'],
+  ['billing_tier_status', 'tierStatus', undefined, '/v1/coach/billing/tier-status'],
+  ['billing_connect_summary_none', 'connectSummary', undefined, '/v1/coach/billing/connect/summary'],
+  ['billing_connect_earnings', 'connectEarnings', undefined, '/v1/coach/billing/connect/earnings'],
+  ['billing_connect_transactions', 'connectTransactions', { limit: 20, cursor: '1749480000000' }, '/v1/coach/billing/connect/transactions?limit=20&cursor=1749480000000'],
+  ['billing_connect_arrangements', 'connectArrangements', undefined, '/v1/coach/billing/connect/arrangements'],
+] as const)('%s: coach.%s is a GET with the documented query and keeps the raw payload', async (name, method, params, path) => {
+  const payload = { ...fixtures[name], future_field: true };
+  const mock = jest.fn().mockResolvedValue(Response.json(payload));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'cp_test_fixture', maxRetries: 0 });
+  const fn = (client.coach as unknown as Record<string, (arg?: unknown) => Promise<unknown>>)[method];
+  const result = params === undefined ? await fn.call(client.coach) : await fn.call(client.coach, params);
+  expect(result).toEqual(payload);
+  expect(mock.mock.calls[0][0]).toBe(`https://api.saturday.fit${path}`);
+  expect(mock.mock.calls[0][1].method).toBe('GET');
 });
