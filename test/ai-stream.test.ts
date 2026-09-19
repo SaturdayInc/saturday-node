@@ -75,6 +75,33 @@ test.each([
   expect(global.fetch).toHaveBeenCalledTimes(1);
 });
 
+test('id is per event: present only when that block carried an id line', async () => {
+  mockStream(Buffer.from(start + 'id: 7\n' + frame('text_delta', { delta: 'a' }) + frame('text_delta', { delta: 'b' }) + end));
+  const events: any[] = await collect(client().ai.sendMessageStream('conv', 'hello'));
+  expect(events.map(e => e.id ?? null)).toEqual([null, '7', null, null]);
+  expect(events.filter(e => 'id' in e)).toHaveLength(1);
+});
+
+test('the stream deadline defaults to 60 s; a client timeout or a per-call timeout still wins', async () => {
+  jest.useFakeTimers();
+  global.fetch = jest.fn((_url: any, init: any) => new Promise<never>((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => reject(new Error('aborted')));
+  })) as unknown as typeof fetch;
+  const expectDeadline = async (stream: AsyncIterable<unknown>, expectedMs: number) => {
+    let outcome: unknown = 'pending';
+    const done = collect(stream).then(() => { outcome = 'resolved'; }, error => { outcome = error; });
+    await jest.advanceTimersByTimeAsync(expectedMs - 1);
+    expect(outcome).toBe('pending');
+    await jest.advanceTimersByTimeAsync(1);
+    await done;
+    expect(outcome).toMatchObject({ error: { code: 'timeout', message: expect.stringContaining(`${expectedMs}ms`) } });
+  };
+  await expectDeadline(client().ai.sendMessageStream('conv', 'hello'), 60_000);
+  await expectDeadline(client({ timeout: 5000 }).ai.sendMessageStream('conv', 'hello'), 5000);
+  await expectDeadline(client({ timeout: 5000 }).ai.sendMessageStream('conv', 'hello', { timeout: 1234 }), 1234);
+  expect(global.fetch).toHaveBeenCalledTimes(3);
+});
+
 test('rejects incomplete UTF8 without losing its error', async () => {
   mockStream(Buffer.concat([Buffer.from(start), Buffer.from([0xf0, 0x9f])]));
   await expect(collect((client().ai as any).sendMessageStream('conv', 'hello'))).rejects.toMatchObject({ error: { code: 'malformed_stream' } });

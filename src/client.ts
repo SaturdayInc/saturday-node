@@ -54,8 +54,10 @@ import type { AIStreamEvent, AIStreamOptions } from './ai-stream';
 
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
+// AI turns run up to the API's 60 s request cap, so an unconfigured stream deadline is longer than the JSON default.
+const DEFAULT_STREAM_TIMEOUT = 60000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.6.0';
+const SDK_VERSION = '0.6.1';
 
 /**
  * Saturday Nutrition Intelligence API client.
@@ -76,6 +78,7 @@ const SDK_VERSION = '0.6.0';
  */
 export class Saturday {
   private readonly config: Required<Omit<SaturdayConfig, 'bearerToken'>> & { bearerToken?: string };
+  private readonly streamTimeout: number;
 
   /** Nutrition intelligence endpoints — the crown jewel. */
   readonly nutrition: NutritionResource;
@@ -122,6 +125,7 @@ export class Saturday {
       maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       bearerToken: config.bearerToken,
     };
+    this.streamTimeout = config.timeout || DEFAULT_STREAM_TIMEOUT;
 
     this.nutrition = new NutritionResource(this);
     this.athletes = new AthletesResource(this);
@@ -228,7 +232,7 @@ export class Saturday {
       'User-Agent': `saturday-node/${SDK_VERSION}`,
       'X-SDK-Version': SDK_VERSION,
       Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
-    }, body, this.config.timeout, options, (status, detail, headers) => this.mapError(status, detail, headers));
+    }, body, this.streamTimeout, options, (status, detail, headers) => this.mapError(status, detail, headers));
   }
 
   private mapError(status: number, detail: any, headers: Headers): SaturdayError {

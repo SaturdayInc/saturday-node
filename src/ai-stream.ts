@@ -7,12 +7,13 @@ export interface AIStreamEvent {
   event: string;
   data: unknown;
   rawData: string;
+  /** Present only when this event's block carried an SSE `id:` line; not a reconnect buffer. The server sends none today. */
   id?: string;
 }
 
 export interface AIStreamOptions {
   signal?: AbortSignal;
-  /** Total request deadline in milliseconds, including the entire response body. */
+  /** Total request deadline in milliseconds, including the entire response body. Defaults to the client `timeout` when configured, else 60000. */
   timeout?: number;
 }
 
@@ -44,18 +45,19 @@ class EventParser {
       const line = this.line;
       this.line = '';
       if (line === '') {
-        if (this.data.length) {
-          const rawData = this.data.join('\n');
-          const event: AIStreamEvent = { event: this.name || 'message', data: undefined, rawData };
-          if (this.id !== undefined) event.id = this.id;
+        // An id line belongs to the event dispatched by its own block, never to later events.
+        const { name, data, id } = this;
+        this.name = '';
+        this.data = [];
+        this.id = undefined;
+        if (data.length) {
+          const rawData = data.join('\n');
+          const event: AIStreamEvent = { event: name || 'message', data: undefined, rawData };
+          if (id !== undefined) event.id = id;
           try { event.data = JSON.parse(rawData); } catch {
             throw new AIStreamError('malformed_stream', 'AI event contains invalid JSON. The request was not replayed.', event);
           }
-          this.name = '';
-          this.data = [];
           yield event;
-        } else {
-          this.name = '';
         }
         continue;
       }
