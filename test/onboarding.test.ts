@@ -67,6 +67,7 @@ describe('precision object on calculate', () => {
       tier: 'full',
       carb_range_g_per_hr: '60-80',
       safety: { confidence_score: 0.62 } as NutritionCalculateResponse['safety'],
+      attribution: { text: 'Powered by Saturday', logo_url: '', link: '', required: false },
       precision: {
         profile_complete: false,
         missing_fields: [
@@ -101,6 +102,7 @@ describe('precision object on calculate', () => {
       sodium_mg_per_hr: 900,
       fluid_ml_per_hr: 1000,
       safety: { confidence_score: 1.0 } as NutritionCalculateResponse['safety'],
+      attribution: { text: 'Powered by Saturday', logo_url: '', link: '', required: false },
       precision: { profile_complete: true },
     };
     mockFetch(complete);

@@ -58,3 +58,27 @@ it.each([
     [[]], [`Carbs: ${values[0]} g/hr`], [`Sodium: ${values[1]} mg/hr`], [`Fluid: ${values[2]} mL/hr`],
   ]);
 });
+
+it.each([
+  ['stored_exact', null, '60'],
+  ['stored_banded', [], '50-70'],
+  ['stored_banded', ['Review this recommendation'], '50-70'],
+])('executes the README stored-prescription example for %s with warnings %j', async (name, warnings, carbs) => {
+  const root = join(__dirname, '..');
+  const fixtures = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'contracts.json'), 'utf8'));
+  const payload = fixtures[name as string];
+  global.fetch = jest.fn().mockImplementation(async (url, init) => {
+    expect(url).toBe('https://api.saturday.fit/v1/athletes/ath_123/activities/act_123/prescription');
+    expect(init?.method).toBe('GET');
+    return Response.json({ ...payload, safety: { ...payload.safety, warnings } });
+  });
+  const readme = readFileSync(join(root, 'README.md'), 'utf8');
+  const example = [...readme.matchAll(/```typescript\n([\s\S]*?)```/g)]
+    .find(match => match[1].includes('getPrescription'))![1];
+  const compiled = ts.transpileModule(example, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const log = jest.fn();
+  await new AsyncFunction('Saturday', 'console', compiled)(sdk.Saturday, { log });
+  expect(log.mock.calls).toEqual([[`Carbs: ${carbs} g/hr`], ...((warnings ?? []) as string[]).map(warning => [warning])]);
+});

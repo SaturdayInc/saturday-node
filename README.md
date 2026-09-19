@@ -43,7 +43,7 @@ Teaser responses and incomplete profiles return ranges. A `full` tier alone does
 
 ## Features
 
-- TypeScript resource types, with [known activity-prescription alignment gaps](https://github.com/SaturdayInc/saturday-node/issues/6)
+- TypeScript response types for nutrition, activity prescriptions, and batch results
 - Automatic retry with exponential backoff (429s and 5xx)
 - Typed errors (AuthenticationError, RateLimitError, ValidationError, NotFoundError)
 - API key and OAuth2 Bearer token authentication
@@ -68,13 +68,39 @@ const delegatedClient = new Saturday({
 |----------|-------------|
 | `saturday.nutrition` | Calculate prescriptions, batch calculate |
 | `saturday.athletes` | Athlete CRUD, settings, batch create, GDPR export |
-| `saturday.activities` | Activity CRUD, prescription calculation, feedback |
+| `saturday.activities` | Activity CRUD, prescription calculation, import, feedback |
 | `saturday.products` | Product search, barcode lookup, curated list |
 | `saturday.ai` | Conversation metadata and history; see AI writes below |
 | `saturday.webhooks` | Webhook registration and management |
 | `saturday.organizations` | Team/org management and member directories |
 | `saturday.gear` | Athlete gear inventory |
 | `saturday.knowledge` | Sports nutrition knowledge base search |
+
+## Prescription and batch responses
+
+Responses remain raw JSON objects. `nutrition.calculate()` returns flat nutrition fields. `activities.calculatePrescription()` returns a `PrescriptionEnvelope`: full-tier results are under `prescription`, while teaser ranges are at the top level. Full-tier prescriptions can also contain ranges when inputs are incomplete.
+
+`activities.getPrescription()` returns `{ prescription, safety }`, with no `tier` field. Activity timestamps, including `prescription.calculated_at`, use epoch seconds; `trial_ends_at` uses epoch milliseconds. Safety warnings may be `null`.
+
+```typescript
+const saturday = new Saturday({ apiKey: 'sk_live_...' });
+const stored = await saturday.activities.getPrescription('ath_123', 'act_123');
+const carbs = stored.prescription.carb_range_g_per_hr ?? stored.prescription.carb_g_per_hr;
+console.log(`Carbs: ${carbs} g/hr`);
+for (const warning of stored.safety.warnings ?? []) console.log(warning);
+```
+
+Batch calculations return flat `results[]`, not indexed prescription wrappers. Athlete batches return `created[]`, not `athletes[]`. Success arrays preserve input order with failed items omitted; `errors[]` contains each failed item's original `index`, `code`, and `message`. Do not use a success-array position as the original input index after partial failure.
+
+`activities.importActivities(athleteId, activities, { calculate: true })` creates activities and optionally calculates prescriptions. Omit the third argument to avoid global calculation; individual activities may explicitly set `calculate: true`. A global `false` does not override a per-activity `true`. Calculation outcomes appear in `prescriptions[]`; a failed calculation does not undo an imported activity. Each batch/import item counts toward the applicable quota; requested calculations may also consume trial calls.
+
+The corrected declarations can expose TypeScript errors in code that relied on the former shapes. Update field access rather than casting to the old flat nutrition type. No response flattening or runtime conversion is performed.
+
+Athlete and activity list responses keep the resource array under `athletes` or `activities`. Pagination is nested: check `page.pagination.has_more` and pass `page.pagination.next_cursor` as the next request's `cursor` option. `page.pagination.total` counts records on that page, not the entire collection.
+
+The legacy athlete-list `search` and activity-list `type` options are currently ignored by the backend. They remain accepted for source compatibility, but do not filter results.
+
+Athlete settings use flat concern flags, such as `{ sweat_level: 5, gut_distress: true }`, not a nested `concerns` object. `athletes.updateSettings()` replaces the complete settings for a partner-managed athlete; omitted settings reset. Send the complete intended settings, including values you want to preserve. The SDK does not fetch or merge settings implicitly.
 
 ## AI writes
 
