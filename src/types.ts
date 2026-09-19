@@ -8,7 +8,7 @@ export interface SaturdayConfig {
   /** Base URL override. Defaults to https://api.saturday.fit */
   baseUrl?: string;
 
-  /** Request timeout in milliseconds. Defaults to 30000. */
+  /** Per-attempt timeout including response body reads, in milliseconds. Defaults to 30000. */
   timeout?: number;
 
   /** Maximum retry attempts for transient failures. Defaults to 3. */
