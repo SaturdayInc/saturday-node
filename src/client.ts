@@ -100,7 +100,7 @@ export class Saturday {
   /** Product database search and lookup. */
   readonly products: ProductsResource;
 
-  /** AI coaching conversations (feature-gated: ai_coach). */
+  /** AI-to-AI conversations with Saturday's assistant (feature-gated: ai_to_ai_conversations). */
   readonly ai: AIResource;
 
   /** Webhook event subscriptions. */
