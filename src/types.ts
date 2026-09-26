@@ -527,7 +527,7 @@ export interface CuratedProductsResponse {
   request_id: string;
 }
 
-// --- AI Coach ---
+// --- AI-to-AI conversations ---
 
 export interface AIConversation {
   id: string;
