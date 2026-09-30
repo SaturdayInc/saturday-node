@@ -800,6 +800,8 @@ export interface CoachSeatState {
   included_total: number;
   included_used: number;
   coach_paid_count: number;
+  /** Coach-paid athletes whose seat starts billing when the time they paid for on their own Monthly plan runs out; not in `coach_paid_count` until then. */
+  pending_coach_paid_count: number;
   next_athlete_price_cents: number;
   volume_tier: number;
   volume_discount_pct: number;
