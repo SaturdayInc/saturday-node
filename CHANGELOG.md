@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `CoachSeatState` gains `pending_coach_paid_count`: coach-paid athletes whose seat starts billing when the time they paid for on their own Monthly plan runs out. They are not in `coach_paid_count` until then.
+
 ## 0.7.0
 
 - Add the read-only coach billing reads: `coach.seatState`, `coach.ledger`, `coach.tierStatus`, `coach.connectSummary`, `coach.connectEarnings`, `coach.connectTransactions` and `coach.connectArrangements`, with typed responses (`CoachSeatState`, `CoachLedgerPage`, `CoachTierStatus`, `CoachConnectSummary`, `CoachConnectEarnings`, `CoachConnectChargesPage`, `CoachConnectArrangements`). They need a coach API key carrying the new `billing:read` scope; amounts are integer cents and timestamps Unix milliseconds, as the portal shows them.

@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "backend_sha": "20e1af4ee08e00cd673706580923843fd2ee5fc8",
+    "backend_sha": "21300070c451cfe4a354fbf4826a1e06e703a895",
     "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, and the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling; synthetic values, no API calls"
   },
   "activity": {
@@ -505,6 +505,7 @@
     "included_total": 50,
     "included_used": 12,
     "coach_paid_count": 0,
+    "pending_coach_paid_count": 0,
     "next_athlete_price_cents": 0,
     "volume_tier": 0,
     "volume_discount_pct": 0,
@@ -516,6 +517,7 @@
     "included_total": 2,
     "included_used": 2,
     "coach_paid_count": 3,
+    "pending_coach_paid_count": 0,
     "next_athlete_price_cents": 1299,
     "volume_tier": 1,
     "volume_discount_pct": 0,
