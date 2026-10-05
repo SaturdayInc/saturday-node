@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "backend_sha": "21300070c451cfe4a354fbf4826a1e06e703a895",
+    "backend_sha": "26ee95de5302a26a301ed15d2c5f704d6a32f56d",
     "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, and the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling; synthetic values, no API calls"
   },
   "activity": {
@@ -374,7 +374,11 @@
       "total_gross_cents": 240000,
       "total_stripe_fee_cents": 8400,
       "total_platform_fee_cents": 24000,
-      "total_net_cents": 207600,
+      "total_refunded_cents": 2000,
+      "total_platform_fee_returned_cents": 200,
+      "total_disputes_cents": 1500,
+      "total_dispute_costs_recovered_cents": 0,
+      "total_net_cents": 204300,
       "charge_count": 48,
       "settled_count": 46,
       "settling_count": 2,
@@ -385,11 +389,33 @@
         "charge_group_id": "ch_1",
         "gross_amount_cents": 5000,
         "stripe_fees_cents": 175,
+        "stripe_fee_paid_by": "coach",
         "platform_fee_cents": 500,
+        "refunded_cents": 0,
+        "platform_fee_returned_cents": 0,
+        "disputes_cents": 0,
+        "dispute_costs_recovered_cents": 0,
         "net_to_coach_cents": 4325,
         "currency": "usd",
         "settlement_status": "settled",
         "occurred_at": 1749480000000,
+        "athlete_uid": "ath_123",
+        "athlete_display_name": "A. Rider"
+      },
+      {
+        "charge_group_id": "ch_2",
+        "gross_amount_cents": 10000,
+        "stripe_fees_cents": 320,
+        "stripe_fee_paid_by": "coach",
+        "platform_fee_cents": 1000,
+        "refunded_cents": 2000,
+        "platform_fee_returned_cents": 200,
+        "disputes_cents": 0,
+        "dispute_costs_recovered_cents": 0,
+        "net_to_coach_cents": 6880,
+        "currency": "usd",
+        "settlement_status": "settled",
+        "occurred_at": 1749390000000,
         "athlete_uid": "ath_123",
         "athlete_display_name": "A. Rider"
       }
@@ -401,6 +427,10 @@
       "total_gross_cents": 0,
       "total_stripe_fee_cents": 0,
       "total_platform_fee_cents": 0,
+      "total_refunded_cents": 0,
+      "total_platform_fee_returned_cents": 0,
+      "total_disputes_cents": 0,
+      "total_dispute_costs_recovered_cents": 0,
       "total_net_cents": 0,
       "charge_count": 0,
       "settled_count": 0,
@@ -435,7 +465,12 @@
     "lifetime_charges_cents": 240000,
     "lifetime_fees_cents": 32400,
     "lifetime_net_cents": 207600,
-    "platform_fee_bps": 1000
+    "platform_fee_bps": 1000,
+    "platform_fee_minimum_cents": 0,
+    "coach_pays_stripe_fees_from": 0,
+    "stripe_fee_domestic_bps": 0,
+    "stripe_fee_international_bps": 0,
+    "stripe_fee_fixed_cents": 0
   },
   "billing_connect_summary_none": {
     "connect_account": null,
@@ -447,7 +482,12 @@
     "lifetime_charges_cents": 0,
     "lifetime_fees_cents": 0,
     "lifetime_net_cents": 0,
-    "platform_fee_bps": 1000
+    "platform_fee_bps": 1000,
+    "platform_fee_minimum_cents": 0,
+    "coach_pays_stripe_fees_from": 0,
+    "stripe_fee_domestic_bps": 0,
+    "stripe_fee_international_bps": 0,
+    "stripe_fee_fixed_cents": 0
   },
   "billing_connect_transactions": {
     "charges": [
@@ -463,11 +503,29 @@
         "currency": "usd",
         "status": "succeeded",
         "captured_at": 1749480000000,
-        "stripe_webhook_event_id": "evt_1"
+        "stripe_webhook_event_id": "evt_1",
+        "stripe_fee_paid_by": "coach"
+      },
+      {
+        "charge_id": "ch_2",
+        "arrangement_id": "arr_1",
+        "coach_uid": "coach_abc",
+        "athlete_uid": "ath_123",
+        "amount_cents": 10000,
+        "platform_fee_cents": 1000,
+        "stripe_fees_cents": 320,
+        "net_to_coach_cents": 6880,
+        "currency": "usd",
+        "status": "refunded",
+        "refund_amount_cents": 2000,
+        "captured_at": 1749390000000,
+        "stripe_webhook_event_id": "evt_2",
+        "stripe_fee_paid_by": "coach",
+        "platform_fee_returned_cents": 200
       }
     ],
-    "total": 1,
-    "next_cursor": "1749480000000|ch_1"
+    "total": 2,
+    "next_cursor": "1749390000000|ch_2"
   },
   "billing_connect_transactions_end": {
     "charges": [],

@@ -920,6 +920,14 @@ export interface CoachConnectSummary {
   lifetime_fees_cents: number;
   lifetime_net_cents: number;
   platform_fee_bps: number;
+  /** The least Saturday's fee takes from a charge. */
+  platform_fee_minimum_cents: number;
+  /** When the coach starts paying Stripe's processing fee (Unix ms); 0 while Saturday pays it. */
+  coach_pays_stripe_fees_from: number;
+  /** Stripe's processing fee on Saturday's account: a domestic and an international card rate, plus a fixed amount per charge. */
+  stripe_fee_domestic_bps: number;
+  stripe_fee_international_bps: number;
+  stripe_fee_fixed_cents: number;
 }
 
 /** Fee totals across the coach's settled charges. */
@@ -928,6 +936,14 @@ export interface CoachEarningsSummary {
   total_gross_cents: number;
   total_stripe_fee_cents: number;
   total_platform_fee_cents: number;
+  /** Refunded to athletes. */
+  total_refunded_cents: number;
+  /** Saturday's fee given back on refunds. */
+  total_platform_fee_returned_cents: number;
+  /** Taken for disputes and their fees, less what was paid back. */
+  total_disputes_cents: number;
+  /** The part of `total_disputes_cents` that repaid earlier disputes' costs. */
+  total_dispute_costs_recovered_cents: number;
   total_net_cents: number;
   charge_count: number;
   settled_count: number;
@@ -939,8 +955,19 @@ export interface CoachEarningsSummary {
 export interface CoachChargeBreakdown {
   charge_group_id: string;
   gross_amount_cents: number;
+  /** The part of Stripe's processing fee the coach pays. */
   stripe_fees_cents: number;
+  /** Who paid Stripe's processing fee; absent when no fee was recorded. */
+  stripe_fee_paid_by?: 'coach' | 'saturday';
   platform_fee_cents: number;
+  /** Refunded to the athlete. */
+  refunded_cents: number;
+  /** Saturday's fee given back on refunds. */
+  platform_fee_returned_cents: number;
+  /** Taken for disputes and their fees, less what was paid back. */
+  disputes_cents: number;
+  /** The part of `disputes_cents` that repaid earlier disputes' costs. */
+  dispute_costs_recovered_cents: number;
   net_to_coach_cents: number;
   currency: string;
   settlement_status: string;
@@ -963,13 +990,20 @@ export interface CoachConnectCharge {
   athlete_uid: string;
   amount_cents: number;
   platform_fee_cents: number;
+  /** The part of Stripe's processing fee the coach pays. */
   stripe_fees_cents: number;
   net_to_coach_cents: number;
   currency: string;
+  /** `refunded` once any part of the charge is refunded; `refund_amount_cents` says how much. */
   status: 'succeeded' | 'pending' | 'failed' | 'refunded' | 'disputed' | 'dispute_lost';
+  /** Refunded to the athlete; absent while nothing is. */
   refund_amount_cents?: number;
   captured_at: number;
   stripe_webhook_event_id: string;
+  /** Who paid Stripe's processing fee on a destination charge; absent on a direct charge, where the coach did. */
+  stripe_fee_paid_by?: 'coach' | 'saturday';
+  /** Saturday's fee given back on refunds; absent while none is. */
+  platform_fee_returned_cents?: number;
 }
 
 /** One page of Connect charges; `total` counts this page. */
