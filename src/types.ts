@@ -748,11 +748,23 @@ export interface QuietHours {
   tz?: string;    // IANA tz name
 }
 
+/**
+ * Limit on the emails, and separately the pushes, one athlete's alerts send the coach in any
+ * 60 minutes, urgent alerts included. Held alerts go out together when the hour frees. With no
+ * scope setting it, the cap is on at 1 per hour. In-portal alerts and webhooks are never limited.
+ */
+export interface HourlyCap {
+  enabled: boolean;
+  per_hour?: number; // 1 to 12
+}
+
 /** The full alert rule set at one scope (PUT replaces the whole set — idempotent). */
 export interface AlertRulesDoc {
   notification_rules?: Record<string, TriggerRule>;
   combinators?: Combinator[];
   quiet_hours?: QuietHours;
+  /** Absent means this scope inherits the cap; a PUT that leaves it out clears it here. */
+  hourly_cap?: HourlyCap;
   preset?: CoachPreset | 'custom';
 }
 

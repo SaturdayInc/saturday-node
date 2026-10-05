@@ -97,6 +97,7 @@ export type {
   TriggerRule,
   Combinator,
   QuietHours,
+  HourlyCap,
   AlertRulesDoc,
   CoachReportSettings,
   CoachWebhookEndpoint,
