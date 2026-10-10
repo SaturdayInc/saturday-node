@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "backend_sha": "26ee95de5302a26a301ed15d2c5f704d6a32f56d",
-    "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, and the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling; synthetic values, no API calls"
+    "backend_sha": "cbc1bcea47743369ccb2d188fe68c61d50825568",
+    "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling, and the profile-sharing types in pkg/api, pkg/partner and pkg/webhook; synthetic values, no API calls"
   },
   "activity": {
     "id": "act_1",
@@ -202,6 +202,17 @@
     "settings": {},
     "created_at": 1700000000,
     "updated_at": 1700000000,
+    "profile_complete": false
+  },
+  "athlete_sharing": {
+    "id": "ath_1",
+    "partner_id": "partner_1",
+    "name": "Fixture Athlete",
+    "settings": {},
+    "created_at": 1700000000,
+    "updated_at": 1700000000,
+    "subscription_status": "full",
+    "profile_sharing": "on",
     "profile_complete": false
   },
   "athletes_all_failed": {
@@ -624,6 +635,76 @@
     "rating": 4,
     "notes": "Fixture feedback",
     "created_at": 1700000000
+  },
+  "fueling_profile_not_linked": {
+    "object": "fueling_profile",
+    "athlete_id": "ath_1",
+    "sharing": "not_linked",
+    "message": "This athlete has not connected a Saturday account, so there are no Saturday app answers to share."
+  },
+  "fueling_profile_off": {
+    "object": "fueling_profile",
+    "athlete_id": "ath_1",
+    "sharing": "off",
+    "message": "This athlete has not chosen to share their Saturday app answers with you."
+  },
+  "fueling_profile_on": {
+    "object": "fueling_profile",
+    "athlete_id": "ath_1",
+    "sharing": "on",
+    "message": null,
+    "profile": {
+      "age": {
+        "value": 34,
+        "calculations_use": "partner"
+      },
+      "athlete_weight_kg": {
+        "value": 61.2,
+        "calculations_use": "saturday_app"
+      },
+      "carb_experience": {
+        "value": "range_40_60",
+        "calculations_use": "saturday_app"
+      },
+      "concerns": {
+        "value": {
+          "drinking_resistance": false,
+          "faintness": false,
+          "gut_distress": false,
+          "heat_tolerance": false,
+          "hunger": false,
+          "muscle_cramps": false,
+          "performance": true,
+          "thirst": false
+        },
+        "calculations_use": "saturday_app"
+      },
+      "fitness_level": {
+        "value": 5,
+        "calculations_use": "saturday_app"
+      },
+      "saltiness": {
+        "value": 9,
+        "calculations_use": "partner"
+      },
+      "satiety_level": {
+        "value": null,
+        "calculations_use": "default"
+      },
+      "sex": {
+        "value": "female",
+        "calculations_use": "saturday_app"
+      },
+      "sweat_level": {
+        "value": 7,
+        "calculations_use": "saturday_app"
+      },
+      "usual_carb_consumption": {
+        "value": "range_60_80",
+        "calculations_use": "saturday_app"
+      }
+    },
+    "updated_at": 1760000000000
   },
   "import_all_failed": {
     "imported": [],
@@ -1061,5 +1142,41 @@
       "warnings": null,
       "not_instructions": true
     }
+  },
+  "webhook_fueling_profile_updated": {
+    "id": "evt_0b7e3d9a5c1f8e2a6d4b0c9f3e7a1d5b",
+    "type": "athlete.fueling_profile_updated",
+    "data": {
+      "changed_fields": [
+        "sweat_level",
+        "concerns"
+      ],
+      "created_at": 1700000000,
+      "id": "ath_1",
+      "name": "Fixture Athlete",
+      "partner_id": "partner_1",
+      "profile_complete": false,
+      "profile_sharing": "on",
+      "settings": {},
+      "subscription_status": "full",
+      "updated_at": 1700000000
+    },
+    "created_at": 1765467600000
+  },
+  "webhook_profile_sharing_changed": {
+    "id": "evt_4f9a2c7e1b8d3a6f0c5e9b2d7a1f4c8e",
+    "type": "athlete.profile_sharing_changed",
+    "data": {
+      "created_at": 1700000000,
+      "id": "ath_1",
+      "name": "Fixture Athlete",
+      "partner_id": "partner_1",
+      "profile_complete": false,
+      "profile_sharing": "not_linked",
+      "settings": {},
+      "subscription_status": "teaser",
+      "updated_at": 1700000000
+    },
+    "created_at": 1765467600000
   }
 }
