@@ -83,7 +83,7 @@ Partner keys carry the `sk_live_` or `sk_test_` prefix; coach keys carry `cp_liv
 | Resource | Description |
 |----------|-------------|
 | `saturday.nutrition` | Calculate prescriptions, batch calculate |
-| `saturday.athletes` | Athlete CRUD, settings, batch create, GDPR data export |
+| `saturday.athletes` | Athlete CRUD, settings, the athlete's shared Saturday app answers, batch create, GDPR data export |
 | `saturday.activities` | Activity CRUD, prescription calculation, import, feedback |
 | `saturday.products` | Product search, barcode lookup, curated list, categories |
 | `saturday.ai` | AI event streams, plus JSON conversation metadata, history, listing, and deletion; see AI writes below |
@@ -119,6 +119,31 @@ Athlete and activity list responses keep the resource array under `athletes` or 
 The legacy athlete-list `search` and activity-list `type` options are currently ignored by the backend. They remain accepted for source compatibility, but do not filter results.
 
 Athlete settings use flat concern flags, such as `{ sweat_level: 5, gut_distress: true }`, not a nested `concerns` object. `athletes.updateSettings()` replaces the complete settings for a partner-managed athlete; omitted settings reset. Send the complete intended settings, including values you want to preserve. The SDK does not fetch or merge settings implicitly.
+
+## Athlete profile sharing
+
+An athlete whose Saturday account is connected to your athlete record can choose to share their Saturday app answers with you. `athletes.getFuelingProfile(athleteId)` returns a `FuelingProfile`; narrow on `sharing`. Only `on` carries `profile` (sex, age, weight and the fueling answers, each with its `value` and `calculations_use`); `off` and `not_linked` carry a `message` saying why there are none. `athletes.get()` returns the same state as `profile_sharing`.
+
+```typescript
+import Saturday, { type FuelingProfileUpdatedEvent, type ProfileSharingChangedEvent } from '@saturdayinc/sdk';
+
+const saturday = new Saturday({ apiKey: 'sk_live_...' });
+const fueling = await saturday.athletes.getFuelingProfile('ath_123');
+if (fueling.sharing === 'on') {
+  const sweat = fueling.profile.sweat_level;
+  console.log(`Sweat level ${sweat.value ?? 'not answered'}; calculations use ${sweat.calculations_use}`);
+} else {
+  console.log(fueling.message);
+}
+
+// The two sharing webhooks carry the athlete record, with profile_sharing; read the route again on either.
+function onSharingEvent(event: ProfileSharingChangedEvent | FuelingProfileUpdatedEvent) {
+  if (event.type === 'athlete.fueling_profile_updated') console.log(event.data.id, event.data.changed_fields);
+  else console.log(event.data.id, event.data.profile_sharing);
+}
+```
+
+`value` is the app answer, `null` when the athlete has not answered it in the app. `calculations_use` says where the value Saturday's calculations use comes from: `partner` (yours), `saturday_app`, or `default`. Full guide: [Reading an athlete's fueling profile](https://docs.saturday.fit/guides/fueling-profile).
 
 ## AI writes
 
