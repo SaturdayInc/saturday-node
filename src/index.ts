@@ -87,6 +87,7 @@ export type {
   CoachCadence,
   CoachPreset,
   CoachWebhookEvent,
+  CoachWithheldNotice,
   RosterEntry,
   Roster,
   RosterDigest,
