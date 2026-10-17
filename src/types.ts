@@ -338,6 +338,12 @@ export interface Activity {
   created_at: number;
   /** Epoch seconds. */
   updated_at: number;
+  /**
+   * Credit the activity's data sources require, one line per source (for example
+   * "Garmin Edge 1040"). Show each line verbatim wherever you show the activity or anything
+   * built from it. Absent when none is required. Read-only.
+   */
+  source_attributions?: string[];
 }
 
 export interface CreateActivityRequest {
@@ -664,6 +670,8 @@ export interface RosterEntry {
   flagged_count: number;
   top_reasons: string[];
   session_count: number;
+  /** Credit the sources of the sessions behind these markers require. Absent when none is required. */
+  source_attributions?: string[];
 }
 
 /** The coach's roster with per-athlete needs-attention markers. */
@@ -714,6 +722,8 @@ export interface AthleteReport {
   generated_at: number;
   latest_session_ms: number;
   from_cache: boolean;
+  /** Credit the sources of the sessions the narrative was written from require. Absent when none is required. */
+  source_attributions?: string[];
 }
 
 /** One session's full projection + the concern markers it crossed. */
