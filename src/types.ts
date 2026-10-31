@@ -757,12 +757,25 @@ export type CoachPreset = 'hands_off' | 'balanced' | 'hands_on';
 /** Concern-event types a webhook can subscribe to. */
 export type CoachWebhookEvent = 'concern.detected' | 'athlete.needs_attention';
 
+/**
+ * On a Coach API answer about an athlete who connected an app whose data stays on Saturday:
+ * some of their sessions, and that app's details on sessions other apps also recorded, are not
+ * in the answer. Show `message`; treat a short session list as incomplete.
+ */
+export interface CoachWithheldNotice {
+  kind: 'connected_app_sessions';
+  message: string;
+}
+
 /** Per-athlete needs-attention summary on the roster. */
 export interface RosterEntry {
   athlete_uid: string;
   flagged: boolean;
   flagged_count: number;
+  /** Up to four reasons the sessions were flagged, most frequent first. `[]` when not flagged. */
   top_reasons: string[];
+  /** Present when some of this athlete's sessions are not in the answer. */
+  withheld?: CoachWithheldNotice;
   session_count: number;
 }
 
@@ -802,6 +815,8 @@ export interface FuelingRollup {
   sessions: Array<Record<string, unknown>>;
   concern: Record<string, unknown>;
   settings_resolved: CoachSettingsResolved;
+  /** Present when some of this athlete's sessions are not in the answer. */
+  withheld?: CoachWithheldNotice;
 }
 
 /** The AI fueling report: narrative + the structured concern summary behind it. */
@@ -813,6 +828,8 @@ export interface AthleteReport {
   concern: Record<string, unknown>;
   generated_at: number;
   latest_session_ms: number;
+  /** Present when some of this athlete's sessions are not in the answer. */
+  withheld?: CoachWithheldNotice;
   from_cache: boolean;
 }
 
