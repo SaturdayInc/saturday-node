@@ -14,6 +14,7 @@ import type {
   Activity,
   CreateActivityRequest,
   AthleteSettings,
+  FuelingProfile,
   ProductCategory,
   ProductLookupResponse,
   ProductSearchResponse,
@@ -313,6 +314,14 @@ class AthletesResource {
 
   async getSettings(athleteId: string): Promise<AthleteSettings> {
     return this.client.request('GET', `/v1/athletes/${athleteId}/settings`);
+  }
+
+  /**
+   * The athlete's Saturday app answers, while they share them with you. Check `sharing` first:
+   * only `on` carries `profile`; `off` and `not_linked` carry a `message` saying why not.
+   */
+  async getFuelingProfile(athleteId: string): Promise<FuelingProfile> {
+    return this.client.request('GET', `/v1/athletes/${athleteId}/fueling-profile`);
   }
 
   /** Replaces partner-managed athlete settings; send the complete intended settings. */

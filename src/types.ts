@@ -26,13 +26,24 @@ export type SubscriptionTier = 'full' | 'teaser';
 export type CarbExperience = 'range_0_30' | 'range_40_60' | 'range_gt_70';
 export type UsualCarbConsumption = 'range_lt_60' | 'range_60_80' | 'range_80_100' | 'range_gt_100';
 export type GearType = 'bottle' | 'flask' | 'softflask' | 'bladder' | 'jersey_pocket';
+/**
+ * Event names a partner webhook can register. Registration rejects the whole request on one
+ * unknown name. `subscription.updated` and `partner.rate_limit_approaching` are accepted but
+ * never sent to a partner webhook.
+ */
 export type WebhookEventType =
-  | 'athlete.created' | 'athlete.updated' | 'athlete.deleted'
+  | 'athlete.created' | 'athlete.updated' | 'athlete.profile_completed'
+  | 'athlete.profile_sharing_changed' | 'athlete.fueling_profile_updated' | 'athlete.deleted'
   | 'activity.created' | 'activity.updated' | 'activity.deleted'
-  | 'prescription.calculated' | 'prescription.updated'
+  | 'prescription.calculated'
   | 'feedback.submitted'
   | 'subscription.created' | 'subscription.updated' | 'subscription.cancelled'
-  | 'partner.rate_limit_approaching' | 'partner.rate_limit_exceeded';
+  | 'partner.rate_limit_approaching'
+  | 'webhook.test';
+/** Whether an athlete shares their Saturday app answers with you; `not_linked` means no Saturday account is connected. */
+export type ProfileSharing = 'on' | 'off' | 'not_linked';
+/** Where the value Saturday's calculations use for a field comes from: your stored value, the app answer, or neither (a default, so numbers come back as ranges). */
+export type CalculationsUse = 'partner' | 'saturday_app' | 'default';
 
 // --- Safety (always included in nutrition responses) ---
 
@@ -269,6 +280,11 @@ export interface Athlete {
   settings: AthleteSettings;
   profile_complete: boolean;
   subscription_status?: string;
+  /**
+   * Whether the athlete shares their Saturday app answers with you. Computed on `athletes.get`
+   * and in the sharing webhooks' record; absent on lists, and when it could not be read.
+   */
+  profile_sharing?: ProfileSharing;
   partner_plan?: string;
   org_id?: string;
   /** Epoch seconds. */
@@ -308,6 +324,74 @@ export interface AthleteSettings {
   thirst?: boolean;
   concerns_answered?: boolean;
 }
+
+// --- Fueling profile (the athlete's Saturday app answers, when shared) ---
+
+/** One shared answer. `value` is the app answer, `null` when the athlete has not answered it in the app. */
+export interface FuelingProfileField<T> {
+  value: T | null;
+  calculations_use: CalculationsUse;
+}
+
+/** The eight fueling concern flags, as the athlete answered them in the app. */
+export interface FuelingConcerns {
+  performance: boolean;
+  gut_distress: boolean;
+  heat_tolerance: boolean;
+  muscle_cramps: boolean;
+  faintness: boolean;
+  hunger: boolean;
+  thirst: boolean;
+  drinking_resistance: boolean;
+}
+
+/** The shared answers, under the calculation-side names. */
+export interface FuelingProfileAnswers {
+  sex: FuelingProfileField<Sex>;
+  /** Whole years, the current year minus the birth year. */
+  age: FuelingProfileField<number>;
+  /** Kilograms, to one decimal. */
+  athlete_weight_kg: FuelingProfileField<number>;
+  /** 1 to 9. */
+  sweat_level: FuelingProfileField<number>;
+  /** 1 to 9. */
+  saltiness: FuelingProfileField<number>;
+  /** 1 to 9. */
+  satiety_level: FuelingProfileField<number>;
+  /** 1 to 9. */
+  fitness_level: FuelingProfileField<number>;
+  carb_experience: FuelingProfileField<CarbExperience>;
+  usual_carb_consumption: FuelingProfileField<UsualCarbConsumption>;
+  /** `null` when the athlete never answered the concerns question. */
+  concerns: FuelingProfileField<FuelingConcerns>;
+}
+
+/** A shared answer's name, as `athlete.fueling_profile_updated` lists it in `changed_fields`. */
+export type FuelingProfileFieldName = keyof FuelingProfileAnswers;
+
+/** `athletes.getFuelingProfile` while the athlete shares their answers with you. */
+export interface FuelingProfileShared {
+  object: 'fueling_profile';
+  athlete_id: string;
+  sharing: 'on';
+  message: null;
+  profile: FuelingProfileAnswers;
+  /** When the athlete's Saturday account record was last saved, Unix ms. Any save moves it. */
+  updated_at: number;
+}
+
+/** `athletes.getFuelingProfile` when there are no answers to show you; `message` says why. */
+export interface FuelingProfileNotShared {
+  object: 'fueling_profile';
+  athlete_id: string;
+  sharing: 'off' | 'not_linked';
+  message: string;
+  profile?: undefined;
+  updated_at?: undefined;
+}
+
+/** The athlete's sharing state, with their Saturday app answers when it is `on`. Narrow on `sharing`. */
+export type FuelingProfile = FuelingProfileShared | FuelingProfileNotShared;
 
 // --- Activities ---
 
@@ -565,6 +649,22 @@ export interface WebhookFull extends Webhook {
   /** HMAC-SHA256 signing secret. Only returned at creation time. */
   secret: string;
 }
+
+/** A webhook delivery's body. Verify the signature on the raw body before parsing it. */
+export interface WebhookEvent<Type extends string = WebhookEventType, Data = unknown> {
+  /** Opaque event id; drop a repeat by it. */
+  id: string;
+  type: Type;
+  /** Unix milliseconds. */
+  created_at: number;
+  data: Data;
+}
+
+/** The athlete's sharing state changed: `data` is the athlete record, `profile_sharing` its new state. */
+export type ProfileSharingChangedEvent = WebhookEvent<'athlete.profile_sharing_changed', Athlete & { profile_sharing: ProfileSharing }>;
+
+/** A shared answer changed while sharing is on: the athlete record plus the names of the changed answers, never their values. */
+export type FuelingProfileUpdatedEvent = WebhookEvent<'athlete.fueling_profile_updated', Athlete & { profile_sharing: ProfileSharing; changed_fields: FuelingProfileFieldName[] }>;
 
 // --- Organizations ---
 
