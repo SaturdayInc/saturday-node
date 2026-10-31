@@ -33,8 +33,11 @@ it('type-checks backend-generated payloads and resource returns without inventin
     billing_connect_earnings: 'CoachConnectEarnings', billing_connect_earnings_empty: 'CoachConnectEarnings',
     billing_connect_transactions: 'CoachConnectChargesPage', billing_connect_transactions_end: 'CoachConnectChargesPage',
     billing_connect_arrangements: 'CoachConnectArrangements',
+    athlete_sharing: 'Athlete',
+    fueling_profile_on: 'FuelingProfile', fueling_profile_off: 'FuelingProfile', fueling_profile_not_linked: 'FuelingProfile',
+    webhook_profile_sharing_changed: 'ProfileSharingChangedEvent', webhook_fueling_profile_updated: 'FuelingProfileUpdatedEvent',
   };
-  const source = `import Saturday, {${[...new Set([...Object.values(mappings), 'Attribution'])].join(',')}} from '../src';\n`
+  const source = `import Saturday, {${[...new Set([...Object.values(mappings), 'Attribution', 'FuelingProfileFieldName', 'WebhookEventType'])].join(',')}} from '../src';\n`
     + Object.entries(mappings).map(([name, type]) => `const ${name}: ${type} = ${JSON.stringify(fixtures[name])};`).join('\n')
     + `\nasync function read(client: Saturday) {
       await client.nutrition.calculate({activity_type: 'bike', duration_min: 120, sex: 'intersex'});
@@ -93,6 +96,25 @@ it('type-checks backend-generated payloads and resource returns without inventin
       client.athletes.updateSettings('ath_1', {concerns: {gut_distress: true}});
       // @ts-expect-error settings have no athlete_id field
       preferences.athlete_id;
+      const fueling: FuelingProfile = await client.athletes.getFuelingProfile('ath_1');
+      if (fueling.sharing === 'on') {
+        const sweat: number | null = fueling.profile.sweat_level.value;
+        const source: 'partner' | 'saturday_app' | 'default' = fueling.profile.sweat_level.calculations_use;
+        const cramps: boolean | undefined = fueling.profile.concerns.value?.muscle_cramps;
+        const saved: number = fueling.updated_at;
+      } else {
+        const why: string = fueling.message;
+        // @ts-expect-error only a shared profile carries answers
+        fueling.profile.sweat_level;
+      }
+      const sharing: 'on' | 'off' | 'not_linked' | undefined = athlete.profile_sharing;
+      const changedTo: 'on' | 'off' | 'not_linked' = webhook_profile_sharing_changed.data.profile_sharing;
+      const changedAthlete: string = webhook_profile_sharing_changed.data.id;
+      const changedFields: FuelingProfileFieldName[] = webhook_fueling_profile_updated.data.changed_fields;
+      // @ts-expect-error changed_fields names the shared answers only
+      const bogus: FuelingProfileFieldName = 'year_of_birth';
+      // @ts-expect-error registration rejects names the API does not send
+      const retired: WebhookEventType = 'prescription.updated';
     }`;
   const options: ts.CompilerOptions = { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
     strict: true, skipLibCheck: true, noEmit: true, esModuleInterop: true };
@@ -207,4 +229,28 @@ it.each([
   expect(result).toEqual(payload);
   expect(mock.mock.calls[0][0]).toBe(`https://api.saturday.fit${path}`);
   expect(mock.mock.calls[0][1].method).toBe('GET');
+});
+
+it.each(['fueling_profile_on', 'fueling_profile_off', 'fueling_profile_not_linked'])('athletes.getFuelingProfile reads %s from the fueling-profile route and keeps the raw payload', async name => {
+  const payload = { ...fixtures[name], future_field: true };
+  const mock = jest.fn().mockResolvedValue(Response.json(payload));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 });
+  const result = await client.athletes.getFuelingProfile('ath_1');
+  expect(result).toEqual(payload);
+  expect(mock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/athletes/ath_1/fueling-profile');
+  expect(mock.mock.calls[0][1].method).toBe('GET');
+  expect(mock.mock.calls[0][1].body).toBeUndefined();
+});
+
+it('the shared profile fixture carries every shared answer and the unshared ones carry none', () => {
+  expect(Object.keys(fixtures.fueling_profile_on.profile).sort()).toEqual([
+    'age', 'athlete_weight_kg', 'carb_experience', 'concerns', 'fitness_level', 'saltiness',
+    'satiety_level', 'sex', 'sweat_level', 'usual_carb_consumption',
+  ]);
+  for (const name of ['fueling_profile_off', 'fueling_profile_not_linked']) {
+    expect(fixtures[name]).not.toHaveProperty('profile');
+    expect(fixtures[name]).not.toHaveProperty('updated_at');
+    expect(typeof fixtures[name].message).toBe('string');
+  }
 });

@@ -12,7 +12,9 @@ import (
 	"saturdaymorning.fit/appsbackend/pkg/api"
 	"saturdaymorning.fit/appsbackend/pkg/coachbilling"
 	"saturdaymorning.fit/appsbackend/pkg/connect"
+	"saturdaymorning.fit/appsbackend/pkg/partner"
 	"saturdaymorning.fit/appsbackend/pkg/purchase"
+	"saturdaymorning.fit/appsbackend/pkg/webhook"
 )
 
 type activityReader struct {
@@ -138,7 +140,7 @@ func main() {
 		HeatTolerance: true, Faintness: true, DrinkingResistance: true, Thirst: true, ConcernsAnswered: true,
 	}
 	fixtures := map[string]any{
-		"_meta":                 map[string]string{"backend_sha": *sha, "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, and the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling; synthetic values, no API calls"},
+		"_meta":                 map[string]string{"backend_sha": *sha, "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling, and the profile-sharing types in pkg/api, pkg/partner and pkg/webhook; synthetic values, no API calls"},
 		"activity_exact":        exact,
 		"activity_banded":       band,
 		"nutrition_exact":       nutrition,
@@ -175,6 +177,9 @@ func main() {
 	for name, fixture := range billingFixtures() {
 		fixtures[name] = fixture
 	}
+	for name, fixture := range sharingFixtures(athlete) {
+		fixtures[name] = fixture
+	}
 	file, err := os.Create(*out)
 	if err != nil {
 		panic(err)
@@ -193,7 +198,8 @@ func main() {
 // shape per endpoint, so the SDK types are checked against real serialization.
 func billingFixtures() map[string]any {
 	acct := &connect.ConnectAccount{CoachUID: "coach_abc", StripeAccountID: "acct_1", ChargesEnabled: true, PayoutsEnabled: true, DetailsSubmitted: true, CardPaymentsStatus: "active", TransfersStatus: "active", Country: "US", DefaultCurrency: "usd", Capabilities: map[string]string{"card_payments": "active"}, OnboardedAt: 1749500000000, UpdatedAt: 1749500000000}
-	charge := connect.ConnectCharge{ChargeID: "ch_1", ArrangementID: "arr_1", CoachUID: "coach_abc", AthleteUID: "ath_123", AmountCents: 5000, PlatformFeeCents: 500, StripeFeesCents: 175, NetToCoachCents: 4325, Currency: "usd", Status: "succeeded", CapturedAt: 1749480000000, StripeWebhookEventID: "evt_1"}
+	charge := connect.ConnectCharge{ChargeID: "ch_1", ArrangementID: "arr_1", CoachUID: "coach_abc", AthleteUID: "ath_123", AmountCents: 5000, PlatformFeeCents: 500, StripeFeesCents: 175, NetToCoachCents: 4325, Currency: "usd", Status: "succeeded", CapturedAt: 1749480000000, StripeWebhookEventID: "evt_1", StripeFeePaidBy: "coach"}
+	refunded := connect.ConnectCharge{ChargeID: "ch_2", ArrangementID: "arr_1", CoachUID: "coach_abc", AthleteUID: "ath_123", AmountCents: 10000, PlatformFeeCents: 1000, StripeFeesCents: 320, NetToCoachCents: 6880, Currency: "usd", Status: "refunded", RefundAmountCents: 2000, CapturedAt: 1749390000000, StripeWebhookEventID: "evt_2", StripeFeePaidBy: "coach", PlatformFeeReturnedCents: 200}
 	arr := connect.BillingArrangement{ArrangementID: "arr_1", CoachUID: "coach_abc", AthleteUID: "ath_123", StripeConnectAcctID: "acct_1", StripeCustomerID: "cus_1", StripeSubscriptionID: "sub_1", BillingMode: "recurring", AmountCents: 5000, Currency: "usd", Interval: "month", TrialDays: 7, RefundPolicy: "prorated", Status: "active", PlatformFeeBPS: 1000, CreatedAt: 1749400000000, ActivatedAt: 1749400000000}
 	sub := purchase.TierSubscription{SubscriptionID: "ts_1", SubscriberType: "user", SubscriberID: "coach_abc", Tier: "business", Channel: "web_stripe", SourceSKU: "price_1", StripeSubscriptionID: "sub_biz", Status: "active", CurrentPeriodStart: 1748000000000, CurrentPeriodEnd: 1750600000000, AmountCents: 9900, AutoRenew: true, CreatedAt: 1748000000000, UpdatedAt: 1748000000000}
 	return map[string]any{
@@ -205,10 +211,63 @@ func billingFixtures() map[string]any {
 		"billing_tier_status_empty":        &coachbilling.TierStatus{Subscriptions: []purchase.TierSubscription{}, Status: &purchase.SubscriptionStatus{}},
 		"billing_connect_summary":          &connect.DashboardSummary{ConnectAccount: acct, IsOnboarded: true, ActiveArrangements: 3, MonthCharges: 15000, MonthFees: 2025, MonthNet: 12975, LifetimeCharges: 240000, LifetimeFees: 32400, LifetimeNet: 207600, PlatformFeeBPS: 1000},
 		"billing_connect_summary_none":     &connect.DashboardSummary{PlatformFeeBPS: 1000},
-		"billing_connect_earnings":         &coachbilling.ConnectEarnings{Summary: &connect.CoachEarningsSummary{CoachUID: "coach_abc", TotalGrossCents: 240000, TotalStripeFeeCents: 8400, TotalPlatformFeeCents: 24000, TotalNetCents: 207600, ChargeCount: 48, SettledCount: 46, SettlingCount: 2, Currency: "usd"}, Breakdowns: []connect.ChargeBreakdown{{ChargeGroupID: "ch_1", GrossAmountCents: 5000, StripeFeesCents: 175, PlatformFeeCents: 500, NetToCoachCents: 4325, Currency: "usd", SettlementStatus: "settled", OccurredAt: 1749480000000, AthleteUID: "ath_123", AthleteDisplayName: "A. Rider"}}},
+		"billing_connect_earnings":         &coachbilling.ConnectEarnings{Summary: &connect.CoachEarningsSummary{CoachUID: "coach_abc", TotalGrossCents: 240000, TotalStripeFeeCents: 8400, TotalPlatformFeeCents: 24000, TotalRefundedCents: 2000, TotalPlatformFeeReturnedCents: 200, TotalDisputesCents: 1500, TotalDisputeRecoveryCents: 0, TotalNetCents: 204300, ChargeCount: 48, SettledCount: 46, SettlingCount: 2, Currency: "usd"}, Breakdowns: []connect.ChargeBreakdown{{ChargeGroupID: "ch_1", GrossAmountCents: 5000, StripeFeesCents: 175, StripeFeePaidBy: "coach", PlatformFeeCents: 500, NetToCoachCents: 4325, Currency: "usd", SettlementStatus: "settled", OccurredAt: 1749480000000, AthleteUID: "ath_123", AthleteDisplayName: "A. Rider"}, {ChargeGroupID: "ch_2", GrossAmountCents: 10000, StripeFeesCents: 320, StripeFeePaidBy: "coach", PlatformFeeCents: 1000, RefundedCents: 2000, PlatformFeeReturnedCents: 200, NetToCoachCents: 6880, Currency: "usd", SettlementStatus: "settled", OccurredAt: 1749390000000, AthleteUID: "ath_123", AthleteDisplayName: "A. Rider"}}},
 		"billing_connect_earnings_empty":   &coachbilling.ConnectEarnings{Summary: &connect.CoachEarningsSummary{CoachUID: "coach_abc", Currency: "usd"}, Breakdowns: []connect.ChargeBreakdown{}},
-		"billing_connect_transactions":     &coachbilling.ChargesPage{Charges: []connect.ConnectCharge{charge}, Total: 1, NextCursor: "1749480000000|ch_1"},
+		"billing_connect_transactions":     &coachbilling.ChargesPage{Charges: []connect.ConnectCharge{charge, refunded}, Total: 2, NextCursor: "1749390000000|ch_2"},
 		"billing_connect_transactions_end": &coachbilling.ChargesPage{Charges: []connect.ConnectCharge{}},
 		"billing_connect_arrangements":     &connect.DashboardArrangements{Arrangements: []connect.BillingArrangement{arr}, Total: 1},
 	}
+}
+
+// sharingFixtures marshals the profile-sharing reads and webhooks from the backend's types:
+// GET /v1/athletes/{id} with profile_sharing, the fueling-profile response in its three states
+// (answers parsed by partner.ParseAppProfile from a synthetic users document, one entry per
+// partner.SharedProfileFields), and the two sharing webhook envelopes, whose data is the athlete
+// record as GET returns it (fueling_profile_updated adds changed_fields).
+func sharingFixtures(athlete api.Athlete) map[string]any {
+	shared := athlete
+	shared.SubscriptionStatus, shared.ProfileSharing = "full", partner.SharingOn
+	unlinked := athlete
+	unlinked.SubscriptionStatus, unlinked.ProfileSharing = "teaser", partner.SharingNotLinked
+	app := partner.ParseAppProfile(map[string]interface{}{
+		"sex": "female", "year_of_birth": int64(1992), "weight_in_lb": int64(135),
+		"sweat_level": int64(7), "saltiness": int64(9), "fitness_level": int64(5),
+		"max_carb_exp": "range_40_60", "usual_carb_consumption": "range_60_80",
+		"fueling_concerns": map[string]interface{}{"performance": true},
+	})
+	uses := map[string]string{"age": api.CalculationsUsePartner, "saltiness": api.CalculationsUsePartner, "satiety_level": api.CalculationsUseDefault}
+	profile := map[string]api.FuelingProfileField{}
+	for _, f := range partner.SharedProfileFields {
+		value, _ := app.Value(f, 2026)
+		use := uses[f]
+		if use == "" {
+			use = api.CalculationsUseSaturdayApp
+		}
+		profile[f] = api.FuelingProfileField{Value: value, CalculationsUse: use}
+	}
+	offMessage := "This athlete has not chosen to share their Saturday app answers with you."
+	notLinkedMessage := "This athlete has not connected a Saturday account, so there are no Saturday app answers to share."
+	updated := record(shared)
+	updated["changed_fields"] = []string{"sweat_level", "concerns"}
+	return map[string]any{
+		"athlete_sharing":                 shared,
+		"fueling_profile_on":              api.FuelingProfile{Object: "fueling_profile", AthleteID: "ath_1", Sharing: partner.SharingOn, Profile: profile, UpdatedAt: 1760000000000},
+		"fueling_profile_off":             api.FuelingProfile{Object: "fueling_profile", AthleteID: "ath_1", Sharing: partner.SharingOff, Message: &offMessage},
+		"fueling_profile_not_linked":      api.FuelingProfile{Object: "fueling_profile", AthleteID: "ath_1", Sharing: partner.SharingNotLinked, Message: &notLinkedMessage},
+		"webhook_profile_sharing_changed": webhook.WebhookEvent{ID: "evt_4f9a2c7e1b8d3a6f0c5e9b2d7a1f4c8e", Type: webhook.EventProfileSharingChanged, CreatedAt: 1765467600000, Data: record(unlinked)},
+		"webhook_fueling_profile_updated": webhook.WebhookEvent{ID: "evt_0b7e3d9a5c1f8e2a6d4b0c9f3e7a1d5b", Type: webhook.EventFuelingProfileUpdated, CreatedAt: 1765467600000, Data: updated},
+	}
+}
+
+// record is an athlete as a JSON object, the shape the sharing webhooks build their data from.
+func record(athlete api.Athlete) map[string]any {
+	raw, err := json.Marshal(athlete)
+	if err != nil {
+		panic(err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		panic(err)
+	}
+	return out
 }
