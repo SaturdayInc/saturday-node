@@ -22,7 +22,10 @@ import type {
   AIConversation,
   AIMessage,
   Webhook,
-  WebhookFull,
+  WebhookCreateResponse,
+  WebhookListResponse,
+  WebhookTestResponse,
+  WebhookDeliveryList,
   Organization,
   GearItem,
   AthleteListResponse,
@@ -66,7 +69,7 @@ const DEFAULT_TIMEOUT = 30000;
 // AI turns run up to the API's 60 s request cap, so an unconfigured stream deadline is longer than the JSON default.
 const DEFAULT_STREAM_TIMEOUT = 60000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.7.0';
+const SDK_VERSION = '0.8.0';
 
 /**
  * Saturday Nutrition Intelligence API client.
@@ -293,12 +296,15 @@ class AthletesResource {
   async list(params?: {
     limit?: number;
     cursor?: string;
+    /** Only the athletes you created with this `external_id`, newest first, in one page. */
+    externalId?: string;
     /** @deprecated Ignored by the current API. */
     search?: string;
   }): Promise<AthleteListResponse> {
     const query = new URLSearchParams();
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.externalId) query.set('external_id', params.externalId);
     if (params?.search) query.set('search', params.search);
     const qs = query.toString();
     return this.client.request('GET', `/v1/athletes${qs ? '?' + qs : ''}`);
@@ -474,11 +480,16 @@ class AIResource {
 class WebhooksResource {
   constructor(private client: Saturday) {}
 
-  async create(url: string, events: string[], description?: string): Promise<WebhookFull> {
+  /**
+   * Register an endpoint. The response carries the webhook under `webhook`, with `secret`:
+   * store `response.webhook.secret` now, it is never returned again.
+   * @param description Ignored: the API does not store a description.
+   */
+  async create(url: string, events: string[], description?: string): Promise<WebhookCreateResponse> {
     return this.client.request('POST', '/v1/webhooks', { url, events, description });
   }
 
-  async list(): Promise<{ webhooks: Webhook[] }> {
+  async list(): Promise<WebhookListResponse> {
     return this.client.request('GET', '/v1/webhooks');
   }
 
@@ -494,8 +505,14 @@ class WebhooksResource {
     return this.client.request('DELETE', `/v1/webhooks/${webhookId}`);
   }
 
-  async test(webhookId: string): Promise<any> {
+  /** Deliver a `webhook.test` event now and return the delivery record, with your endpoint's status code. */
+  async test(webhookId: string): Promise<WebhookTestResponse> {
     return this.client.request('POST', `/v1/webhooks/${webhookId}/test`);
+  }
+
+  /** The 50 most recent delivery attempts for a webhook, newest first. */
+  async listDeliveries(webhookId: string): Promise<WebhookDeliveryList> {
+    return this.client.request('GET', `/v1/webhooks/${webhookId}/deliveries`);
   }
 }
 

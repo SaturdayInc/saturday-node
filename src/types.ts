@@ -265,6 +265,7 @@ export interface OnboardingQuestionsResponse {
     link: string;
     required: boolean;
   };
+  request_id?: string;
 }
 
 // --- Athletes ---
@@ -450,16 +451,20 @@ export interface CreateActivityRequest {
   scheduled_at?: string;
 }
 
+/**
+ * A stored activity prescription. An exact one carries the six numbers; a banded one
+ * (`profile_complete: false`) carries the three ranges, and the numbers are absent or zero.
+ */
 export interface ActivityPrescription {
-  total_carb_g: number;
-  total_sodium_mg: number;
-  total_fluid_ml: number;
-  carb_g_per_hr: number;
-  sodium_mg_per_hr: number;
-  fluid_ml_per_hr: number;
+  total_carb_g?: number;
+  total_sodium_mg?: number;
+  total_fluid_ml?: number;
+  carb_g_per_hr?: number;
+  sodium_mg_per_hr?: number;
+  fluid_ml_per_hr?: number;
   /** Epoch seconds. */
   calculated_at: number;
-  /** False means the ranges carry the result; numeric fields are zero. */
+  /** False means the ranges carry the result; the numbers are absent or zero. */
   profile_complete?: boolean;
   carb_range_g_per_hr?: string;
   sodium_range_mg_per_hr?: string;
@@ -645,19 +650,74 @@ export interface AIMessage {
 
 export interface Webhook {
   id: string;
+  partner_id: string;
   url: string;
   events: string[];
   active: boolean;
+  /** @deprecated Never returned: the API does not store a description. */
   description?: string;
   fail_count: number;
-  disabled_at?: string;
-  created_at: string;
-  updated_at: string;
+  /** Unix milliseconds; present after repeated delivery failures disabled the webhook. */
+  disabled_at?: number;
+  /** Unix milliseconds. */
+  created_at: number;
+  /** Unix milliseconds. */
+  updated_at: number;
 }
 
 export interface WebhookFull extends Webhook {
-  /** HMAC-SHA256 signing secret. Only returned at creation time. */
+  /** HMAC-SHA256 signing secret, 64 hex characters. Only returned at creation time. */
   secret: string;
+}
+
+/** `webhooks.create`: the new webhook, with its signing secret, under `webhook`. */
+export interface WebhookCreateResponse {
+  webhook: WebhookFull;
+  message: string;
+  request_id: string;
+}
+
+export interface WebhookListResponse {
+  webhooks: Webhook[];
+  total: number;
+  request_id: string;
+}
+
+/** One delivery attempt record. */
+export interface WebhookDelivery {
+  id: string;
+  webhook_id: string;
+  partner_id: string;
+  event_id: string;
+  event_type: string;
+  /** The delivered event body, base64-encoded. */
+  event_data?: string;
+  url: string;
+  /** The status code your endpoint returned. */
+  status_code: number;
+  /** The first kilobyte of your endpoint's response body. */
+  response_body?: string;
+  attempts: number;
+  status: 'pending' | 'delivered' | 'failed' | 'exhausted';
+  /** Unix milliseconds. */
+  next_retry_at?: number;
+  /** Unix milliseconds. */
+  completed_at?: number;
+  /** Unix milliseconds. */
+  created_at: number;
+}
+
+/** `webhooks.test`: the synchronous test delivery's record. */
+export interface WebhookTestResponse {
+  delivery: WebhookDelivery;
+  request_id: string;
+}
+
+/** `webhooks.listDeliveries`: the 50 most recent attempts, newest first. */
+export interface WebhookDeliveryList {
+  deliveries: WebhookDelivery[];
+  total: number;
+  request_id: string;
 }
 
 /** A webhook delivery's body. Verify the signature on the raw body before parsing it. */
@@ -685,7 +745,10 @@ export interface Organization {
   description?: string;
   sport?: string;
   member_count: number;
-  created_at: string;
+  /** Epoch seconds. */
+  created_at: number;
+  /** Epoch seconds. */
+  updated_at: number;
 }
 
 // --- Gear ---
@@ -889,10 +952,20 @@ export interface HourlyCap {
   per_hour?: number; // 1 to 12
 }
 
-/** The full alert rule set at one scope (PUT replaces the whole set — idempotent). */
+/** Where the email and push channels deliver. A rules read always carries it. */
+export interface ChannelConfig {
+  email: { enabled: boolean; address?: string };
+  push: { enabled: boolean; devices?: string[] };
+}
+
+/**
+ * The full alert rule set at one scope. A PUT replaces the whole set, `channel_config`
+ * included: send back the one a read returned. Left out at the overall scope, email and push alerts turn off.
+ */
 export interface AlertRulesDoc {
   notification_rules?: Record<string, TriggerRule>;
   combinators?: Combinator[];
+  channel_config?: ChannelConfig;
   quiet_hours?: QuietHours;
   /** Absent means this scope inherits the cap; a PUT that leaves it out clears it here. */
   hourly_cap?: HourlyCap;

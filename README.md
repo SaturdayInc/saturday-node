@@ -94,9 +94,46 @@ Partner keys carry the `sk_live_` or `sk_test_` prefix; coach keys carry `cp_liv
 | `saturday.onboarding` | The versioned onboarding question schema, for collecting an athlete's profile in your UI |
 | `saturday.coach` | Roster fueling reads, the coach's alert and report configuration, coach webhooks, and read-only billing (`seatState`, `ledger`, `tierStatus`, `connectSummary`, `connectEarnings`, `connectTransactions`, `connectArrangements`; the key must carry `billing:read`), with a coach key |
 
+Nutrition, products, gear, AI conversations and knowledge sit behind [feature gates](https://docs.saturday.fit/guides/feature-gates) that Saturday opens per partner. Until a gate is open for your key, its routes answer `404` (`NotFoundError`) or `403` with code `feature_alpha`; ask api@saturday.fit to open one.
+
+## Finding an athlete by your own id
+
+`athletes.list({ externalId })` returns the athletes you created with that `external_id`, newest first, in one page. Look an athlete up this way before creating one when a create may have been interrupted: the API does not deduplicate `external_id`.
+
+```typescript
+const saturday = new Saturday({ apiKey: 'sk_live_...' });
+const { athletes } = await saturday.athletes.list({ externalId: 'user-42' });
+const athlete = athletes[0] ?? await saturday.athletes.create({ external_id: 'user-42', name: 'Sam' });
+console.log(athlete.id);
+```
+
+## Webhooks
+
+`webhooks.create()` returns the new webhook under `webhook`, with `secret`, the key that signs every delivery. It is returned this once: store it before anything else. `webhooks.test()` delivers a `webhook.test` event at once and returns the delivery record with your endpoint's status code; `webhooks.listDeliveries()` returns the 50 most recent attempts.
+
+```typescript
+const saturday = new Saturday({ apiKey: 'sk_live_...' });
+const { webhook } = await saturday.webhooks.create('https://example.com/saturday', ['athlete.created', 'prescription.calculated']);
+const signingSecret = webhook.secret; // store it now
+const { delivery } = await saturday.webhooks.test(webhook.id);
+console.log(delivery.status, delivery.status_code);
+```
+
+Webhook timestamps are Unix milliseconds. See [Webhooks](https://docs.saturday.fit/guides/webhooks) for verifying signatures.
+
+## Coach alert rules
+
+`coach.setNotificationRules()` replaces the whole rule set at a scope, `channel_config` included. Read the rules first and send them back with your change: a set without `channel_config` clears it at that scope, and at the overall scope that turns the coach's email and push alerts off.
+
+```typescript
+const coach = new Saturday({ apiKey: 'cp_live_...' });
+const rules = await coach.coach.getNotificationRules({ scope: 'overall' });
+await coach.coach.setNotificationRules('overall', { ...rules, hourly_cap: { enabled: true, per_hour: 2 } });
+```
+
 ## Prescription and batch responses
 
-Responses remain raw JSON objects. `nutrition.calculate()` returns flat nutrition fields. `activities.calculatePrescription()` returns a `PrescriptionEnvelope`: full-tier results are under `prescription`, while teaser ranges are at the top level. Full-tier prescriptions can also contain ranges when inputs are incomplete.
+Responses remain raw JSON objects. `nutrition.calculate()` returns flat nutrition fields. `activities.calculatePrescription()` returns a `PrescriptionEnvelope`: full-tier results are under `prescription`, while teaser ranges are at the top level. Full-tier prescriptions can also contain ranges when inputs are incomplete; a banded activity prescription's six numbers are then absent or zero, so read the range first.
 
 `activities.getPrescription()` returns `{ prescription, safety }`, with no `tier` field. Activity timestamps, including `prescription.calculated_at`, use epoch seconds; `trial_ends_at` uses epoch milliseconds. Safety warnings may be `null`.
 
