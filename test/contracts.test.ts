@@ -14,6 +14,7 @@ it('type-checks backend-generated payloads and resource returns without inventin
   const mappings: Record<string, string> = {
     activity_exact: 'ActivityPrescription', activity_banded: 'ActivityPrescription',
     nutrition_exact: 'NutritionCalculateResponse', nutrition_banded: 'NutritionCalculateResponse',
+    nutrition_banded_signed_in: 'NutritionCalculateResponse',
     nutrition_teaser: 'NutritionCalculateResponse', nutrition_trial: 'NutritionCalculateResponse', nutrition_zero: 'NutritionCalculateResponse',
     activity_full: 'PrescriptionEnvelope', activity_full_banded: 'PrescriptionEnvelope',
     activity_teaser: 'PrescriptionEnvelope', activity_trial: 'PrescriptionEnvelope',
@@ -128,7 +129,7 @@ it('type-checks backend-generated payloads and resource returns without inventin
 });
 
 it.each([
-  'nutrition_exact', 'nutrition_banded', 'nutrition_teaser', 'nutrition_trial', 'nutrition_zero',
+  'nutrition_exact', 'nutrition_banded', 'nutrition_banded_signed_in', 'nutrition_teaser', 'nutrition_trial', 'nutrition_zero',
   'activity_full', 'activity_full_banded', 'activity_teaser', 'activity_trial',
   'stored_exact', 'stored_banded', 'batch_partial', 'batch_all_failed', 'batch_estimate',
   'athletes_partial', 'athletes_all_failed', 'feedback',

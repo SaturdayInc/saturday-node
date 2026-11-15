@@ -91,8 +91,34 @@ describe('precision object on calculate', () => {
     const p = res.precision as Precision;
     expect(p.profile_complete).toBe(false);
     expect(p.missing_fields?.[0].field).toBe('sweat_level');
-    expect(p.missing_fields?.[0].band_impact.sodium_mg_per_hr).toBe(100);
+    expect(p.missing_fields?.[0].band_impact?.sodium_mg_per_hr).toBe(100);
     expect(p.onboarding?.url).toContain('ot=');
+  });
+
+  it('passes missing_fields through without band_impact for an OAuth access token', async () => {
+    const signedIn: NutritionCalculateResponse = {
+      tier: 'full',
+      carb_range_g_per_hr: '60-80',
+      safety: { confidence_score: 0.62 } as NutritionCalculateResponse['safety'],
+      attribution: { text: 'Powered by Saturday', logo_url: '', link: '', required: false },
+      precision: {
+        profile_complete: false,
+        missing_fields: [
+          { field: 'intensity_level', required: true, display_label: 'how hard the effort will be' },
+          { field: 'sweat_level', required: true, display_label: 'how much you sweat' },
+        ],
+        message: 'For exact numbers, a few key details are still needed: how hard the effort will be, how much you sweat. Each one narrows the range.',
+      },
+    };
+    mockFetch(signedIn);
+
+    const saturday = new Saturday({ apiKey: 'sk_test_x', bearerToken: 'oauth_access_token' });
+    const res = await saturday.nutrition.calculate({ activity_type: 'run', duration_min: 90 });
+
+    const fields = (res.precision as Precision).missing_fields ?? [];
+    expect(fields.map((f) => f.field)).toEqual(['intensity_level', 'sweat_level']);
+    expect(fields.every((f) => !('band_impact' in f))).toBe(true);
+    expect(fields[0].band_impact?.sodium_mg_per_hr).toBeUndefined();
   });
 
   it('carries profile_complete:true with exact numbers when complete', async () => {
