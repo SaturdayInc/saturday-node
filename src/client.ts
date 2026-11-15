@@ -69,6 +69,14 @@ const DEFAULT_TIMEOUT = 30000;
 // AI turns run up to the API's 60 s request cap, so an unconfigured stream deadline is longer than the JSON default.
 const DEFAULT_STREAM_TIMEOUT = 60000;
 const DEFAULT_MAX_RETRIES = 3;
+// The longest Retry-After a 429 is waited out for. A longer one is a block that lasts minutes.
+const MAX_RETRY_AFTER_SECONDS = 30;
+
+/** A 5xx is retried only where a repeat cannot make a second record. */
+function retrySafeOnServerError(method: string, path: string): boolean {
+  if (method !== 'POST') return true;
+  return path.startsWith('/v1/nutrition/calculate') || path.startsWith('/v1/infer/');
+}
 const SDK_VERSION = '0.8.0';
 
 /**
@@ -154,16 +162,21 @@ export class Saturday {
 
   /**
    * Make an authenticated API request with retry logic.
-   * Retries on 429 (rate limit) and 5xx (server errors) with exponential backoff.
+   * A 429 is retried after the server's Retry-After when that is 30 s or less; one with no
+   * Retry-After (a daily limit) or a longer one (a block) is thrown at once. A 5xx is retried
+   * with exponential backoff, except on a POST that creates or changes a record.
    */
   async request<T>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<T> {
     const url = `${this.config.baseUrl}${path}`;
     let lastError: SaturdayError | undefined;
+    // What the last 429 asked for, in ms; unset when the next attempt uses the backoff.
+    let retryAfterMs: number | undefined;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
       if (attempt > 0) {
         // Exponential backoff: 1s, 2s, 4s
-        const delay = Math.pow(2, attempt - 1) * 1000;
+        const delay = retryAfterMs ?? Math.pow(2, attempt - 1) * 1000;
+        retryAfterMs = undefined;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
 
@@ -208,8 +221,16 @@ export class Saturday {
         const error = this.mapError(response.status, errorDetail, response.headers);
         lastError = error;
 
-        // Only retry on rate limit or server errors
-        if (response.status === 429 || response.status >= 500) {
+        if (response.status === 429) {
+          const header = response.headers.get('Retry-After');
+          const seconds = header === null ? NaN : Number(header);
+          if (Number.isFinite(seconds) && seconds <= MAX_RETRY_AFTER_SECONDS) {
+            retryAfterMs = Math.max(0, seconds) * 1000;
+            continue;
+          }
+          throw error;
+        }
+        if (response.status >= 500 && retrySafeOnServerError(method, path)) {
           continue;
         }
 

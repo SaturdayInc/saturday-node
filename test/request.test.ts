@@ -81,3 +81,58 @@ it('preserves empty 204 responses', async () => {
 
   await expect(client.athletes.delete('athlete_123')).resolves.toBeUndefined();
 });
+
+describe('retries follow what the API says', () => {
+  const rateLimited = (headers: Record<string, string>) => Response.json({
+    error: { type: 'rate_limit_error', code: 'rate_limited', message: 'Slow down' },
+  }, { status: 429, headers });
+
+  afterEach(() => { jest.useRealTimers(); });
+
+  it('waits out a short Retry-After, then retries', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest.fn()
+      .mockResolvedValueOnce(rateLimited({ 'Retry-After': '3' }))
+      .mockResolvedValueOnce(Response.json({ questions: [] }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_placeholder' });
+    const result = client.onboarding.questions();
+    await jest.advanceTimersByTimeAsync(2900);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(200);
+    await expect(result).resolves.toEqual({ questions: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['no Retry-After, a daily limit', {} as Record<string, string>],
+    ['a Retry-After of minutes, a block', { 'Retry-After': '840' }],
+  ])('throws at once on a 429 with %s', async (_name, headers) => {
+    const fetchMock = jest.fn().mockImplementation(async () => rateLimited(headers));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_placeholder' });
+    await expect(client.onboarding.questions()).rejects.toBeInstanceOf(RateLimitError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a create on a 5xx', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ error: { message: 'Try again' } }, { status: 503 }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_placeholder' });
+    await expect(client.athletes.create({ external_id: 'u-1' } as any)).rejects.toMatchObject({ status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('still retries a calculation on a 5xx', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest.fn()
+      .mockResolvedValueOnce(Response.json({ error: { message: 'Try again' } }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ tier: 'teaser' }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_placeholder' });
+    const result = client.nutrition.calculate({ activity_type: 'run', duration_min: 60 } as any);
+    await jest.advanceTimersByTimeAsync(1100);
+    await expect(result).resolves.toEqual({ tier: 'teaser' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
