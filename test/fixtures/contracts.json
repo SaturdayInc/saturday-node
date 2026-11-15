@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "backend_sha": "cbc1bcea47743369ccb2d188fe68c61d50825568",
+    "backend_sha": "66538f7d5f608418e34895defb740e442dd8691a",
     "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling, and the profile-sharing types in pkg/api, pkg/partner and pkg/webhook; synthetic values, no API calls"
   },
   "activity": {
@@ -957,6 +957,39 @@
             "sodium_mg_per_hr": 0,
             "fluid_ml_per_hr": 100
           },
+          "display_label": "how much you sweat"
+        }
+      ],
+      "onboarding": {
+        "message": "Complete your profile"
+      }
+    }
+  },
+  "nutrition_banded_signed_in": {
+    "tier": "full",
+    "carb_range_g_per_hr": "50-70",
+    "sodium_range_mg_per_hr": "500-700",
+    "fluid_range_ml_per_hr": "600-800",
+    "safety": {
+      "max_safe_fluid_ml_per_hr": 1500,
+      "max_safe_sodium_mg_per_hr": 3000,
+      "confidence_score": 0,
+      "requires_human_review": false,
+      "warnings": null,
+      "not_instructions": true
+    },
+    "attribution": {
+      "text": "Powered by Saturday",
+      "logo_url": "https://saturday.fit/logo.png",
+      "link": "https://saturday.fit",
+      "required": false
+    },
+    "precision": {
+      "profile_complete": false,
+      "missing_fields": [
+        {
+          "field": "sweat_level",
+          "required": true,
           "display_label": "how much you sweat"
         }
       ],

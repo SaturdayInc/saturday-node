@@ -176,9 +176,10 @@ export interface Precision {
   /** True → the response carries exact numbers; false → honest bands. */
   profile_complete: boolean;
   /**
-   * Unanswered fields, sorted most-impactful-first. Each entry names what
-   * answering it would narrow — build your collection UX directly from this.
-   * Omitted when the profile is complete.
+   * Unanswered fields. With a partner API key they arrive sorted
+   * most-impactful-first; with an athlete's OAuth access token they arrive in
+   * a fixed order. Build your collection UX directly from this, in the order
+   * it arrives. Omitted when the profile is complete.
    */
   missing_fields?: MissingField[];
   /** Plain-language note naming the critical missing fields. */
@@ -193,8 +194,11 @@ export interface MissingField {
   field: string;
   /** Safety-core fields are `required: true`; recommended fields `false`. */
   required: boolean;
-  /** How much this one field's answer would narrow each output (per hour). */
-  band_impact: BandImpact;
+  /**
+   * How much this one field's answer would narrow each output (per hour).
+   * Sent with a partner API key; absent with an athlete's OAuth access token.
+   */
+  band_impact?: BandImpact;
   display_label?: string;
 }
 

@@ -112,7 +112,7 @@ func main() {
 	zero := 0
 	precision := &api.Precision{
 		ProfileComplete: false,
-		MissingFields:   []api.MissingField{{Field: "sweat_level", Required: true, DisplayLabel: "how much you sweat", BandImpact: api.BandImpact{FluidMLPerHr: 100}}},
+		MissingFields:   []api.MissingField{{Field: "sweat_level", Required: true, DisplayLabel: "how much you sweat", BandImpact: &api.BandImpact{FluidMLPerHr: 100}}},
 		Onboarding:      &api.OnboardingInvite{Message: "Complete your profile"},
 	}
 	exact := &api.ActivityPrescription{TotalCarbG: 120, TotalSodiumMG: 1200, TotalFluidML: 1400, CarbGPerHr: 60, SodiumMGPerHr: 600, FluidMLPerHr: 700, CalculatedAt: 1700000000}
@@ -174,6 +174,12 @@ func main() {
 		"import_calc_failed":    api.ActivityImportResponse{Imported: []api.Activity{activity}, Total: 1, Succeeded: 1, RequestID: "req_8", Prescriptions: []api.ImportPrescriptionItem{{Index: 0, ActivityID: "act_1", Code: "storage_error", Message: "Unable to calculate"}}},
 		"import_all_failed":     api.ActivityImportResponse{Imported: []api.Activity{}, Errors: []api.BatchError{{Index: 0, Code: "invalid_value", Message: "Invalid input"}}, Total: 1, Failed: 1, RequestID: "req_9"},
 	}
+	// An app signed in on the athlete's behalf gets missing_fields without band_impact.
+	signedIn := *precision
+	signedIn.MissingFields = []api.MissingField{{Field: "sweat_level", Required: true, DisplayLabel: "how much you sweat"}}
+	nutritionSignedIn := nutritionBand
+	nutritionSignedIn.Precision = &signedIn
+	fixtures["nutrition_banded_signed_in"] = nutritionSignedIn
 	for name, fixture := range billingFixtures() {
 		fixtures[name] = fixture
 	}

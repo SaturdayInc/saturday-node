@@ -9,6 +9,7 @@
 - `CoachConnectCharge` gains the optional `stripe_fee_paid_by` (`coach` or `saturday`) and `platform_fee_returned_cents` the transactions endpoint returns. `CoachChargeBreakdown` gains `stripe_fee_paid_by`, `refunded_cents`, `platform_fee_returned_cents`, `disputes_cents` and `dispute_costs_recovered_cents`, and `CoachEarningsSummary` their `total_` sums, which the earnings endpoint returns. `CoachConnectSummary` gains the fee terms the summary endpoint returns: `platform_fee_minimum_cents`, `coach_pays_stripe_fees_from` and Stripe's rates (`stripe_fee_domestic_bps`, `stripe_fee_international_bps`, `stripe_fee_fixed_cents`).
 - `CoachSeatState` gains `pending_coach_paid_count`: coach-paid athletes whose seat starts billing when the time they paid for on their own Monthly plan runs out. They are not in `coach_paid_count` until then.
 - `RosterEntry`, `FuelingRollup` and `AthleteReport` gain the optional `withheld` (`CoachWithheldNotice`: `kind`, `message`) the Coach API sends about an athlete who connected an app whose data stays on Saturday. `RosterEntry.top_reasons` is `[]` for an athlete who is not flagged; the API sent `null` there before.
+- `MissingField.band_impact` is optional. A request made with an athlete's OAuth access token (`bearerToken`) gets `precision.missing_fields` without `band_impact`, in a fixed order. With a partner API key every entry still carries `band_impact`, sorted most-impactful-first. TypeScript code that reads `band_impact` needs a check or `?.`.
 
 ## 0.7.0
 
