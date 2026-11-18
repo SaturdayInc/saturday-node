@@ -1,0 +1,3071 @@
+{
+  "discovery": {
+    "type": "DiscoveryResponse",
+    "body": {
+      "links": {
+        "activity_types": "/v1/activity-types",
+        "athletes": "/v1/athletes",
+        "documentation": "https://docs.saturday.fit",
+        "errors": "/v1/errors",
+        "health": "/v1/health",
+        "knowledge (alpha)": "/v1/knowledge/search",
+        "nutrition (alpha)": "/v1/nutrition/calculate",
+        "onboarding_questions": "/v1/onboarding/questions",
+        "settings_schema": "/v1/settings/schema"
+      },
+      "name": "Saturday API",
+      "request_id": "req_8d070e44c740",
+      "self_serve": {
+        "docs": "https://docs.saturday.fit",
+        "key_claim": "GET /v1/signup/claim?session_id=… (one-time reveal after checkout; also emailed)",
+        "key_resend": "POST /v1/signup/resend {\"session_id\": \"cs_…\"} → rotates + re-emails your key if it never arrived",
+        "limits": "2 req/s, 200 calls/day (higher limits: api@saturday.fit)",
+        "llms_txt": "https://saturday.fit/llms.txt",
+        "plan": "individual_monthly",
+        "price": "$5.39/month",
+        "quickstart": "https://docs.saturday.fit/quickstart",
+        "signup_api": "POST /v1/signup {\"email\": \"you@example.com\"} → hosted checkout URL",
+        "signup_web": "https://saturday.fit/api",
+        "trial": "Every athlete's first calculate starts a 30-day full-precision trial: 15 calls on day one, then 5/day.",
+        "who_is_this": "Builders whose athletes live in THEIR system. Coaching real Saturday-app athletes? The coach portal is your lane, and its API keys come with the Business and Enterprise plans: https://coach.saturday.fit"
+      },
+      "version": "1.0.0"
+    }
+  },
+  "errors": {
+    "type": "ErrorCatalogResponse",
+    "body": {
+      "errors": [
+        {
+          "code": "missing_authorization",
+          "type": "authentication_error",
+          "http_status": 401,
+          "message": "No Authorization header. Send Authorization: Bearer <api key or access token>.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "invalid_api_key",
+          "type": "authentication_error",
+          "http_status": 401,
+          "message": "The API key or access token is invalid, expired, issued for another environment, or not sent as a Bearer credential.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "api_key_revoked",
+          "type": "authentication_error",
+          "http_status": 403,
+          "message": "The API key has been revoked, or the partner account is suspended.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "insufficient_scope",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "The credential's scopes do not permit this request.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "assistant_access_unavailable",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "This Saturday account's data is not available to AI assistants.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/mcp-integration"
+        },
+        {
+          "code": "athlete_scope",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "An athlete-delegated access token acts only on its own athlete and cannot list or create athletes.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/oauth2"
+        },
+        {
+          "code": "partner_key_required",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Partner profile, usage, API key and webhook routes need a partner API key; an access token acts for one athlete.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "athlete_not_owned",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "The athlete belongs to a different partner.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "operation_not_permitted",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "This operation is managed from the Saturday app, not through the connector.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/mcp-integration"
+        },
+        {
+          "code": "feature_alpha",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "The feature is in alpha and this partner is not on its access list.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/feature-gates"
+        },
+        {
+          "code": "coach_tier_required",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "An active Pro-Coach or higher subscription is required for coach features.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/coach-api"
+        },
+        {
+          "code": "organization_subscription_restricted",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Organization subscriptions and seat increases are set up with Saturday for this partner account.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "resource_limit_exceeded",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "The partner's limit for this resource (athletes, activities per athlete, organizations, webhooks, gear) has been reached.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "origin_not_allowed",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Browser requests from this Origin are not permitted.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "age_restricted",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Saturday's AI features are for athletes 18 and over, and the athlete's age on record makes them younger.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "age_unknown",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Saturday's AI features are for athletes 18 and over, and the athlete has no year of birth on record.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "ai_permission_required",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "The request sends the athlete's words or data to AI, and the athlete the access token acts for has not allowed AI features in the Saturday app.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "sandbox_signup_closed",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Sandbox keys are issued by Saturday; self-serve signup on the sandbox takes Saturday's own addresses only.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "invalid_json",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The request body could not be parsed as JSON.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "missing_field",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "A required field is missing; param names it.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "invalid_value",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "A field value has the wrong type or format; param names it and message says what is accepted.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "out_of_range",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "A numeric field is outside its accepted range; message names the field and the range.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "under_minimum_age",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The year_of_birth makes the athlete younger than Saturday's minimum age; message names the minimum. Nothing in the request is saved.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "unsupported_field",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The request names a field this route does not accept; param names it and message gives the field to send.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "no_changes",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The update carries no field to change.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "empty_batch",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The batch contains no items.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/batch-operations"
+        },
+        {
+          "code": "batch_too_large",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The batch exceeds the maximum items for this endpoint; message states the limit.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/batch-operations"
+        },
+        {
+          "code": "webhook_error",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The webhook could not be registered or updated: a disallowed URL, an unknown event name, or the webhook limit; message says which.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/webhooks"
+        },
+        {
+          "code": "invalid_provider",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The integration provider is not one of strava, training_peaks, intervals_icu.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "invalid_config",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The coach configuration is not valid; message says why.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/coach-api"
+        },
+        {
+          "code": "seat_limit_exceeded",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The organization subscription has no free seat for this athlete.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "subscription_inactive",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "The subscription is not active, so seats cannot be assigned or the offer cannot be claimed.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "already_revoked",
+          "type": "invalid_request",
+          "http_status": 409,
+          "message": "The consent was revoked earlier.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/data-policy"
+        },
+        {
+          "code": "activity_not_plannable",
+          "type": "invalid_request",
+          "http_status": 409,
+          "message": "The activity is done and has no Saturday fuel plan, so it has no prescription.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/activities"
+        },
+        {
+          "code": "activity_changed",
+          "type": "invalid_request",
+          "http_status": 409,
+          "message": "The activity changed while its prescription was being calculated, so nothing was stored. Read the activity again and retry.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/activities"
+        },
+        {
+          "code": "claim_used",
+          "type": "invalid_request",
+          "http_status": 410,
+          "message": "This claim link was used and cannot be used again.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "sandbox_key_by_email",
+          "type": "invalid_request",
+          "http_status": 410,
+          "message": "On the sandbox a key is sent only by email, to the address it was bought with; the success page does not show it.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "rate_limit_exceeded",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "Too many requests per second for this partner or athlete. Retry after the Retry-After seconds.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "daily_call_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The partner's daily call limit is reached. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "intelligence_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The daily limit on the intelligence endpoints (nutrition, products, inference, knowledge, AI) is reached; data endpoints keep serving. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "athlete_free_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The daily limit on calculations without an athlete is reached; calculations for your athletes keep working. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "distinct_lookup_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The day's distinct product lookups or searches ran out; repeats keep working. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "catalog_paced",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "New products are paced after a large share of the catalog in 24 hours; products already received keep working. Retry after the Retry-After seconds.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "rate_limited",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The calculator refused a sweep of near-identical calculations. Retry after the Retry-After seconds.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "resource_not_found",
+          "type": "not_found_error",
+          "http_status": 404,
+          "message": "The requested resource does not exist, or is a coach resource outside this credential's roster or capability.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The endpoint is not available in this environment.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "athlete_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The athlete does not exist or belongs to a different partner.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "activity_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The activity does not exist for this athlete.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/activities"
+        },
+        {
+          "code": "activity_withheld",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The activity came from a connected app whose data is not available to assistants connected to Saturday; the athlete sees it in the Saturday app.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/activities"
+        },
+        {
+          "code": "organization_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The organization does not exist for this partner.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "member_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The athlete is not a member of this organization.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "subscription_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The organization has no subscription.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "license_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The athlete holds no license on this subscription.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "org_offer_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The organization has no offer.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/organizations"
+        },
+        {
+          "code": "webhook_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The webhook does not exist for this partner.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/webhooks"
+        },
+        {
+          "code": "key_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The API key does not exist for this partner.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "consent_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The athlete has no consent record.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/data-policy"
+        },
+        {
+          "code": "storage_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The record could not be read or written. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "decode_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "A stored record could not be decoded. Retry, then contact support if it persists.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "internal_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "An internal error occurred. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "payment_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The payment provider could not complete the request. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "key_generation_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The API key could not be generated. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "key_rotation_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The API key could not be rotated. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "resend_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The key email could not be sent. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "sync_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The integration sync failed; message names the provider.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "status_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The integration status could not be read. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "disconnect_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The integration could not be disconnected. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "upstream_error",
+          "type": "api_error",
+          "http_status": 502,
+          "message": "An upstream service failed. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "provider_erasure_incomplete",
+          "type": "api_error",
+          "http_status": 503,
+          "message": "The athlete's connected-app data could not be erased yet, so nothing was erased. Retry the delete.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
+          "code": "service_unavailable",
+          "type": "api_error",
+          "http_status": 503,
+          "message": "A dependency is briefly unavailable. Retry after the Retry-After seconds.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "prescription_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "No prescription has been calculated for this activity yet.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/nutrition-calculation"
+        },
+        {
+          "code": "prescription_not_writable",
+          "type": "invalid_request",
+          "http_status": 400,
+          "message": "Prescriptions are computed by the calculator and cannot be written directly.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/nutrition-calculation"
+        },
+        {
+          "code": "plan_numbers_hidden",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "The athlete has no subscription and their Saturday app hides this session's plan numbers; message says what to tell them.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/freemium-model"
+        },
+        {
+          "code": "plan_numbers_unavailable",
+          "type": "api_error",
+          "http_status": 503,
+          "message": "The athlete's membership could not be checked, so this session's plan numbers are held back. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/guides/freemium-model"
+        },
+        {
+          "code": "auth_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The calculation service could not be authenticated. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/guides/nutrition-calculation"
+        },
+        {
+          "code": "proxy_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The calculation service could not be reached. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/guides/nutrition-calculation"
+        },
+        {
+          "code": "article_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The knowledge article does not exist.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        },
+        {
+          "code": "search_error",
+          "type": "api_error",
+          "http_status": 500,
+          "message": "The knowledge search failed. Retry.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/error-handling"
+        }
+      ],
+      "request_id": "req_d035767c6711",
+      "total": 78
+    }
+  },
+  "health": {
+    "type": "HealthResponse",
+    "body": {
+      "status": "ok",
+      "timestamp": "2026-11-18T04:36:26Z",
+      "version": "1.0.0"
+    }
+  },
+  "activity_types": {
+    "type": "ActivityTypesResponse",
+    "body": {
+      "activity_types": [
+        {
+          "id": "bike",
+          "name": "Cycling",
+          "description": "Road cycling, mountain biking, gravel, indoor cycling"
+        },
+        {
+          "id": "run",
+          "name": "Running",
+          "description": "Road running, trail running, track"
+        },
+        {
+          "id": "swim",
+          "name": "Swimming",
+          "description": "Pool or open water swimming"
+        },
+        {
+          "id": "row",
+          "name": "Rowing",
+          "description": "Indoor or outdoor rowing"
+        },
+        {
+          "id": "ski",
+          "name": "Skiing",
+          "description": "Cross-country skiing, Nordic skiing"
+        },
+        {
+          "id": "lift",
+          "name": "Weightlifting",
+          "description": "Strength training, CrossFit, gym workouts"
+        },
+        {
+          "id": "hike",
+          "name": "Hiking",
+          "description": "Hiking, backpacking, mountaineering"
+        }
+      ],
+      "linked_session_types": [
+        {
+          "id": "brick",
+          "name": "Brick",
+          "description": "Two or more sports back to back, fueled as one continuous effort",
+          "min_legs": 2,
+          "max_legs": 10,
+          "leg_types": [
+            "bike",
+            "run",
+            "swim",
+            "row",
+            "ski",
+            "lift",
+            "hike"
+          ],
+          "min_leg_duration_min": 5,
+          "max_duration_min": 2160
+        },
+        {
+          "id": "triathlon",
+          "name": "Triathlon",
+          "description": "Swim, bike and run (or other legs) back to back, fueled as one continuous effort",
+          "min_legs": 2,
+          "max_legs": 10,
+          "leg_types": [
+            "bike",
+            "run",
+            "swim",
+            "row",
+            "ski",
+            "lift",
+            "hike"
+          ],
+          "min_leg_duration_min": 5,
+          "max_duration_min": 2160
+        }
+      ],
+      "request_id": "req_b8bef7d46ea6",
+      "total": 7
+    }
+  },
+  "activity_types_filtered": {
+    "type": "ActivityTypesResponse",
+    "body": {
+      "activity_types": [],
+      "linked_session_types": [
+        {
+          "id": "brick",
+          "name": "Brick",
+          "description": "Two or more sports back to back, fueled as one continuous effort",
+          "min_legs": 2,
+          "max_legs": 10,
+          "leg_types": [
+            "bike",
+            "run",
+            "swim",
+            "row",
+            "ski",
+            "lift",
+            "hike"
+          ],
+          "min_leg_duration_min": 5,
+          "max_duration_min": 2160
+        }
+      ],
+      "request_id": "req_704028448eb1",
+      "total": 0
+    }
+  },
+  "settings_schema": {
+    "type": "SettingsSchemaResponse",
+    "body": {
+      "request_id": "req_379563f22c0c",
+      "settings": [
+        {
+          "field": "sweat_level",
+          "type": "integer",
+          "description": "Self-reported sweat rate (1=low, 9=high)",
+          "min": 1,
+          "max": 9,
+          "default": 5
+        },
+        {
+          "field": "saltiness",
+          "type": "integer",
+          "description": "Self-reported sweat saltiness (1=low, 9=high)",
+          "min": 1,
+          "max": 9,
+          "default": 5
+        },
+        {
+          "field": "satiety_level",
+          "type": "integer",
+          "description": "How you prefer to fuel (1=mostly whole food and needed fuel, 9=high-octane fuel for performance)",
+          "min": 1,
+          "max": 9,
+          "default": 5
+        },
+        {
+          "field": "fitness_level",
+          "type": "integer",
+          "description": "Current fitness level (1=beginner, 9=elite)",
+          "min": 1,
+          "max": 9,
+          "default": 5
+        },
+        {
+          "field": "carb_experience",
+          "type": "string",
+          "description": "Maximum carbs tolerated per hour during exercise",
+          "default": "range_0_30",
+          "options": [
+            "range_0_30",
+            "range_40_60",
+            "range_gt_70"
+          ]
+        },
+        {
+          "field": "usual_carb_consumption",
+          "type": "string",
+          "description": "Typical carb intake per hour (if experienced >70g/hr)",
+          "default": "range_lt_60",
+          "options": [
+            "range_lt_60",
+            "range_60_80",
+            "range_80_100",
+            "range_gt_100"
+          ]
+        },
+        {
+          "field": "carb_upper_limit_override",
+          "type": "integer",
+          "description": "Maximum carb g/hr cap",
+          "min": 50,
+          "max": 150,
+          "default": 150
+        },
+        {
+          "field": "muscle_cramps",
+          "type": "boolean",
+          "description": "Prone to muscle cramps during exercise",
+          "default": false
+        },
+        {
+          "field": "gut_distress",
+          "type": "boolean",
+          "description": "Prone to GI distress during exercise",
+          "default": false
+        },
+        {
+          "field": "performance",
+          "type": "boolean",
+          "description": "Prioritizing performance over comfort",
+          "default": false
+        },
+        {
+          "field": "hunger",
+          "type": "boolean",
+          "description": "Prone to hunger during exercise",
+          "default": false
+        },
+        {
+          "field": "heat_tolerance",
+          "type": "boolean",
+          "description": "Poor heat tolerance",
+          "default": false
+        },
+        {
+          "field": "faintness",
+          "type": "boolean",
+          "description": "Prone to feeling faint during exercise",
+          "default": false
+        },
+        {
+          "field": "drinking_resistance",
+          "type": "boolean",
+          "description": "Resistant to drinking during exercise",
+          "default": false
+        },
+        {
+          "field": "thirst",
+          "type": "boolean",
+          "description": "Excessive thirst during exercise",
+          "default": false
+        }
+      ],
+      "total": 15
+    }
+  },
+  "onboarding_questions": {
+    "type": "OnboardingQuestionsResponse",
+    "body": {
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "questions": [
+        {
+          "field": "sex",
+          "type": "single_select",
+          "required": true,
+          "title_en": "What sex are you?",
+          "l10n_key": "onboardSexBody",
+          "options": [
+            {
+              "value": "male",
+              "label_en": "Male",
+              "l10n_key": "onboardSexMale"
+            },
+            {
+              "value": "female",
+              "label_en": "Female",
+              "l10n_key": "onboardSexFemale"
+            },
+            {
+              "value": "intersex",
+              "label_en": "Intersex",
+              "l10n_key": "onboardSexIntersex"
+            }
+          ]
+        },
+        {
+          "field": "year_of_birth",
+          "type": "year_of_birth",
+          "required": true,
+          "title_en": "What year were you born?",
+          "l10n_key": "onboardAgeQuestion",
+          "min": 14,
+          "max": 70
+        },
+        {
+          "field": "weight_kg",
+          "type": "weight",
+          "required": true,
+          "title_en": "What is your body weight?",
+          "l10n_key": "onboardWeightQuestion",
+          "min": 20,
+          "max": 250
+        },
+        {
+          "field": "sweat_level",
+          "type": "single_select",
+          "required": true,
+          "title_en": "How would you rate your sweatiness?",
+          "l10n_key": "onboardSweatinessBody",
+          "options": [
+            {
+              "value": 1,
+              "label_en": "Light sweater",
+              "l10n_key": "onboardSweatLight"
+            },
+            {
+              "value": 5,
+              "label_en": "Moderate sweater",
+              "l10n_key": "onboardSweatModerate"
+            },
+            {
+              "value": 9,
+              "label_en": "Heavy sweater",
+              "l10n_key": "onboardSweatHeavy"
+            }
+          ]
+        },
+        {
+          "field": "saltiness",
+          "type": "single_select",
+          "required": true,
+          "title_en": "How salty of a sweater are you?",
+          "l10n_key": "onboardSaltinessBody",
+          "options": [
+            {
+              "value": 9,
+              "label_en": "Very salty",
+              "l10n_key": "onboardSaltyVery"
+            },
+            {
+              "value": 5,
+              "label_en": "Somewhat salty",
+              "l10n_key": "onboardSaltySomewhat"
+            },
+            {
+              "value": 1,
+              "label_en": "Not very salty",
+              "l10n_key": "onboardSaltyNotVery"
+            },
+            {
+              "value": 5,
+              "label_en": "Not sure",
+              "l10n_key": "onboardNotSure"
+            }
+          ]
+        },
+        {
+          "field": "carb_experience",
+          "type": "single_select",
+          "required": true,
+          "title_en": "What's the most carbohydrate you've fueled with per hour?",
+          "l10n_key": "onboardMaxCarbIntakeBody",
+          "options": [
+            {
+              "value": "range_0_30",
+              "label_en": "Less than 30 g/hr",
+              "l10n_key": "onboardMaxCarbOpt1"
+            },
+            {
+              "value": "range_40_60",
+              "label_en": "40-60 g/hr",
+              "l10n_key": "onboardMaxCarbOpt2"
+            },
+            {
+              "value": "range_gt_70",
+              "label_en": "More than 70 g/hr",
+              "l10n_key": "onboardMaxCarbOpt3"
+            },
+            {
+              "value": "range_0_30",
+              "label_en": "Not sure!",
+              "l10n_key": "onboardNotSureBang"
+            }
+          ]
+        },
+        {
+          "field": "usual_carb_consumption",
+          "type": "single_select",
+          "required": true,
+          "title_en": "How much carbohydrate do you usually consume per hour?",
+          "l10n_key": "onboardUsualCarbIntakeBody",
+          "options": [
+            {
+              "value": "range_lt_60",
+              "label_en": "Less than 60 g/hr",
+              "l10n_key": "onboardUsualCarbOpt1"
+            },
+            {
+              "value": "range_60_80",
+              "label_en": "60-80 g/hr",
+              "l10n_key": "onboardUsualCarbOpt2"
+            },
+            {
+              "value": "range_80_100",
+              "label_en": "80-100 g/hr",
+              "l10n_key": "onboardUsualCarbOpt3"
+            },
+            {
+              "value": "range_gt_100",
+              "label_en": "More than 100 g/hr",
+              "l10n_key": "onboardUsualCarbOpt4"
+            }
+          ]
+        },
+        {
+          "field": "satiety_level",
+          "type": "single_select",
+          "required": false,
+          "title_en": "How do you prefer to fuel?",
+          "l10n_key": "onboardSatietyBody",
+          "options": [
+            {
+              "value": 9,
+              "label_en": "High-octane fuel for performance",
+              "l10n_key": "onboardSatietyOpt1"
+            },
+            {
+              "value": 7,
+              "label_en": "Mostly performance fuel",
+              "l10n_key": "onboardSatietyOpt2"
+            },
+            {
+              "value": 5,
+              "label_en": "A balance",
+              "l10n_key": "onboardSatietyOpt3"
+            },
+            {
+              "value": 3,
+              "label_en": "Mostly whole food",
+              "l10n_key": "onboardSatietyOpt4"
+            },
+            {
+              "value": 1,
+              "label_en": "Mostly whole food & needed fuel",
+              "l10n_key": "onboardSatietyOpt5"
+            }
+          ]
+        },
+        {
+          "field": "fitness_level",
+          "type": "single_select",
+          "required": false,
+          "title_en": "How would you rate your fitness?",
+          "l10n_key": "onboardFitnessLevelBody",
+          "options": [
+            {
+              "value": 1,
+              "label_en": "Complete Novice",
+              "l10n_key": "userFitnessLevel1"
+            },
+            {
+              "value": 3,
+              "label_en": "Beginner",
+              "l10n_key": "userFitnessLevel3"
+            },
+            {
+              "value": 5,
+              "label_en": "Intermediate",
+              "l10n_key": "userFitnessLevel5"
+            },
+            {
+              "value": 7,
+              "label_en": "Advanced",
+              "l10n_key": "userFitnessLevel7"
+            },
+            {
+              "value": 9,
+              "label_en": "Elite / Pro",
+              "l10n_key": "userFitnessLevel9"
+            }
+          ]
+        },
+        {
+          "field": "concerns",
+          "type": "multi_select",
+          "required": false,
+          "title_en": "Any of these sound like you?",
+          "l10n_key": "onboardConcernsQuestion",
+          "options": [
+            {
+              "value": "performance",
+              "label_en": "I want maximum performance",
+              "l10n_key": "userConcernPerformance",
+              "pre_checked": true
+            },
+            {
+              "value": "gut_distress",
+              "label_en": "Gut distress while fueling",
+              "l10n_key": "userConcernGutDistress"
+            },
+            {
+              "value": "heat_tolerance",
+              "label_en": "I struggle in the heat",
+              "l10n_key": "userConcernHeatTolerance"
+            },
+            {
+              "value": "muscle_cramps",
+              "label_en": "Muscle cramps",
+              "l10n_key": "userConcernMuscleCramps"
+            },
+            {
+              "value": "faintness",
+              "label_en": "Faintness or dizziness",
+              "l10n_key": "userConcernFaintness"
+            },
+            {
+              "value": "hunger",
+              "label_en": "Hunger during long sessions",
+              "l10n_key": "userConcernHunger"
+            },
+            {
+              "value": "thirst",
+              "label_en": "Unquenchable thirst",
+              "l10n_key": "userConcernThirst"
+            },
+            {
+              "value": "drinking_resistance",
+              "label_en": "I resist drinking enough",
+              "l10n_key": "userConcernDrinkingResistance"
+            }
+          ]
+        }
+      ],
+      "request_id": "req_f752e69eba49",
+      "schema_version": "2026-06-12.1"
+    }
+  },
+  "athlete": {
+    "type": "Athlete",
+    "body": {
+      "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "partner_id": "partner_example",
+      "external_id": "sdk-node-c2e04239-a",
+      "sex": "female",
+      "year_of_birth": 1990,
+      "weight_kg": 62,
+      "settings": {
+        "sweat_level": 5,
+        "saltiness": 5,
+        "satiety_level": 5,
+        "fitness_level": 5,
+        "carb_experience": "range_40_60",
+        "usual_carb_consumption": "range_60_80",
+        "performance": true,
+        "concerns_answered": true
+      },
+      "created_at": 1794976586,
+      "updated_at": 1794976586,
+      "profile_complete": true
+    }
+  },
+  "athlete_get": {
+    "type": "Athlete",
+    "body": {
+      "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "partner_id": "partner_example",
+      "external_id": "sdk-node-c2e04239-a",
+      "sex": "female",
+      "year_of_birth": 1990,
+      "weight_kg": 62,
+      "settings": {
+        "sweat_level": 5,
+        "saltiness": 5,
+        "satiety_level": 5,
+        "fitness_level": 5,
+        "carb_experience": "range_40_60",
+        "usual_carb_consumption": "range_60_80",
+        "performance": true,
+        "concerns_answered": true
+      },
+      "created_at": 1794976586,
+      "updated_at": 1794976586,
+      "subscription_status": "teaser",
+      "profile_sharing": "not_linked",
+      "profile_complete": true
+    }
+  },
+  "athlete_list": {
+    "type": "AthleteListResponse",
+    "body": {
+      "athletes": [
+        {
+          "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "partner_id": "partner_example",
+          "external_id": "sdk-node-c2e04239-a",
+          "sex": "female",
+          "year_of_birth": 1990,
+          "weight_kg": 62,
+          "settings": {
+            "sweat_level": 5,
+            "saltiness": 5,
+            "satiety_level": 5,
+            "fitness_level": 5,
+            "carb_experience": "range_40_60",
+            "usual_carb_consumption": "range_60_80",
+            "performance": true,
+            "concerns_answered": true
+          },
+          "created_at": 1794976586,
+          "updated_at": 1794976586,
+          "profile_complete": true
+        }
+      ],
+      "pagination": {
+        "total": 1,
+        "has_more": false
+      },
+      "request_id": "req_a9ba4e71169e"
+    }
+  },
+  "settings": {
+    "type": "AthleteSettings",
+    "body": {
+      "sweat_level": 5,
+      "saltiness": 5,
+      "satiety_level": 5,
+      "fitness_level": 5,
+      "carb_experience": "range_40_60",
+      "usual_carb_consumption": "range_60_80",
+      "performance": true,
+      "concerns_answered": true
+    }
+  },
+  "fueling_profile": {
+    "type": "FuelingProfile",
+    "body": {
+      "object": "fueling_profile",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "sharing": "not_linked",
+      "message": "This athlete has not connected a Saturday account, so there are no Saturday app answers to share."
+    }
+  },
+  "athletes_batch": {
+    "type": "BatchAthleteResponse",
+    "body": {
+      "created": [
+        {
+          "id": "660f58db-b668-4845-a5dc-cc848b3ff916",
+          "partner_id": "partner_example",
+          "external_id": "sdk-node-c2e04239-c",
+          "settings": {},
+          "created_at": 1794976586,
+          "updated_at": 1794976586,
+          "profile_complete": false
+        }
+      ],
+      "errors": [
+        {
+          "index": 1,
+          "code": "missing_identifier",
+          "message": "At least one of name, email, or external_id is required"
+        }
+      ],
+      "total": 2,
+      "succeeded": 1,
+      "failed": 1,
+      "request_id": "req_6d4a4d7d3ea9"
+    }
+  },
+  "calculate_exact": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "full",
+      "carb_g_per_hr": 30,
+      "sodium_mg_per_hr": 250,
+      "fluid_ml_per_hr": 400,
+      "total_carb_g": 30,
+      "total_sodium_mg": 250,
+      "total_fluid_ml": 400,
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      },
+      "tier_source": "trial",
+      "trial_ends_at": 1797568587115,
+      "trial_calls_remaining_today": 14
+    }
+  },
+  "calculate_ranges": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "full",
+      "carb_range_g_per_hr": "50-80",
+      "sodium_range_mg_per_hr": "200-600",
+      "fluid_range_ml_per_hr": "300-800",
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": false,
+        "missing_fields": [
+          {
+            "field": "carb_experience",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 20,
+              "sodium_mg_per_hr": 300,
+              "fluid_ml_per_hr": 200
+            },
+            "display_label": "how much carb your gut is trained for"
+          },
+          {
+            "field": "concerns",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 10,
+              "sodium_mg_per_hr": 100,
+              "fluid_ml_per_hr": 200
+            },
+            "display_label": "your fueling concerns"
+          },
+          {
+            "field": "usual_carb_consumption",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 200,
+              "fluid_ml_per_hr": 100
+            },
+            "display_label": "how many carbs you usually take in"
+          },
+          {
+            "field": "sex",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "your sex"
+          },
+          {
+            "field": "saltiness",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "how salty your sweat is"
+          },
+          {
+            "field": "age",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "your age"
+          },
+          {
+            "field": "sweat_level",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "how much you sweat"
+          },
+          {
+            "field": "satiety_level",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "how easily you feel full"
+          },
+          {
+            "field": "fitness_level",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "your fitness level"
+          }
+        ],
+        "message": "For exact numbers, fill in what is missing. This athlete's profile is missing sex, age, sweat_level, saltiness, carb_experience, usual_carb_consumption, satiety_level, fitness_level, concerns: the onboarding link collects them.",
+        "onboarding": {
+          "url": "https://saturday.fit/onboard?ot=example&test=1",
+          "message": "Answer the missing questions once and this athlete gets exact numbers on every future call — or they can onboard once in the Saturday app and stay exact here forever."
+        }
+      },
+      "tier_source": "trial",
+      "trial_ends_at": 1797568593751,
+      "trial_calls_remaining_today": 14
+    }
+  },
+  "calculate_teaser": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "teaser",
+      "carb_range_g_per_hr": "60-90",
+      "sodium_range_mg_per_hr": "200-500",
+      "fluid_range_ml_per_hr": "500-1000",
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "subscription_cta": {
+        "message": "Get your exact carb, sodium, and fluid targets — not ranges",
+        "subscribe_url": "https://saturday.fit/subscribe?ref=partner_example&test=1",
+        "features": [
+          "Exact gram/mg/mL targets per hour",
+          "Personalized product picks inside the app",
+          "Personalized fueling plan",
+          "15+ tuning factors"
+        ]
+      },
+      "precision": {
+        "profile_complete": false,
+        "missing_fields": [
+          {
+            "field": "carb_experience",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 20,
+              "sodium_mg_per_hr": 300,
+              "fluid_ml_per_hr": 200
+            },
+            "display_label": "how much carb your gut is trained for"
+          },
+          {
+            "field": "thermal_stress_level",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 300,
+              "fluid_ml_per_hr": 300
+            },
+            "display_label": "how hot it will be"
+          },
+          {
+            "field": "athlete_weight_kg",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 300,
+              "fluid_ml_per_hr": 200
+            },
+            "display_label": "your body weight"
+          },
+          {
+            "field": "intensity_level",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 20,
+              "sodium_mg_per_hr": 100,
+              "fluid_ml_per_hr": 100
+            },
+            "display_label": "how hard the effort will be"
+          },
+          {
+            "field": "concerns",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 10,
+              "sodium_mg_per_hr": 100,
+              "fluid_ml_per_hr": 200
+            },
+            "display_label": "your fueling concerns"
+          },
+          {
+            "field": "usual_carb_consumption",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 200,
+              "fluid_ml_per_hr": 100
+            },
+            "display_label": "how many carbs you usually take in"
+          },
+          {
+            "field": "meal_before_min",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 10,
+              "sodium_mg_per_hr": 100,
+              "fluid_ml_per_hr": 100
+            },
+            "display_label": "when you last ate"
+          },
+          {
+            "field": "sex",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "your sex"
+          },
+          {
+            "field": "saltiness",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "how salty your sweat is"
+          },
+          {
+            "field": "age",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "your age"
+          },
+          {
+            "field": "sweat_level",
+            "required": true,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "how much you sweat"
+          },
+          {
+            "field": "satiety_level",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "how easily you feel full"
+          },
+          {
+            "field": "fitness_level",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "your fitness level"
+          },
+          {
+            "field": "is_race",
+            "required": false,
+            "band_impact": {
+              "carb_g_per_hr": 0,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 0
+            },
+            "display_label": "whether it's a race"
+          }
+        ],
+        "message": "For exact numbers, fill in what is missing. This athlete's profile is missing sex, age, athlete_weight_kg, sweat_level, saltiness, carb_experience, usual_carb_consumption, satiety_level, fitness_level, concerns: the onboarding link collects them. This session is missing intensity_level, thermal_stress_level, meal_before_min, is_race. Send them in the request body.",
+        "onboarding": {
+          "message": "Answer the missing questions once and this athlete gets exact numbers on every future call — or they can onboard once in the Saturday app and stay exact here forever."
+        }
+      }
+    }
+  },
+  "calculate_batch": {
+    "type": "BatchCalculateResponse",
+    "body": {
+      "results": [
+        {
+          "tier": "full",
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 330,
+          "fluid_ml_per_hr": 570,
+          "total_carb_g": 90,
+          "total_sodium_mg": 500,
+          "total_fluid_ml": 850,
+          "safety": {
+            "max_safe_fluid_ml_per_hr": 1500,
+            "max_safe_sodium_mg_per_hr": 3000,
+            "confidence_score": 1,
+            "requires_human_review": false,
+            "warnings": [],
+            "not_instructions": true
+          },
+          "attribution": {
+            "text": "Powered by Saturday",
+            "logo_url": "https://saturday.fit/logo.png",
+            "link": "https://saturday.fit",
+            "required": true
+          },
+          "precision": {
+            "profile_complete": true
+          },
+          "tier_source": "trial",
+          "trial_ends_at": 1797568587115,
+          "trial_calls_remaining_today": 10
+        }
+      ],
+      "errors": [
+        {
+          "index": 1,
+          "code": "invalid_value",
+          "message": "activity_type must be one of: bike, run, swim, row, ski, lift, hike (got \"nope\"). To map another sport name, call POST /v1/infer/activity-type."
+        }
+      ],
+      "total": 2,
+      "succeeded": 1,
+      "failed": 1,
+      "estimated_ms": 1997,
+      "elapsed_ms": 1361,
+      "request_id": "req_3fca37bc8562"
+    }
+  },
+  "activity": {
+    "type": "Activity",
+    "body": {
+      "id": "a568416f-d04d-4322-a8c3-6cab2d303afb",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "partner_id": "partner_example",
+      "type": "bike",
+      "duration_min": 150,
+      "intensity_level": 6,
+      "thermal_stress_level": 6,
+      "is_race_event": false,
+      "meal_before_min": 120,
+      "external_id": "sdk-node-c2e04239-w1",
+      "created_at": 1794976601,
+      "updated_at": 1794976601
+    }
+  },
+  "activity_get": {
+    "type": "Activity",
+    "body": {
+      "id": "a568416f-d04d-4322-a8c3-6cab2d303afb",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "partner_id": "partner_example",
+      "type": "bike",
+      "duration_min": 150,
+      "intensity_level": 6,
+      "thermal_stress_level": 6,
+      "is_race_event": false,
+      "meal_before_min": 120,
+      "external_id": "sdk-node-c2e04239-w1",
+      "created_at": 1794976601,
+      "updated_at": 1794976601
+    }
+  },
+  "activity_list": {
+    "type": "ActivityListResponse",
+    "body": {
+      "activities": [
+        {
+          "id": "a568416f-d04d-4322-a8c3-6cab2d303afb",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "partner_id": "partner_example",
+          "type": "bike",
+          "duration_min": 150,
+          "intensity_level": 6,
+          "thermal_stress_level": 6,
+          "is_race_event": false,
+          "meal_before_min": 120,
+          "external_id": "sdk-node-c2e04239-w1",
+          "created_at": 1794976601,
+          "updated_at": 1794976601
+        }
+      ],
+      "pagination": {
+        "total": 1,
+        "has_more": false
+      },
+      "request_id": "req_f72914c35548"
+    }
+  },
+  "activity_calculate": {
+    "type": "PrescriptionEnvelope",
+    "body": {
+      "tier": "full",
+      "prescription": {
+        "total_carb_g": 190,
+        "total_sodium_mg": 2100,
+        "total_fluid_ml": 2000,
+        "carb_g_per_hr": 71,
+        "sodium_mg_per_hr": 790,
+        "fluid_ml_per_hr": 750,
+        "calculated_at": 1794976601
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      },
+      "tier_source": "trial",
+      "trial_ends_at": 1797568587115,
+      "trial_calls_remaining_today": 9
+    }
+  },
+  "activity_prescription": {
+    "type": "StoredPrescriptionResponse",
+    "body": {
+      "prescription": {
+        "total_carb_g": 190,
+        "total_sodium_mg": 2100,
+        "total_fluid_ml": 2000,
+        "carb_g_per_hr": 71,
+        "sodium_mg_per_hr": 790,
+        "fluid_ml_per_hr": 750,
+        "calculated_at": 1794976601
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      }
+    }
+  },
+  "prep": {
+    "type": "PrepResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 190,
+        "sodium_mg": 2100,
+        "fluid_ml": 2000
+      },
+      "products": [
+        {
+          "product_id": "mau-100-gel",
+          "product_name": "Maurten Gel 100",
+          "servings": 2,
+          "carb_g": 50,
+          "sodium_mg": 40,
+          "fluid_ml": 20
+        },
+        {
+          "product_id": "twind-endfuel-powd",
+          "product_name": "Tailwind Endurance Fuel",
+          "servings": 6,
+          "carb_g": 150,
+          "sodium_mg": 1860,
+          "fluid_ml": 0
+        }
+      ],
+      "totals_from_products": {
+        "carb_g": 200,
+        "sodium_mg": 1900,
+        "fluid_ml": 20
+      },
+      "remaining_gap": {
+        "carb_g": 0,
+        "sodium_mg": 200,
+        "fluid_ml": 1980
+      },
+      "coverage_pct": {
+        "carb": 100,
+        "sodium": 90,
+        "fluid": 1
+      },
+      "note": "Base mix (Speed Nectar) covers the rest: sugar 0g, sodium citrate 200mg, water 1980mL. Products are additions to the base recipe: this gap is normal and often optimal.",
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      }
+    }
+  },
+  "feedback": {
+    "type": "ActivityFeedback",
+    "body": {
+      "rating": 4,
+      "notes": "live suite",
+      "created_at": 1794976604
+    }
+  },
+  "activity_import": {
+    "type": "ActivityImportResponse",
+    "body": {
+      "imported": [
+        {
+          "id": "12ff83ec-b0a9-453b-b8a8-71872aded9a9",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "partner_id": "partner_example",
+          "type": "run",
+          "duration_min": 45,
+          "intensity_level": 5,
+          "thermal_stress_level": 4,
+          "is_race_event": false,
+          "meal_before_min": 120,
+          "external_id": "sdk-node-c2e04239-i1",
+          "prescription": {
+            "total_carb_g": 15,
+            "total_sodium_mg": 0,
+            "total_fluid_ml": 250,
+            "carb_g_per_hr": 20,
+            "sodium_mg_per_hr": 0,
+            "fluid_ml_per_hr": 330,
+            "calculated_at": 1794976604
+          },
+          "created_at": 1794976604,
+          "updated_at": 1794976604
+        }
+      ],
+      "total": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "request_id": "req_d1ba7914f569",
+      "prescriptions": [
+        {
+          "index": 0,
+          "activity_id": "12ff83ec-b0a9-453b-b8a8-71872aded9a9",
+          "result": {
+            "tier": "full",
+            "prescription": {
+              "total_carb_g": 15,
+              "total_sodium_mg": 0,
+              "total_fluid_ml": 250,
+              "carb_g_per_hr": 20,
+              "sodium_mg_per_hr": 0,
+              "fluid_ml_per_hr": 330,
+              "calculated_at": 1794976604
+            },
+            "safety": {
+              "max_safe_fluid_ml_per_hr": 1500,
+              "max_safe_sodium_mg_per_hr": 3000,
+              "confidence_score": 1,
+              "requires_human_review": false,
+              "warnings": [],
+              "not_instructions": true
+            },
+            "attribution": {
+              "text": "Powered by Saturday",
+              "logo_url": "https://saturday.fit/logo.png",
+              "link": "https://saturday.fit",
+              "required": true
+            },
+            "precision": {
+              "profile_complete": true
+            },
+            "tier_source": "trial",
+            "trial_ends_at": 1797568587115,
+            "trial_calls_remaining_today": 8
+          }
+        }
+      ]
+    }
+  },
+  "calculate_brick": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "full",
+      "carb_g_per_hr": 70,
+      "sodium_mg_per_hr": 400,
+      "fluid_ml_per_hr": 600,
+      "total_carb_g": 140,
+      "total_sodium_mg": 800,
+      "total_fluid_ml": 1200,
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      },
+      "legs": [
+        {
+          "duration_min": 90,
+          "total_carb_g": 110,
+          "total_sodium_mg": 600,
+          "total_fluid_ml": 900,
+          "carb_g_per_hr": 73,
+          "sodium_mg_per_hr": 400,
+          "fluid_ml_per_hr": 600
+        },
+        {
+          "duration_min": 30,
+          "total_carb_g": 30,
+          "total_sodium_mg": 200,
+          "total_fluid_ml": 250,
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 400,
+          "fluid_ml_per_hr": 500
+        }
+      ]
+    }
+  },
+  "calculate_triathlon": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "full",
+      "carb_g_per_hr": 71,
+      "sodium_mg_per_hr": 710,
+      "fluid_ml_per_hr": 670,
+      "total_carb_g": 200,
+      "total_sodium_mg": 2000,
+      "total_fluid_ml": 1900,
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      },
+      "legs": [
+        {
+          "duration_min": 30,
+          "total_carb_g": 60,
+          "total_sodium_mg": 427,
+          "total_fluid_ml": 441,
+          "carb_g_per_hr": 72,
+          "sodium_mg_per_hr": 510,
+          "fluid_ml_per_hr": 530
+        },
+        {
+          "duration_min": 80,
+          "total_carb_g": 95,
+          "total_sodium_mg": 1000,
+          "total_fluid_ml": 1000,
+          "carb_g_per_hr": 71,
+          "sodium_mg_per_hr": 750,
+          "fluid_ml_per_hr": 750
+        },
+        {
+          "duration_min": 40,
+          "total_carb_g": 45,
+          "total_sodium_mg": 550,
+          "total_fluid_ml": 450,
+          "carb_g_per_hr": 68,
+          "sodium_mg_per_hr": 830,
+          "fluid_ml_per_hr": 680
+        }
+      ]
+    }
+  },
+  "activity_brick": {
+    "type": "Activity",
+    "body": {
+      "id": "251f8824-0855-4d29-89af-b3bb2f6b393d",
+      "athlete_id": "7876177b-cd07-4fe6-b322-fb24ffb635af",
+      "partner_id": "partner_example",
+      "type": "brick",
+      "duration_min": 120,
+      "is_race_event": false,
+      "legs": [
+        {
+          "type": "bike",
+          "duration_min": 90,
+          "intensity_level": 6,
+          "thermal_stress_level": 6
+        },
+        {
+          "type": "run",
+          "duration_min": 30,
+          "intensity_level": 7,
+          "thermal_stress_level": 6
+        }
+      ],
+      "meal_before_min": 120,
+      "external_id": "sdk-node-c2e04239-brick",
+      "created_at": 1794976618,
+      "updated_at": 1794976618
+    }
+  },
+  "activity_calculate_brick": {
+    "type": "PrescriptionEnvelope",
+    "body": {
+      "tier": "full",
+      "prescription": {
+        "total_carb_g": 140,
+        "total_sodium_mg": 800,
+        "total_fluid_ml": 1200,
+        "carb_g_per_hr": 70,
+        "sodium_mg_per_hr": 400,
+        "fluid_ml_per_hr": 600,
+        "calculated_at": 1794976618,
+        "legs": [
+          {
+            "duration_min": 90,
+            "total_carb_g": 110,
+            "total_sodium_mg": 600,
+            "total_fluid_ml": 900,
+            "carb_g_per_hr": 73,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 600
+          },
+          {
+            "duration_min": 30,
+            "total_carb_g": 30,
+            "total_sodium_mg": 200,
+            "total_fluid_ml": 250,
+            "carb_g_per_hr": 60,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 500
+          }
+        ]
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      }
+    }
+  },
+  "activity_prescription_brick": {
+    "type": "StoredPrescriptionResponse",
+    "body": {
+      "prescription": {
+        "total_carb_g": 140,
+        "total_sodium_mg": 800,
+        "total_fluid_ml": 1200,
+        "carb_g_per_hr": 70,
+        "sodium_mg_per_hr": 400,
+        "fluid_ml_per_hr": 600,
+        "calculated_at": 1794976618,
+        "legs": [
+          {
+            "duration_min": 90,
+            "total_carb_g": 110,
+            "total_sodium_mg": 600,
+            "total_fluid_ml": 900,
+            "carb_g_per_hr": 73,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 600
+          },
+          {
+            "duration_min": 30,
+            "total_carb_g": 30,
+            "total_sodium_mg": 200,
+            "total_fluid_ml": 250,
+            "carb_g_per_hr": 60,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 500
+          }
+        ]
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      }
+    }
+  },
+  "prep_brick": {
+    "type": "PrepResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 140,
+        "sodium_mg": 800,
+        "fluid_ml": 1200
+      },
+      "products": [
+        {
+          "product_id": "mau-100-gel",
+          "product_name": "Maurten Gel 100",
+          "servings": 3,
+          "carb_g": 75,
+          "sodium_mg": 60,
+          "fluid_ml": 30
+        },
+        {
+          "product_id": "twind-endfuel-powd",
+          "product_name": "Tailwind Endurance Fuel",
+          "servings": 3,
+          "carb_g": 75,
+          "sodium_mg": 930,
+          "fluid_ml": 0
+        }
+      ],
+      "totals_from_products": {
+        "carb_g": 150,
+        "sodium_mg": 990,
+        "fluid_ml": 30
+      },
+      "remaining_gap": {
+        "carb_g": 0,
+        "sodium_mg": 0,
+        "fluid_ml": 1170
+      },
+      "coverage_pct": {
+        "carb": 100,
+        "sodium": 100,
+        "fluid": 3
+      },
+      "note": "Base mix (Speed Nectar) covers the rest: sugar 0g, sodium citrate 0mg, water 1170mL. Products are additions to the base recipe: this gap is normal and often optimal.",
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      }
+    }
+  },
+  "activity_import_brick": {
+    "type": "ActivityImportResponse",
+    "body": {
+      "imported": [
+        {
+          "id": "039abc6d-dc68-4487-8783-4535f6e1479f",
+          "athlete_id": "7876177b-cd07-4fe6-b322-fb24ffb635af",
+          "partner_id": "partner_example",
+          "type": "brick",
+          "duration_min": 120,
+          "is_race_event": false,
+          "legs": [
+            {
+              "type": "bike",
+              "duration_min": 90,
+              "intensity_level": 6,
+              "thermal_stress_level": 6
+            },
+            {
+              "type": "run",
+              "duration_min": 30,
+              "intensity_level": 7,
+              "thermal_stress_level": 6
+            }
+          ],
+          "meal_before_min": 120,
+          "external_id": "sdk-node-c2e04239-i-brick",
+          "prescription": {
+            "total_carb_g": 140,
+            "total_sodium_mg": 800,
+            "total_fluid_ml": 1200,
+            "carb_g_per_hr": 70,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 600,
+            "calculated_at": 1794976622,
+            "legs": [
+              {
+                "duration_min": 90,
+                "total_carb_g": 110,
+                "total_sodium_mg": 600,
+                "total_fluid_ml": 900,
+                "carb_g_per_hr": 73,
+                "sodium_mg_per_hr": 400,
+                "fluid_ml_per_hr": 600
+              },
+              {
+                "duration_min": 30,
+                "total_carb_g": 30,
+                "total_sodium_mg": 200,
+                "total_fluid_ml": 250,
+                "carb_g_per_hr": 60,
+                "sodium_mg_per_hr": 400,
+                "fluid_ml_per_hr": 500
+              }
+            ]
+          },
+          "created_at": 1794976622,
+          "updated_at": 1794976622
+        }
+      ],
+      "total": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "request_id": "req_bcdd2668db17",
+      "prescriptions": [
+        {
+          "index": 0,
+          "activity_id": "039abc6d-dc68-4487-8783-4535f6e1479f",
+          "result": {
+            "tier": "full",
+            "prescription": {
+              "total_carb_g": 140,
+              "total_sodium_mg": 800,
+              "total_fluid_ml": 1200,
+              "carb_g_per_hr": 70,
+              "sodium_mg_per_hr": 400,
+              "fluid_ml_per_hr": 600,
+              "calculated_at": 1794976622,
+              "legs": [
+                {
+                  "duration_min": 90,
+                  "total_carb_g": 110,
+                  "total_sodium_mg": 600,
+                  "total_fluid_ml": 900,
+                  "carb_g_per_hr": 73,
+                  "sodium_mg_per_hr": 400,
+                  "fluid_ml_per_hr": 600
+                },
+                {
+                  "duration_min": 30,
+                  "total_carb_g": 30,
+                  "total_sodium_mg": 200,
+                  "total_fluid_ml": 250,
+                  "carb_g_per_hr": 60,
+                  "sodium_mg_per_hr": 400,
+                  "fluid_ml_per_hr": 500
+                }
+              ]
+            },
+            "safety": {
+              "max_safe_fluid_ml_per_hr": 1500,
+              "max_safe_sodium_mg_per_hr": 3000,
+              "confidence_score": 1,
+              "requires_human_review": false,
+              "warnings": [],
+              "not_instructions": true
+            },
+            "attribution": {
+              "text": "Powered by Saturday",
+              "logo_url": "https://saturday.fit/logo.png",
+              "link": "https://saturday.fit",
+              "required": true
+            },
+            "precision": {
+              "profile_complete": true
+            }
+          }
+        }
+      ]
+    }
+  },
+  "product_fit": {
+    "type": "ProductFitResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 65,
+        "sodium_mg": 500,
+        "fluid_ml": 650
+      },
+      "fit": {
+        "product_id": "mau-100-gel",
+        "product_name": "Maurten Gel 100",
+        "product_type": "gel",
+        "brand": "Maurten",
+        "per_serving": {
+          "carb_g": 25,
+          "sodium_mg": 20,
+          "fluid_ml": 10,
+          "caffeine_mg": 0
+        },
+        "max_servings": 3,
+        "at_max_servings": {
+          "carb_g": 75,
+          "sodium_mg": 60,
+          "fluid_ml": 30
+        },
+        "carb_coverage_pct": 100,
+        "sodium_coverage_pct": 12,
+        "fluid_coverage_pct": 5,
+        "limiting_factor": "carbs",
+        "remaining_gap": {
+          "carb_g": 0,
+          "sodium_mg": 440,
+          "fluid_ml": 620
+        },
+        "verdict": "At 3 servings, maxes out carbs but only provides 12% of sodium. The remaining sodium comes from salt in the base mix."
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "tier": "full"
+    }
+  },
+  "product_fit_plan_basis": {
+    "type": "ProductFitResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 130,
+        "sodium_mg": 800,
+        "fluid_ml": 1100
+      },
+      "fit": {
+        "product_id": "twind-endfuel-powd",
+        "product_name": "Tailwind Endurance Fuel",
+        "product_type": "powder",
+        "brand": "Tailwind",
+        "per_serving": {
+          "carb_g": 25,
+          "sodium_mg": 310,
+          "fluid_ml": 0
+        },
+        "max_servings": 3.75,
+        "at_max_servings": {
+          "carb_g": 94,
+          "sodium_mg": 1163,
+          "fluid_ml": 0
+        },
+        "carb_coverage_pct": 72,
+        "sodium_coverage_pct": 100,
+        "fluid_coverage_pct": 0,
+        "limiting_factor": "sodium",
+        "remaining_gap": {
+          "carb_g": 36,
+          "sodium_mg": 0,
+          "fluid_ml": 1100
+        },
+        "verdict": "At 3.75 servings: provides 72% carbs, 100% sodium. The rest comes from base ingredients (sugar + salt + water)."
+      },
+      "plan_basis": {
+        "source": "profile_incomplete",
+        "message": "Planned from the middle of this athlete's ranges. Their profile is missing sex, age, sweat_level, saltiness, carb_experience, usual_carb_consumption, satiety_level, fitness_level, concerns: the onboarding link collects them. With all of them in, this plan uses the athlete's exact numbers.",
+        "missing_profile_fields": [
+          "sex",
+          "age",
+          "sweat_level",
+          "saltiness",
+          "carb_experience",
+          "usual_carb_consumption",
+          "satiety_level",
+          "fitness_level",
+          "concerns"
+        ],
+        "carb_range_g_per_hr": "50-80",
+        "sodium_range_mg_per_hr": "200-600",
+        "fluid_range_ml_per_hr": "300-800",
+        "onboarding": {
+          "url": "https://saturday.fit/onboard?ot=example&test=1",
+          "message": "Answer the missing questions once and this athlete gets exact numbers on every future call — or they can onboard once in the Saturday app and stay exact here forever."
+        }
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "tier": "full"
+    }
+  },
+  "product_fit_session_inputs": {
+    "type": "ProductFitResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 70,
+        "sodium_mg": 450,
+        "fluid_ml": 600
+      },
+      "fit": {
+        "product_id": "mau-100-gel",
+        "product_name": "Maurten Gel 100",
+        "product_type": "gel",
+        "brand": "Maurten",
+        "per_serving": {
+          "carb_g": 25,
+          "sodium_mg": 20,
+          "fluid_ml": 10,
+          "caffeine_mg": 0
+        },
+        "max_servings": 3,
+        "at_max_servings": {
+          "carb_g": 75,
+          "sodium_mg": 60,
+          "fluid_ml": 30
+        },
+        "carb_coverage_pct": 100,
+        "sodium_coverage_pct": 13,
+        "fluid_coverage_pct": 5,
+        "limiting_factor": "carbs",
+        "remaining_gap": {
+          "carb_g": 0,
+          "sodium_mg": 390,
+          "fluid_ml": 570
+        },
+        "verdict": "At 3 servings, maxes out carbs but only provides 13% of sodium. The remaining sodium comes from salt in the base mix."
+      },
+      "plan_basis": {
+        "source": "session_incomplete",
+        "message": "Planned from the middle of this athlete's ranges. This session is missing meal_before_min, is_race. Send them in the request body. With all of them in, this plan uses the athlete's exact numbers.",
+        "missing_session_inputs": [
+          "meal_before_min",
+          "is_race"
+        ],
+        "carb_range_g_per_hr": "40-50",
+        "sodium_range_mg_per_hr": "200-400",
+        "fluid_range_ml_per_hr": "300-500"
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "tier": "full"
+    }
+  },
+  "product_compare": {
+    "type": "ProductCompareResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 210,
+        "sodium_mg": 2200,
+        "fluid_ml": 2000
+      },
+      "product_a": {
+        "product_id": "mau-100-gel",
+        "product_name": "Maurten Gel 100",
+        "product_type": "gel",
+        "brand": "Maurten",
+        "per_serving": {
+          "carb_g": 25,
+          "sodium_mg": 20,
+          "fluid_ml": 10,
+          "caffeine_mg": 0
+        },
+        "max_servings": 8,
+        "at_max_servings": {
+          "carb_g": 200,
+          "sodium_mg": 160,
+          "fluid_ml": 80
+        },
+        "carb_coverage_pct": 95,
+        "sodium_coverage_pct": 7,
+        "fluid_coverage_pct": 4,
+        "limiting_factor": "carbs",
+        "remaining_gap": {
+          "carb_g": 10,
+          "sodium_mg": 2040,
+          "fluid_ml": 1920
+        },
+        "verdict": "At 8 servings, maxes out carbs but only provides 7% of sodium. The remaining sodium comes from salt in the base mix."
+      },
+      "product_b": {
+        "product_id": "twind-endfuel-powd",
+        "product_name": "Tailwind Endurance Fuel",
+        "product_type": "powder",
+        "brand": "Tailwind",
+        "per_serving": {
+          "carb_g": 25,
+          "sodium_mg": 310,
+          "fluid_ml": 0
+        },
+        "max_servings": 8.25,
+        "at_max_servings": {
+          "carb_g": 206,
+          "sodium_mg": 2558,
+          "fluid_ml": 0
+        },
+        "carb_coverage_pct": 98,
+        "sodium_coverage_pct": 100,
+        "fluid_coverage_pct": 0,
+        "limiting_factor": "sodium",
+        "remaining_gap": {
+          "carb_g": 0,
+          "sodium_mg": 0,
+          "fluid_ml": 2000
+        },
+        "verdict": "At 8.25 servings: provides 98% carbs, 100% sodium. The rest comes from base ingredients (sugar + salt + water)."
+      },
+      "winner": {
+        "carb": "product_b",
+        "sodium": "product_b",
+        "fluid": "product_a",
+        "overall": "product_b"
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "tier": "full"
+    }
+  },
+  "simulate_subscription": {
+    "type": "SimulateSubscriptionResponse",
+    "body": {
+      "athlete_id": "64cdac25-08d8-4fd4-bef6-30bb6f8be06f",
+      "request_id": "req_c516eb63e461",
+      "simulated_active": true
+    }
+  },
+  "partner": {
+    "type": "PartnerAccount",
+    "body": {
+      "id": "partner_example",
+      "name": "SDK live suite",
+      "contact_email": "partner@example.com",
+      "status": "active",
+      "plan": "partner",
+      "rate_limits": {
+        "requests_per_second": 50,
+        "burst_size": 100,
+        "requests_per_minute": 3000,
+        "requests_per_day": 10000,
+        "ip_requests_per_day": 5000
+      },
+      "created_at": 1794976582226
+    }
+  },
+  "usage": {
+    "type": "UsageResponse",
+    "body": {
+      "by_endpoint": {
+        "/v1/activity-types": 2,
+        "/v1/athletes": 4,
+        "/v1/athletes/batch": 2,
+        "/v1/athletes/{athlete_id}": 2,
+        "/v1/athletes/{athlete_id}/activities": 3,
+        "/v1/athletes/{athlete_id}/activities/import": 2,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 3,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+        "/v1/athletes/{athlete_id}/delete": 2,
+        "/v1/athletes/{athlete_id}/fueling-profile": 1,
+        "/v1/athletes/{athlete_id}/settings": 2,
+        "/v1/nutrition/calculate": 10,
+        "/v1/nutrition/calculate/batch": 4,
+        "/v1/nutrition/products/compare": 1,
+        "/v1/nutrition/products/fit": 3,
+        "/v1/onboarding/questions": 1,
+        "/v1/partner": 1,
+        "/v1/settings/schema": 1,
+        "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
+      },
+      "daily": [
+        {
+          "date": "2026-11-18",
+          "total_calls": 62,
+          "by_endpoint": {
+            "/v1/activity-types": 2,
+            "/v1/athletes": 4,
+            "/v1/athletes/batch": 2,
+            "/v1/athletes/{athlete_id}": 2,
+            "/v1/athletes/{athlete_id}/activities": 3,
+            "/v1/athletes/{athlete_id}/activities/import": 2,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 3,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+            "/v1/athletes/{athlete_id}/delete": 2,
+            "/v1/athletes/{athlete_id}/fueling-profile": 1,
+            "/v1/athletes/{athlete_id}/settings": 2,
+            "/v1/nutrition/calculate": 10,
+            "/v1/nutrition/calculate/batch": 4,
+            "/v1/nutrition/products/compare": 1,
+            "/v1/nutrition/products/fit": 3,
+            "/v1/onboarding/questions": 1,
+            "/v1/partner": 1,
+            "/v1/settings/schema": 1,
+            "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
+          },
+          "ip_calls": 28,
+          "own_calls": 34,
+          "unique_athletes": 4,
+          "estimate_calculates": 1
+        }
+      ],
+      "period": {
+        "from": "2026-10-19",
+        "to": "2026-11-18"
+      },
+      "request_id": "req_f7a6825dd281",
+      "total_calls": 62
+    }
+  },
+  "usage_daily": {
+    "type": "DailyUsageResponse",
+    "body": {
+      "daily": [
+        {
+          "date": "2026-11-18",
+          "total_calls": 63,
+          "by_endpoint": {
+            "/v1/activity-types": 2,
+            "/v1/athletes": 4,
+            "/v1/athletes/batch": 2,
+            "/v1/athletes/{athlete_id}": 2,
+            "/v1/athletes/{athlete_id}/activities": 3,
+            "/v1/athletes/{athlete_id}/activities/import": 2,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 3,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+            "/v1/athletes/{athlete_id}/delete": 2,
+            "/v1/athletes/{athlete_id}/fueling-profile": 1,
+            "/v1/athletes/{athlete_id}/settings": 2,
+            "/v1/nutrition/calculate": 10,
+            "/v1/nutrition/calculate/batch": 4,
+            "/v1/nutrition/products/compare": 1,
+            "/v1/nutrition/products/fit": 3,
+            "/v1/onboarding/questions": 1,
+            "/v1/partner": 1,
+            "/v1/partner/usage": 1,
+            "/v1/settings/schema": 1,
+            "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
+          },
+          "ip_calls": 28,
+          "own_calls": 35,
+          "unique_athletes": 4,
+          "estimate_calculates": 1
+        }
+      ],
+      "period": {
+        "from": "2026-11-11",
+        "to": "2026-11-18"
+      },
+      "request_id": "req_ce2d576b2b24"
+    }
+  },
+  "api_keys": {
+    "type": "ApiKeyListResponse",
+    "body": {
+      "api_keys": [
+        {
+          "id": "5a73c19ca6fa1d41ce455aaf2af3a6c3bf32d0b23f4f8688afc02d9d6e890f94",
+          "name": "sdk-live",
+          "environment": "test",
+          "scopes": [
+            "*"
+          ],
+          "created_at": 1794976582262,
+          "last_used_at": 1794976624889,
+          "revoked": false
+        }
+      ],
+      "request_id": "req_a8c63f2a8f7b",
+      "total": 1
+    }
+  },
+  "api_key_created": {
+    "type": "CreatedApiKey",
+    "body": {
+      "created_at": 1794976624910,
+      "environment": "test",
+      "id": "afb089252c852b12a686161d02ac75ded203bc35f0a5d250d112545200b6f221",
+      "key": "sk_test_example",
+      "message": "Store this key securely — it will not be shown again.",
+      "name": "sdk-node-c2e04239-key",
+      "request_id": "req_f27bc02b2362",
+      "scopes": [
+        "*"
+      ]
+    }
+  },
+  "api_key_rotated": {
+    "type": "RotatedApiKey",
+    "body": {
+      "environment": "test",
+      "id": "8bd995a7d2bf86f9890579a1f9ef10a99bcd21292a949fcd326ffbc916f6f7fa",
+      "key": "sk_test_example",
+      "message": "Store this key securely — it will not be shown again. The old key has been revoked.",
+      "name": "sdk-node-c2e04239-key",
+      "request_id": "req_7b711211e708",
+      "rotated_from": "afb089252c852b12a686161d02ac75ded203bc35f0a5d250d112545200b6f221",
+      "scopes": [
+        "*"
+      ]
+    }
+  },
+  "webhook_created": {
+    "type": "WebhookCreateResponse",
+    "body": {
+      "message": "Store the secret securely — it will not be shown again. Use it to verify webhook signatures.",
+      "request_id": "req_b29384e62739",
+      "webhook": {
+        "id": "278a1e86-ede9-4edd-9853-463147eb21b4",
+        "partner_id": "partner_example",
+        "url": "https://example.com/saturday-live-suite",
+        "events": [
+          "prescription.calculated"
+        ],
+        "active": true,
+        "created_at": 1794976624943,
+        "updated_at": 1794976624943,
+        "fail_count": 0,
+        "secret": "whsec_example"
+      }
+    }
+  },
+  "webhook_list": {
+    "type": "WebhookListResponse",
+    "body": {
+      "request_id": "req_b00491507593",
+      "total": 1,
+      "webhooks": [
+        {
+          "id": "278a1e86-ede9-4edd-9853-463147eb21b4",
+          "partner_id": "partner_example",
+          "url": "https://example.com/saturday-live-suite",
+          "events": [
+            "prescription.calculated"
+          ],
+          "active": true,
+          "created_at": 1794976624943,
+          "updated_at": 1794976624943,
+          "fail_count": 0
+        }
+      ]
+    }
+  },
+  "webhook": {
+    "type": "Webhook",
+    "body": {
+      "id": "278a1e86-ede9-4edd-9853-463147eb21b4",
+      "partner_id": "partner_example",
+      "url": "https://example.com/saturday-live-suite",
+      "events": [
+        "prescription.calculated"
+      ],
+      "active": true,
+      "created_at": 1794976624943,
+      "updated_at": 1794976624943,
+      "fail_count": 0
+    }
+  },
+  "webhook_deliveries": {
+    "type": "WebhookDeliveryList",
+    "body": {
+      "deliveries": [],
+      "request_id": "req_b83745ba7553",
+      "total": 0
+    }
+  },
+  "organization": {
+    "type": "Organization",
+    "body": {
+      "id": "871f8ee8-d828-497b-8918-af8389916fd1",
+      "partner_id": "partner_example",
+      "display_name": "sdk-node-c2e04239 team",
+      "sport": "triathlon",
+      "created_at": 1794976625,
+      "updated_at": 1794976625,
+      "member_count": 0
+    }
+  },
+  "organization_list": {
+    "type": "OrganizationListResponse",
+    "body": {
+      "organizations": [
+        {
+          "id": "871f8ee8-d828-497b-8918-af8389916fd1",
+          "partner_id": "partner_example",
+          "display_name": "sdk-node-c2e04239 team",
+          "sport": "triathlon",
+          "created_at": 1794976625,
+          "updated_at": 1794976625,
+          "member_count": 0
+        }
+      ],
+      "pagination": {
+        "total": 1,
+        "has_more": false
+      },
+      "request_id": "req_0588eea3fbc6"
+    }
+  },
+  "organization_member": {
+    "type": "OrganizationMember",
+    "body": {
+      "id": "536f4ec6-073a-4161-ba06-12610dd79d4b",
+      "email": "sdk-node-c2e04239@example.com",
+      "role": "member",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "joined_at": 1794976625
+    }
+  },
+  "organization_members": {
+    "type": "OrganizationMembersResponse",
+    "body": {
+      "members": [
+        {
+          "id": "536f4ec6-073a-4161-ba06-12610dd79d4b",
+          "email": "sdk-node-c2e04239@example.com",
+          "role": "member",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "joined_at": 1794976625
+        }
+      ],
+      "request_id": "req_0b10d4aa7fd7",
+      "total": 1
+    }
+  },
+  "organization_offer": {
+    "type": "OrganizationOffer",
+    "body": {
+      "id": "b8b142d2-5c08-444b-a6fa-69b140007ab2",
+      "org_id": "871f8ee8-d828-497b-8918-af8389916fd1",
+      "discount_percent": 10,
+      "active": true,
+      "created_at": 1794976625,
+      "stack_cap_percent": 30
+    }
+  },
+  "organization_offer_get": {
+    "type": "OrganizationOffer",
+    "body": {
+      "id": "b8b142d2-5c08-444b-a6fa-69b140007ab2",
+      "org_id": "871f8ee8-d828-497b-8918-af8389916fd1",
+      "discount_percent": 10,
+      "active": true,
+      "created_at": 1794976625,
+      "stack_cap_percent": 30
+    }
+  },
+  "organization_subscriptions": {
+    "type": "OrganizationSubscriptionListResponse",
+    "body": {
+      "request_id": "req_7152674d689f",
+      "subscriptions": [],
+      "total": 0
+    }
+  },
+  "consent": {
+    "type": "ConsentRecord",
+    "body": {
+      "id": "1ba68708-5712-4039-a927-32dc9913f413",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "partner_id": "partner_example",
+      "consent_type": "analytics",
+      "granted": true,
+      "granted_at": 1794976625,
+      "ip_address": "192.0.2.1"
+    }
+  },
+  "consent_list": {
+    "type": "ConsentListResponse",
+    "body": {
+      "consent": [
+        {
+          "id": "1ba68708-5712-4039-a927-32dc9913f413",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "partner_id": "partner_example",
+          "consent_type": "analytics",
+          "granted": true,
+          "granted_at": 1794976625,
+          "ip_address": "192.0.2.1"
+        }
+      ],
+      "request_id": "req_530f01a9a7a3",
+      "total": 1
+    }
+  },
+  "export": {
+    "type": "AthleteDataExport",
+    "body": {
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "partner_id": "partner_example",
+      "exported_at": "2026-11-18T04:37:05.906430941Z",
+      "profile": {
+        "created_at": 1794976586,
+        "external_id": "sdk-node-c2e04239-a",
+        "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+        "name": "Live Suite",
+        "partner_id": "partner_example",
+        "profile_complete": true,
+        "settings": {
+          "carb_experience": "range_40_60",
+          "concerns_answered": true,
+          "fitness_level": 5,
+          "performance": true,
+          "saltiness": 5,
+          "satiety_level": 5,
+          "sweat_level": 6,
+          "usual_carb_consumption": "range_60_80"
+        },
+        "sex": "female",
+        "trial_started_at": 1794976587115,
+        "updated_at": 1794976586,
+        "weight_kg": 62,
+        "year_of_birth": 1990
+      },
+      "activities": [
+        {
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "created_at": 1794976604,
+          "duration_min": 45,
+          "external_id": "sdk-node-c2e04239-i1",
+          "id": "12ff83ec-b0a9-453b-b8a8-71872aded9a9",
+          "intensity_level": 5,
+          "is_race_event": false,
+          "meal_before_min": 120,
+          "partner_id": "partner_example",
+          "prescription": {
+            "calculated_at": 1794976604,
+            "carb_g_per_hr": 20,
+            "confidence": 1,
+            "fluid_ml_per_hr": 330,
+            "sodium_mg_per_hr": 0,
+            "total_carb_g": 15,
+            "total_fluid_ml": 250,
+            "total_sodium_mg": 0
+          },
+          "thermal_stress_level": 4,
+          "type": "run",
+          "updated_at": 1794976604
+        }
+      ],
+      "consent": [
+        {
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "consent_type": "analytics",
+          "granted": true,
+          "granted_at": 1794976625,
+          "id": "1ba68708-5712-4039-a927-32dc9913f413",
+          "ip_address": "192.0.2.1",
+          "partner_id": "partner_example",
+          "revoked_at": 1794976625
+        }
+      ]
+    }
+  },
+  "integration_status": {
+    "type": "IntegrationStatusResponse",
+    "body": {
+      "request_id": "req_0da410ef9091",
+      "status": {
+        "provider": "strava",
+        "connected": false,
+        "sync_count": 0
+      }
+    }
+  }
+}

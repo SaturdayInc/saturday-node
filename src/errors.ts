@@ -1,29 +1,34 @@
 import type { SaturdayErrorDetail } from './types';
 
 /**
- * Base error class for all Saturday API errors. Includes the structured error
- * detail from the API response (Stripe-style format).
+ * Base class for every API error. `error` is the API's error object: `type`, `code`, `message`
+ * and, when set, `param`, `documentation_url` and `request_id`.
  */
 export class SaturdayError extends Error {
-  /** HTTP status code from the response. */
+  /** HTTP status. 0 for a timeout. */
   readonly status: number;
-
-  /** Stripe-style structured error detail. */
   readonly error: SaturdayErrorDetail;
-
-  /** Unique request ID for support reference. */
+  /** Quote this when you contact Saturday about a request. */
   readonly requestId?: string;
+  /** Seconds to wait, from the `Retry-After` header, when the response carried one (429s, and 503s). */
+  readonly retryAfter?: number;
 
-  constructor(status: number, error: SaturdayErrorDetail) {
+  constructor(status: number, error: SaturdayErrorDetail, retryAfter?: number) {
     super(error.message);
     this.name = 'SaturdayError';
     this.status = status;
     this.error = error;
     this.requestId = error.request_id;
+    this.retryAfter = retryAfter;
+  }
+
+  /** The machine-readable code, such as `unsupported_field` or `athlete_not_found`. */
+  get code(): string {
+    return this.error.code;
   }
 }
 
-/** Missing or invalid API key / Bearer token. */
+/** 401: the key or token is missing, invalid, revoked, or for the other environment. */
 export class AuthenticationError extends SaturdayError {
   constructor(error: SaturdayErrorDetail) {
     super(401, error);
@@ -31,31 +36,89 @@ export class AuthenticationError extends SaturdayError {
   }
 }
 
-/** Rate limit exceeded. Check Retry-After header. */
-export class RateLimitError extends SaturdayError {
-  /** Seconds to wait before retrying. */
-  readonly retryAfter: number;
-
-  constructor(error: SaturdayErrorDetail, retryAfter: number) {
-    super(429, error);
-    this.name = 'RateLimitError';
-    this.retryAfter = retryAfter;
+/** 403: the key cannot use this feature or resource (for example `feature_alpha`). */
+export class PermissionError extends SaturdayError {
+  constructor(error: SaturdayErrorDetail) {
+    super(403, error);
+    this.name = 'PermissionError';
   }
 }
 
-/** Request validation failed (400 or 422). */
-export class ValidationError extends SaturdayError {
-  /** The parameter that caused the error. */
-  readonly param?: string;
+/** The 429 codes that reset at UTC midnight. Nothing succeeds before then. */
+export const DAILY_LIMIT_CODES = [
+  'daily_call_limit_reached',
+  'intelligence_daily_limit_reached',
+  'athlete_free_daily_limit_reached',
+  'distinct_lookup_daily_limit_reached',
+] as const;
+export type DailyLimitCode = typeof DAILY_LIMIT_CODES[number];
 
-  constructor(error: SaturdayErrorDetail) {
-    super(400, error);
+/** The codes a 429 carries. */
+export type RateLimitCode = 'rate_limit_exceeded' | 'catalog_paced' | 'rate_limited' | DailyLimitCode;
+
+/** The longest wait the client sleeps through inside one call, in seconds. */
+export const MAX_RETRY_WAIT_SECONDS = 30;
+
+/**
+ * 429. Read `code`:
+ * - `rate_limit_exceeded`: a short-term throttle. The client waits `retryAfter` and retries.
+ * - `catalog_paced`: new products are paced; `retryAfter` is the seconds until they resume. The
+ *   client retries a wait of 30 seconds or less; a longer one comes back to you.
+ * - `rate_limited`: an unusual request pattern; calculations are blocked for `retryAfter` seconds.
+ * - `daily_call_limit_reached`, `intelligence_daily_limit_reached`,
+ *   `athlete_free_daily_limit_reached`, `distinct_lookup_daily_limit_reached`: a daily ceiling.
+ *   `dailyLimit` is true and `resetsAt` is the UTC midnight it resets at. Never retried.
+ */
+export class RateLimitError extends SaturdayError {
+  /** True for a daily ceiling: nothing succeeds before `resetsAt`. */
+  readonly dailyLimit: boolean;
+  /** When a daily ceiling resets (UTC midnight). Absent for the other 429s. */
+  readonly resetsAt?: Date;
+
+  constructor(error: SaturdayErrorDetail, retryAfter?: number, now: Date = new Date()) {
+    super(429, error, retryAfter);
+    this.name = 'RateLimitError';
+    // An API that predates the daily codes marks a daily ceiling by sending no Retry-After.
+    this.dailyLimit = (DAILY_LIMIT_CODES as readonly string[]).includes(error.code) || retryAfter === undefined;
+    if (this.dailyLimit) {
+      this.resetsAt = retryAfter !== undefined
+        ? new Date(now.getTime() + retryAfter * 1000)
+        : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    }
+  }
+
+  /** Whether the client retries this itself: a throttle or a short pacing wait, never a daily ceiling or a block. */
+  get retryable(): boolean {
+    if (this.dailyLimit || this.code === 'rate_limited' || this.retryAfter === undefined) return false;
+    return this.retryAfter <= MAX_RETRY_WAIT_SECONDS;
+  }
+}
+
+/**
+ * 400 or 422: the request is invalid. `param` names the field, as a path into your body
+ * (`legs[1].duration_mins`). For code `unsupported_field` (a field the request does not take),
+ * `suggestion` is the field it was probably meant to be, when there is one.
+ */
+export class ValidationError extends SaturdayError {
+  readonly param?: string;
+  /** For `unsupported_field`: the field name to send instead (`meal_before_min` for `meal_before_mins`). Absent when the API names none. */
+  readonly suggestion?: string;
+
+  constructor(error: SaturdayErrorDetail, status = 400) {
+    super(status, error);
     this.name = 'ValidationError';
     this.param = error.param;
+    this.suggestion = error.code === 'unsupported_field' ? suggestedField(error.message) : undefined;
   }
 }
 
-/** Resource not found (404). */
+/** The field an `unsupported_field` message points to: `Did you mean "x"?` or `Send "x"`. */
+function suggestedField(message: string | undefined): string | undefined {
+  const match = /(?:Did you mean|Send) "([A-Za-z0-9_.[\]]+)"/.exec(message ?? '');
+  return match?.[1];
+}
+
+/** 404: no such resource for this key, or a route this key cannot see. */
 export class NotFoundError extends SaturdayError {
   constructor(error: SaturdayErrorDetail) {
     super(404, error);

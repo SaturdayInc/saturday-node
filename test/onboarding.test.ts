@@ -31,6 +31,7 @@ describe('onboarding.questions()', () => {
   it('GETs /v1/onboarding/questions and returns the typed schema', async () => {
     const schema: OnboardingQuestionsResponse = {
       schema_version: '2026-06-12.1',
+      request_id: 'req_1',
       questions: [
         {
           field: 'sweat_level',

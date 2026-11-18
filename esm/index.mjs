@@ -5,11 +5,13 @@ import cjs from '../dist/index.js';
 
 export const {
   Saturday,
-  AIStreamError,
   SaturdayError,
   AuthenticationError,
+  PermissionError,
   RateLimitError,
   ValidationError,
   NotFoundError,
+  DAILY_LIMIT_CODES,
+  MAX_RETRY_WAIT_SECONDS,
 } = cjs;
 export default cjs.Saturday;

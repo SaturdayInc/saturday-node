@@ -2,30 +2,34 @@
  * SDK configuration options.
  */
 export interface SaturdayConfig {
-  /** Your partner API key (sk_live_... or sk_test_...). */
+  /** Your API key: a partner key (`sk_live_...` or `sk_test_...`) or a coach key (`cp_live_...` or `cp_test_...`). */
   apiKey: string;
 
   /** Base URL override. Defaults to https://api.saturday.fit */
   baseUrl?: string;
 
-  /** Per-attempt timeout including response body reads, in milliseconds. Defaults to 30000 for JSON requests; an unconfigured AI stream deadline is 60000. */
+  /** Per-attempt timeout including the response body read, in milliseconds. Defaults to 30000. */
   timeout?: number;
 
-  /** Maximum retry attempts for transient failures. Defaults to 3. */
+  /** Maximum retries for throttled or briefly paced 429s and for 5xx responses. Defaults to 3; 0 disables retries. */
   maxRetries?: number;
 
-  /** OAuth2 Bearer token (alternative to API key for athlete-delegated access). */
+  /** OAuth2 access token for athlete-delegated access. Sent in place of `apiKey` when set. */
   bearerToken?: string;
 }
 
-// --- Core Enums ---
+// --- Core enums ---
 
+/** A single sport. Each leg of a brick or triathlon is one of these. */
 export type ActivityType = 'bike' | 'run' | 'swim' | 'row' | 'ski' | 'lift' | 'hike';
+/** A session made of 2 to 10 legs, each a single sport. */
+export type LinkedSessionType = 'brick' | 'triathlon';
+/** What a calculation or an activity can be: a single sport, or a brick or triathlon with legs. */
+export type SessionType = ActivityType | LinkedSessionType;
 export type Sex = 'male' | 'female' | 'intersex';
 export type SubscriptionTier = 'full' | 'teaser';
 export type CarbExperience = 'range_0_30' | 'range_40_60' | 'range_gt_70';
 export type UsualCarbConsumption = 'range_lt_60' | 'range_60_80' | 'range_80_100' | 'range_gt_100';
-export type GearType = 'bottle' | 'flask' | 'softflask' | 'bladder' | 'jersey_pocket';
 /**
  * Event names a partner webhook can register. Registration rejects the whole request on one
  * unknown name. `subscription.updated` and `partner.rate_limit_approaching` are accepted but
@@ -45,75 +49,28 @@ export type ProfileSharing = 'on' | 'off' | 'not_linked';
 /** Where the value Saturday's calculations use for a field comes from: your stored value, the app answer, or neither (a default, so numbers come back as ranges). */
 export type CalculationsUse = 'partner' | 'saturday_app' | 'default';
 
-// --- Safety (always included in nutrition responses) ---
+// --- Safety and attribution (on every prescription) ---
 
 /**
- * Safety metadata is ALWAYS included in nutrition responses regardless of
- * subscription tier. Athlete safety cannot be paywalled. This is non-negotiable.
- *
- * The `not_instructions` field exists specifically for AI agent consumption —
- * AI models must not treat prescriptions as executable medical instructions.
+ * Safety metadata, on every prescription and product answer at every tier.
+ * `not_instructions` is always true: the numbers are recommendations, and software
+ * acting on them (an AI agent included) must not treat them as commands.
  */
 export interface SafetyMetadata {
-  /** Maximum safe fluid intake rate (mL/hr). */
+  /** Most fluid an hour Saturday treats as safe, mL. */
   max_safe_fluid_ml_per_hr: number;
-
-  /** Maximum safe sodium intake rate (mg/hr). */
+  /** Most sodium an hour Saturday treats as safe, mg. */
   max_safe_sodium_mg_per_hr: number;
-
-  /** Confidence in the safety assessment (0-1). */
+  /** 0 to 1. */
   confidence_score: number;
-
-  /** True if the prescription should be reviewed by a professional. */
+  /** True when the prescription should be reviewed by a professional. */
   requires_human_review: boolean;
-
-  /** Human-readable safety warnings. */
+  /** Warnings to show the athlete. May be `null` or empty. */
   warnings: string[] | null;
-
-  /**
-   * Legal flag — these are recommendations, not medical instructions.
-   * Always true. AI consumers MUST NOT treat prescriptions as executable commands.
-   */
   not_instructions: true;
 }
 
-// --- Nutrition ---
-
-export interface NutritionCalculateRequest {
-  // Required
-  activity_type: ActivityType;
-  duration_min: number;
-
-  // Recommended (improves precision)
-  athlete_weight_kg?: number;
-  intensity_level?: number;
-  thermal_stress_level?: number;
-  sex?: Sex;
-  age?: number;
-  is_race?: boolean;
-
-  // Advanced (Saturday-specific tuning)
-  sweat_level?: number;
-  saltiness?: number;
-  satiety_level?: number;
-  fitness_level?: number;
-  carb_experience?: CarbExperience;
-  usual_carb_consumption?: UsualCarbConsumption;
-  carb_upper_limit_override?: number;
-  concerns?: {
-    muscle_cramps?: boolean;
-    gut_distress?: boolean;
-    performance?: boolean;
-    hunger?: boolean;
-    heat_tolerance?: boolean;
-    faintness?: boolean;
-    drinking_resistance?: boolean;
-    thirst?: boolean;
-  };
-  meal_before_min?: number;
-  athlete_id?: string;
-}
-
+/** The credit to show wherever you show Saturday's numbers. `required` is true. */
 export interface Attribution {
   text: string;
   logo_url: string;
@@ -121,150 +78,487 @@ export interface Attribution {
   required: boolean;
 }
 
+// --- Nutrition ---
+
+/** Concern flags, as an athlete answers them. */
+export interface Concerns {
+  muscle_cramps?: boolean;
+  gut_distress?: boolean;
+  performance?: boolean;
+  hunger?: boolean;
+  heat_tolerance?: boolean;
+  faintness?: boolean;
+  drinking_resistance?: boolean;
+  thirst?: boolean;
+}
+
+/**
+ * One leg of a brick or triathlon on a calculate request. All four fields are required.
+ * The legs together may be at most 2160 minutes.
+ */
+export interface CalculateLeg {
+  activity_type: ActivityType;
+  /** 5 to 2160 minutes. */
+  duration_min: number;
+  /** The leg's effort, 1 to 9 (lift and hike: 1 to 3; a higher value computes as 3). */
+  intensity_level: number;
+  /** The leg's heat and humidity, 1 (cold, dry) to 9 (hot, humid). */
+  thermal_stress_level: number;
+}
+
+/** The profile and session fields every calculate request may carry. */
+interface CalculateRequestFields {
+  athlete_id?: string;
+  athlete_weight_kg?: number;
+  /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. Left out, the answer is ranges until it is sent. */
+  meal_before_min?: number;
+  /** A race plans differently from training. Left out, the answer is ranges until it is sent. */
+  is_race?: boolean;
+  sex?: Sex;
+  age?: number;
+  sweat_level?: number;
+  saltiness?: number;
+  satiety_level?: number;
+  fitness_level?: number;
+  carb_experience?: CarbExperience;
+  usual_carb_consumption?: UsualCarbConsumption;
+  carb_upper_limit_override?: number;
+  concerns?: Concerns;
+}
+
+/** A calculation for one sport. */
+export interface SingleSessionCalculateRequest extends CalculateRequestFields {
+  activity_type: ActivityType;
+  /** 1 to 2160 minutes. */
+  duration_min: number;
+  /** Effort, 1 to 9 (lift and hike: 1 to 3). Odd levels are the app's bands; even levels fall between them. Left out, the answer is ranges until it is sent. */
+  intensity_level?: number;
+  /** Heat and humidity, 1 (cold, dry) to 9 (hot, humid). Left out, the answer is ranges until it is sent. */
+  thermal_stress_level?: number;
+  legs?: never;
+}
+
+/**
+ * A brick or triathlon: 2 to 10 legs, calculated as the Saturday app does, as one continuous
+ * effort. Its totals are larger than its legs calculated separately, so send it as one request
+ * with legs. Each leg carries its own effort and heat.
+ */
+export interface LinkedSessionCalculateRequest extends CalculateRequestFields {
+  activity_type: LinkedSessionType;
+  legs: CalculateLeg[];
+  /** The legs' total minutes. Leave it out, or send that total. */
+  duration_min?: number;
+  intensity_level?: never;
+  thermal_stress_level?: never;
+}
+
+/**
+ * `POST /v1/nutrition/calculate`, and each scenario of a batch. With `athlete_id`, the athlete's
+ * stored profile is used and any profile field you also send here overrides it for this call.
+ * A field the request does not take is refused with a `ValidationError` of code
+ * `unsupported_field`: `param` names it and `suggestion` the field it was probably meant to be.
+ */
+export type NutritionCalculateRequest = SingleSessionCalculateRequest | LinkedSessionCalculateRequest;
+
+/** Trial fields, present while the athlete's 30-day partner trial gives the full tier. */
 export interface TrialMetadata {
+  /** `trial` while a partner trial gives this athlete the full tier. */
   tier_source?: string;
-  /** Epoch milliseconds. */
+  /** Unix milliseconds. */
   trial_ends_at?: number;
   trial_calls_remaining_today?: number;
   trial_cap_reached?: boolean;
   trial_cap_note?: string;
 }
 
+/**
+ * A calculation. Exactly one of two shapes carries the numbers:
+ * exact (`carb_g_per_hr` ... and `total_*`) when the profile is complete and the tier is full,
+ * otherwise ranges (`carb_range_g_per_hr` ...). Read `precision.profile_complete` to tell them
+ * apart; `tier: 'full'` alone does not mean exact. A zero value may be omitted.
+ *
+ * Per-hour figures are whole numbers, as the Saturday app shows them. For a fasted start
+ * (`meal_before_min` over 180) the totals include a 20-minute pre-load and the per-hour figures
+ * spread the totals over the session plus those 20 minutes.
+ */
 export interface NutritionCalculateResponse extends TrialMetadata {
   tier: SubscriptionTier;
-
-  // Full tier — per-hour rates
   carb_g_per_hr?: number;
   sodium_mg_per_hr?: number;
   fluid_ml_per_hr?: number;
-
-  // Full tier — totals for the activity
   total_carb_g?: number;
   total_sodium_mg?: number;
   total_fluid_ml?: number;
-
-  // Teaser tier — human-readable ranges
+  /** Ranges, such as `"60-80"`, when the answer is not exact. */
   carb_range_g_per_hr?: string;
   sodium_range_mg_per_hr?: string;
   fluid_range_ml_per_hr?: string;
-
   safety: SafetyMetadata;
   attribution: Attribution;
-
-  /**
-   * Missing-input details and an optional athlete-scoped onboarding link.
-   * A full tier with incomplete inputs can still carry ranges.
-   */
   precision?: Precision;
-
-  // Teaser tier only — upsell prompt
+  /** Teaser tier only. */
   subscription_cta?: SubscriptionCTA;
+  /** A brick or triathlon with exact numbers: each leg's share, in the order of the legs sent. Absent for a single sport and on answers with ranges. */
+  legs?: LegPrescription[];
 }
 
-/** The upsell attached to any teaser-tier response, prescriptions and products alike. */
+/**
+ * One leg's share of a brick's or triathlon's prescription, as the Saturday app's leg cards show
+ * it. The legs' totals add up to the session's totals before the session's own rounding. Per hour
+ * is over the leg's minutes; the first leg of a fasted start adds the 20-minute pre-load.
+ */
+export interface LegPrescription {
+  duration_min: number;
+  total_carb_g: number;
+  total_sodium_mg: number;
+  total_fluid_ml: number;
+  carb_g_per_hr: number;
+  sodium_mg_per_hr: number;
+  fluid_ml_per_hr: number;
+}
+
+/** The subscribe prompt on any teaser answer. */
 export interface SubscriptionCTA {
   message: string;
   subscribe_url: string;
   features: string[];
 }
 
-/**
- * The honesty object attached to every prescription response when the
- * graduated-precision gate is on (API_OB).
- */
+/** What a calculation still needs for exact numbers. */
 export interface Precision {
-  /** True → the response carries exact numbers; false → honest bands. */
+  /** True: the answer carries exact numbers. False: it carries ranges. */
   profile_complete: boolean;
   /**
-   * Unanswered fields. With a partner API key they arrive sorted
-   * most-impactful-first; with an athlete's OAuth access token they arrive in
-   * a fixed order. Build your collection UX directly from this, in the order
-   * it arrives. Omitted when the profile is complete.
+   * Unanswered fields. With a partner API key they arrive most impactful first; with an
+   * athlete's OAuth access token, in a fixed order. Absent when the profile is complete.
    */
   missing_fields?: MissingField[];
-  /** Plain-language note naming the critical missing fields. */
+  /**
+   * Names what is missing. With a partner API key: the athlete's profile answers (the onboarding
+   * link collects them) apart from the session inputs your request or activity left out, and
+   * where to send those.
+   */
   message?: string;
-  /** Where the athlete answers the gaps. Omitted when the profile is complete. */
+  /**
+   * Where the athlete can answer the gaps. With a partner API key, present only when profile
+   * answers are missing: a missing session input is yours to send.
+   */
   onboarding?: OnboardingInvite;
 }
 
-/** One unanswered profile/activity field and what answering it narrows. */
+/** One unanswered field and how much answering it narrows each range. */
 export interface MissingField {
-  /** The field name to collect (e.g. `sweat_level`). */
+  /** The field name to collect, such as `sweat_level`. */
   field: string;
-  /** Safety-core fields are `required: true`; recommended fields `false`. */
+  /** True for the fields exact numbers need. */
   required: boolean;
-  /**
-   * How much this one field's answer would narrow each output (per hour).
-   * Sent with a partner API key; absent with an athlete's OAuth access token.
-   */
+  /** Sent with a partner API key; absent with an athlete's OAuth access token. */
   band_impact?: BandImpact;
+  /** A plain-language label for the question, such as "how much you sweat". */
   display_label?: string;
 }
 
-/** A field's contribution to band width, per output, in per-hour units. */
+/** A field's contribution to range width, per output, per hour. */
 export interface BandImpact {
   carb_g_per_hr: number;
   sodium_mg_per_hr: number;
   fluid_ml_per_hr: number;
 }
 
-/** Points the athlete at the paths to precision. */
+/** Points the athlete at the ways to complete their profile. */
 export interface OnboardingInvite {
-  /** Hosted onboarding page (`https://saturday.fit/onboard?ot=...`), athlete-scoped. */
+  /** Hosted onboarding page for this athlete. Absent when the call named no stored athlete. */
   url?: string;
-  /** Human-readable invite copy (includes the app-once path mention). */
   message: string;
+}
+
+/**
+ * What a plan from ranges is missing:
+ * - `profile_incomplete`: the athlete's profile answers (`missing_profile_fields`).
+ * - `session_incomplete`: session inputs your request or the activity left out (`missing_session_inputs`).
+ * - `profile_and_session_incomplete`: both.
+ * - `stored_ranges`: an activity's stored ranges with nothing missing that can be named now (the
+ *   athlete has answered since): calculate the activity again.
+ */
+export type PlanBasisSource = 'profile_incomplete' | 'session_incomplete' | 'profile_and_session_incomplete' | 'stored_ranges';
+
+/** A session input a plan from ranges can be missing. */
+export type SessionInput = 'intensity_level' | 'thermal_stress_level' | 'meal_before_min' | 'is_race';
+
+/**
+ * Present on prep, product fit, product compare and bottle plans when the plan is not the
+ * athlete's exact numbers: the profile or the session is missing inputs, so the plan uses the
+ * middle of the per-hour ranges over the session (a fasted start adds its 20-minute pre-load).
+ * With every input in, it is absent and the plan uses the exact numbers.
+ */
+export interface PlanBasis {
+  source: PlanBasisSource;
+  /** Names what is missing and where each goes. Show it with the plan. */
+  message: string;
+  /** The athlete's profile answers the plan lacks, by the names `precision.missing_fields` uses. */
+  missing_profile_fields?: string[];
+  /** The session inputs the plan lacks: send them in the request (fit, compare), or set them on the activity (prep). */
+  missing_session_inputs?: SessionInput[];
+  carb_range_g_per_hr: string;
+  sodium_range_mg_per_hr: string;
+  fluid_range_ml_per_hr: string;
+  /** Present only when profile answers are missing. */
+  onboarding?: OnboardingInvite;
+}
+
+/** `POST /v1/nutrition/extract`: read a nutrition label from photos. Send `image_base64` or `images_base64`. */
+export interface NutritionExtractRequest {
+  image_base64?: string;
+  /** Up to the label's front and back panels, base64 without a data-URL prefix. */
+  images_base64?: string[];
+  barcode?: string;
+  label_region?: string;
+}
+
+/** What Saturday read from a nutrition label. Fields the label does not show are absent. */
+export interface NutritionExtractResponse {
+  product_name: string;
+  carbs_per_serving: number;
+  /** The carbs that count for fueling, after the label's country rules (polyols and fiber handling). */
+  fueling_carbs_per_serving: number;
+  carb_basis?: string;
+  polyols_g?: number;
+  sodium_per_serving: number;
+  serving_size: string;
+  /** 0 to 1. */
+  confidence: number;
+  rejected?: boolean;
+  rejection_reason?: string;
+  unsupported?: boolean;
+  unsupported_message?: string;
+  error?: string;
+  brand?: string;
+  form?: string;
+  calories?: number;
+  total_fat_g?: number;
+  saturated_fat_g?: number;
+  trans_fat_g?: number;
+  cholesterol_mg?: number;
+  dietary_fiber_g?: number;
+  total_sugars_g?: number;
+  added_sugars_g?: number;
+  protein_g?: number;
+  potassium_mg?: number;
+  magnesium_mg?: number;
+  calcium_mg?: number;
+  other_minerals?: Record<string, number>;
+  caffeine_mg?: number;
+  vitamin_d_mcg?: number;
+  vitamin_b6_mg?: number;
+  vitamin_b12_mcg?: number;
+  ingredients?: string;
+  other_ingredients_text?: string;
+  serving_size_grams?: number;
+  servings_per_container?: number;
+  scoops_per_serving?: number;
+  scoop_size_grams?: number;
+  fluid_oz?: number;
+  fluid_ml?: number;
+  sodium_sources?: string[];
+  potassium_sources?: string[];
+  calcium_sources?: string[];
+  magnesium_sources?: string[];
+  carbs_sources?: string[];
+  protein_sources?: string[];
+  caffeine_sources?: string[];
+  salt_g?: number;
+  salt_basis?: string;
+  sodium_looks_like_salt?: boolean;
+}
+
+// --- Products: fit, compare and prep ---
+
+/** A catalog product by id or by text. `product_id` wins when both are sent. */
+export interface ProductRef {
+  product_id?: string;
+  /** Matched against catalog product names, brands and keywords, for example `"maurten gel 100"`. */
+  product_query?: string;
+}
+
+/**
+ * The session the product is sized for, a single sport. Saturday computes the athlete's
+ * prescription for it. Send all four session inputs: one left out computes at its everyday value
+ * (effort 5, heat 5, fed, training), and the plan is the middle of the athlete's ranges, with
+ * `plan_basis` naming the input.
+ */
+export interface ProductSession {
+  athlete_id: string;
+  activity_type: ActivityType;
+  duration_min: number;
+  intensity_level?: number;
+  thermal_stress_level?: number;
+  /** Over 180 plans a fasted start. */
+  meal_before_min?: number;
+  is_race?: boolean;
+}
+
+/** `POST /v1/nutrition/products/fit`. Name the product with `product_id` or `product_query`. */
+export type ProductFitRequest = ProductSession & ProductRef;
+
+/** `POST /v1/nutrition/products/compare`. */
+export interface ProductCompareRequest extends ProductSession {
+  product_a: ProductRef;
+  product_b: ProductRef;
+}
+
+/** Whole-session amounts. */
+export interface NutrientAmounts {
+  carb_g: number;
+  sodium_mg: number;
+  fluid_ml: number;
+}
+
+/** What one serving carries. `caffeine_mg` is absent when Saturday has no caffeine figure for the product. */
+export interface PerServing extends NutrientAmounts {
+  caffeine_mg?: number;
+}
+
+export type LimitingFactor = 'carbs' | 'sodium' | 'fluid' | 'product_too_large' | 'negligible_per_serving' | 'no_nutrients';
+
+/** How one product fits the prescription. */
+export interface ProductFitDetail {
+  product_id: string;
+  product_name: string;
+  /** A category id, matching `ProductCategory.id`. */
+  product_type: string;
+  brand: string;
+  per_serving: PerServing;
+  /** The most servings, in the app's Prep steps (a quarter scoop, half a gel), before a nutrient overshoots. 0 when one step already overshoots. */
+  max_servings: number;
+  at_max_servings: NutrientAmounts;
+  carb_coverage_pct: number;
+  sodium_coverage_pct: number;
+  fluid_coverage_pct: number;
+  limiting_factor: LimitingFactor;
+  remaining_gap: NutrientAmounts;
+  /** One sentence summing up the fit. */
+  verdict: string;
+}
+
+/** A product category. */
+export interface ProductCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * Product fit. `tier: 'full'` carries `prescription` and `fit`. `tier: 'teaser'` (the athlete's
+ * subscription or trial does not open the catalog) carries `categories`, `cta` and `request_id`.
+ */
+export interface ProductFitResponse {
+  tier: SubscriptionTier;
+  prescription?: NutrientAmounts;
+  fit?: ProductFitDetail;
+  plan_basis?: PlanBasis;
+  safety: SafetyMetadata;
+  categories?: ProductCategory[];
+  cta?: SubscriptionCTA;
+  request_id?: string;
+}
+
+export type ProductChoice = 'product_a' | 'product_b';
+
+/** Product compare. Same tiers as product fit. */
+export interface ProductCompareResponse {
+  tier: SubscriptionTier;
+  prescription?: NutrientAmounts;
+  product_a?: ProductFitDetail;
+  product_b?: ProductFitDetail;
+  /** The product covering more of each nutrient at its `max_servings`; `overall` by average coverage. A tie goes to `product_a`. */
+  winner?: { carb: ProductChoice; sodium: ProductChoice; fluid: ProductChoice; overall: ProductChoice };
+  plan_basis?: PlanBasis;
+  safety: SafetyMetadata;
+  categories?: ProductCategory[];
+  cta?: SubscriptionCTA;
+  request_id?: string;
+}
+
+/** One product for prep. Without `servings`, Saturday sizes it to what the plan still needs, in list order. */
+export interface PrepProductInput extends ProductRef {
+  /** Servings over the whole activity. */
+  servings?: number;
+}
+
+/** `POST /v1/athletes/{athlete_id}/activities/{activity_id}/prep`. */
+export interface PrepRequest {
+  products?: PrepProductInput[];
+}
+
+/** One product at its servings. */
+export interface PrepProduct extends NutrientAmounts {
+  product_id: string;
+  product_name: string;
+  servings: number;
+}
+
+/** An athlete's carrier (bottle, flask). */
+export interface GearItem {
+  id: string;
+  name: string;
+  type: string;
+  capacity_ml: number;
+  is_default: boolean;
+  created_at: number;
+  updated_at: number;
+}
+
+/** Prep: the activity's prescription, what the products deliver, and what is left. Totals are for the whole activity. */
+export interface PrepResponse {
+  prescription: NutrientAmounts;
+  /** Each resolved product at its servings. A product that matches nothing in the catalog is left out. */
+  products: PrepProduct[];
+  totals_from_products: NutrientAmounts;
+  /** What the prescription still needs after the products, never below 0. */
+  remaining_gap: NutrientAmounts;
+  /** Percent covered, 0 to 100. */
+  coverage_pct: { carb: number; sodium: number; fluid: number };
+  gear?: GearItem[];
+  /** Present when the products overshoot the prescription. */
+  warnings?: string[];
+  /** Present when a gap remains, saying what the base mix covers. */
+  note?: string;
+  plan_basis?: PlanBasis;
+  safety: SafetyMetadata;
 }
 
 // --- Onboarding (headless schema) ---
 
-/** A single onboarding question from the versioned schema. */
+/** One onboarding question. */
 export interface OnboardingQuestion {
-  /** The field name the answer writes (e.g. `sweat_level`, `year_of_birth`). */
+  /** The field the answer writes, such as `sweat_level` or `year_of_birth`. */
   field: string;
-  /** Render hint: `single_select` | `multi_select` | `year_of_birth` | `weight`. */
   type: 'single_select' | 'multi_select' | 'year_of_birth' | 'weight';
-  /** Safety-core questions are required; exactness needs all questions answered. */
   required: boolean;
-  /** English question copy (the `l10n_key` resolves localized copy in your UI). */
   title_en: string;
-  /** Localization key for `title_en`. */
   l10n_key?: string;
-  /** The exact answer values Saturday stores (odd-point scales, not sliders). */
   options?: OnboardingOption[];
-  /** Numeric inputs (`year_of_birth`, `weight`) carry a min/max bound. */
+  /** Bounds for `year_of_birth` and `weight`. */
   min?: number;
   max?: number;
 }
 
-/** One selectable answer for a single/multi-select onboarding question. */
+/** One answer to a select question. */
 export interface OnboardingOption {
-  /** The value written when chosen (string or number per the field). */
+  /** The value to store when chosen. */
   value: string | number;
-  /** English label. */
   label_en: string;
-  /** Localization key for `label_en`. */
   l10n_key?: string;
-  /** Multi-select questions may pre-check sensible defaults (e.g. `performance`). */
+  /** Multi-select questions may pre-check an option. */
   pre_checked?: boolean;
 }
 
-/**
- * The `GET /v1/onboarding/questions` response — the versioned question schema,
- * the single source of truth the hosted page also renders. **Attribution is
- * required** when you render these questions in your own UI.
- */
+/** `GET /v1/onboarding/questions`. Show `attribution` wherever you render the questions. */
 export interface OnboardingQuestionsResponse {
-  /** Schema version (drives the schema-evolution grandfather promise). */
   schema_version: string;
   questions: OnboardingQuestion[];
-  attribution?: {
-    text: string;
-    logo_url: string;
-    link: string;
-    required: boolean;
-  };
+  attribution: Attribution;
+  request_id: string;
 }
 
 // --- Athletes ---
@@ -276,33 +570,29 @@ export interface Athlete {
   name?: string;
   email?: string;
   sex?: Sex;
-  /** Birth year (e.g. 1990) — the API stores year of birth, not age. */
   year_of_birth?: number;
   weight_kg?: number;
-  /** ID of the athlete's Saturday subscription, when one is active. Empty/absent if not subscribed. */
+  /** Set while the athlete has a Saturday subscription. */
   subscription_id?: string;
   settings: AthleteSettings;
   profile_complete: boolean;
   subscription_status?: string;
-  /**
-   * Whether the athlete shares their Saturday app answers with you. Computed on `athletes.get`
-   * and in the sharing webhooks' record; absent on lists, and when it could not be read.
-   */
+  /** Returned by `athletes.get` and in the sharing webhooks; absent on lists. */
   profile_sharing?: ProfileSharing;
   partner_plan?: string;
   org_id?: string;
-  /** Epoch seconds. */
+  /** Unix seconds. */
   created_at: number;
-  /** Epoch seconds. */
+  /** Unix seconds. */
   updated_at: number;
 }
 
+/** At least one of `name`, `email` or `external_id` is required. */
 export interface CreateAthleteRequest {
   external_id?: string;
   name?: string;
   email?: string;
   sex?: Sex;
-  /** Birth year (e.g. 1990) — the API stores year of birth, not age. */
   year_of_birth?: number;
   weight_kg?: number;
   settings?: AthleteSettings;
@@ -310,6 +600,7 @@ export interface CreateAthleteRequest {
   org_id?: string;
 }
 
+/** Flat profile settings; concerns are flat flags. */
 export interface AthleteSettings {
   sweat_level?: number;
   saltiness?: number;
@@ -326,18 +617,32 @@ export interface AthleteSettings {
   faintness?: boolean;
   drinking_resistance?: boolean;
   thirst?: boolean;
+  /** Set true once the athlete has answered the concerns question, even with no concern checked. */
   concerns_answered?: boolean;
+}
+
+/** Query options for `athletes.list`. */
+export interface ListAthletesParams {
+  limit?: number;
+  cursor?: string;
+  /**
+   * Only the athletes you created with this `external_id`, newest first, in one page. The API
+   * does not deduplicate `external_id`, so look an athlete up this way before creating one when a
+   * create may have been interrupted.
+   */
+  externalId?: string;
+  /** Only athletes whose stored profile is (or is not) complete. */
+  profileComplete?: boolean;
 }
 
 // --- Fueling profile (the athlete's Saturday app answers, when shared) ---
 
-/** One shared answer. `value` is the app answer, `null` when the athlete has not answered it in the app. */
+/** One shared answer. `value` is `null` when the athlete has not answered it in the app. */
 export interface FuelingProfileField<T> {
   value: T | null;
   calculations_use: CalculationsUse;
 }
 
-/** The eight fueling concern flags, as the athlete answered them in the app. */
 export interface FuelingConcerns {
   performance: boolean;
   gut_distress: boolean;
@@ -349,20 +654,16 @@ export interface FuelingConcerns {
   drinking_resistance: boolean;
 }
 
-/** The shared answers, under the calculation-side names. */
+/** The shared answers, under the calculation field names. */
 export interface FuelingProfileAnswers {
   sex: FuelingProfileField<Sex>;
-  /** Whole years, the current year minus the birth year. */
+  /** Whole years. */
   age: FuelingProfileField<number>;
-  /** Kilograms, to one decimal. */
+  /** Kilograms, one decimal. */
   athlete_weight_kg: FuelingProfileField<number>;
-  /** 1 to 9. */
   sweat_level: FuelingProfileField<number>;
-  /** 1 to 9. */
   saltiness: FuelingProfileField<number>;
-  /** 1 to 9. */
   satiety_level: FuelingProfileField<number>;
-  /** 1 to 9. */
   fitness_level: FuelingProfileField<number>;
   carb_experience: FuelingProfileField<CarbExperience>;
   usual_carb_consumption: FuelingProfileField<UsualCarbConsumption>;
@@ -373,18 +674,16 @@ export interface FuelingProfileAnswers {
 /** A shared answer's name, as `athlete.fueling_profile_updated` lists it in `changed_fields`. */
 export type FuelingProfileFieldName = keyof FuelingProfileAnswers;
 
-/** `athletes.getFuelingProfile` while the athlete shares their answers with you. */
 export interface FuelingProfileShared {
   object: 'fueling_profile';
   athlete_id: string;
   sharing: 'on';
   message: null;
   profile: FuelingProfileAnswers;
-  /** When the athlete's Saturday account record was last saved, Unix ms. Any save moves it. */
+  /** Unix milliseconds. */
   updated_at: number;
 }
 
-/** `athletes.getFuelingProfile` when there are no answers to show you; `message` says why. */
 export interface FuelingProfileNotShared {
   object: 'fueling_profile';
   athlete_id: string;
@@ -394,80 +693,129 @@ export interface FuelingProfileNotShared {
   updated_at?: undefined;
 }
 
-/** The athlete's sharing state, with their Saturday app answers when it is `on`. Narrow on `sharing`. */
+/** Narrow on `sharing`. */
 export type FuelingProfile = FuelingProfileShared | FuelingProfileNotShared;
 
 // --- Activities ---
+
+/** One leg of a stored brick or triathlon. All four fields are required on a write. */
+export interface ActivityLeg {
+  type: ActivityType;
+  /** 5 to 2160 minutes. The legs together may be at most 2160. */
+  duration_min: number;
+  /** The leg's effort, 1 to 9 (lift and hike: 1 to 3; a higher value is stored as 3). */
+  intensity_level: number;
+  /** The leg's heat and humidity, 1 (cold, dry) to 9 (hot, humid). */
+  thermal_stress_level: number;
+}
 
 export interface Activity {
   id: string;
   athlete_id: string;
   partner_id: string;
-  /** Activity type. The API field is `type` (not `activity_type`). */
-  type: ActivityType;
-  /** @deprecated Not returned by the activity API. */
-  name?: string;
+  type: SessionType;
+  /** Minutes; for a brick or triathlon, its legs' total. */
   duration_min: number;
+  /** A brick's or triathlon's legs, in order. Absent for a single sport. */
+  legs?: ActivityLeg[];
+  /** Absent for a brick or triathlon, whose legs carry it. */
   intensity_level?: number;
+  /** Absent for a brick or triathlon, whose legs carry it. */
   thermal_stress_level?: number;
-  /** Whether this is a race. The API field is `is_race_event`. */
   is_race_event?: boolean;
   meal_before_min?: number;
   external_id?: string;
+  /** The stored prescription, once the activity has been calculated. */
   prescription?: ActivityPrescription;
   feedback?: ActivityFeedback;
-  /** @deprecated Not returned by the activity API. */
-  scheduled_at?: string;
-  /** @deprecated Use the presence of prescription instead. */
-  has_prescription?: boolean;
-  /** @deprecated Not returned by the activity API. */
-  prescription_stale?: boolean;
-  /** Epoch seconds. */
-  created_at: number;
-  /** Epoch seconds. */
-  updated_at: number;
-  /**
-   * Credit the activity's data sources require, one line per source (for example
-   * "Garmin Edge 1040"). Show each line verbatim wherever you show the activity or anything
-   * built from it. Absent when none is required. Read-only.
-   */
+  /** Credit lines the activity's data sources require. Show each verbatim with the activity. */
   source_attributions?: string[];
+  /** Unix seconds. */
+  created_at: number;
+  /** Unix seconds. */
+  updated_at: number;
 }
 
-export interface CreateActivityRequest {
-  /** Activity type. The API field is `type` (not `activity_type`). */
+/** The fields every activity write may carry. */
+interface ActivityFields {
+  /** Whether this is a race. Exact numbers need it. */
+  is_race_event?: boolean;
+  /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. Exact numbers need it. */
+  meal_before_min?: number;
+  external_id?: string;
+}
+
+/** An activity of one sport. */
+export interface SingleActivityRequest extends ActivityFields {
   type: ActivityType;
-  /** @deprecated Ignored by the activity API; keep display names in your system. */
-  name?: string;
+  /** 1 to 2160 minutes. */
   duration_min: number;
+  /** 1 to 9 (lift and hike: 1 to 3). Exact numbers need it. */
+  intensity_level?: number;
+  /** 1 (cold, dry) to 9 (hot, humid). Exact numbers need it. */
+  thermal_stress_level?: number;
+  legs?: never;
+}
+
+/** A brick or triathlon: 2 to 10 legs, each with its own effort and heat. */
+export interface LinkedActivityRequest extends ActivityFields {
+  type: LinkedSessionType;
+  legs: ActivityLeg[];
+  /** The legs' total minutes. Leave it out, or send that total. */
+  duration_min?: number;
+  intensity_level?: never;
+  thermal_stress_level?: never;
+}
+
+/**
+ * `POST /v1/athletes/{athlete_id}/activities`. The fields are `type` and `is_race_event`; any
+ * field the request does not take (`activity_type` and `is_race` included) is refused with a
+ * `ValidationError` of code `unsupported_field`.
+ */
+export type CreateActivityRequest = SingleActivityRequest | LinkedActivityRequest;
+
+/**
+ * `PATCH` an activity. `legs` replaces a brick's or triathlon's legs and sets `duration_min` to
+ * their total. Changing `type` to `brick` or `triathlon` needs `legs` in the same request unless
+ * the activity holds legs already, and drops its stored effort and heat; changing it to a single
+ * sport removes the legs. A brick or triathlon refuses `intensity_level`, `thermal_stress_level`
+ * and a `duration_min` other than its legs' total: change its legs instead.
+ */
+export interface UpdateActivityRequest {
+  type?: SessionType;
+  duration_min?: number;
+  legs?: ActivityLeg[];
   intensity_level?: number;
   thermal_stress_level?: number;
-  /** Whether this is a race. The API field is `is_race_event`. */
   is_race_event?: boolean;
   meal_before_min?: number;
   external_id?: string;
-  /** @deprecated Ignored by the activity API. */
-  scheduled_at?: string;
 }
 
+/**
+ * A stored prescription. Exact numbers when the profile is complete; when `profile_complete` is
+ * false the ranges carry the answer and the six numbers are absent.
+ */
 export interface ActivityPrescription {
-  total_carb_g: number;
-  total_sodium_mg: number;
-  total_fluid_ml: number;
-  carb_g_per_hr: number;
-  sodium_mg_per_hr: number;
-  fluid_ml_per_hr: number;
-  /** Epoch seconds. */
+  total_carb_g?: number;
+  total_sodium_mg?: number;
+  total_fluid_ml?: number;
+  carb_g_per_hr?: number;
+  sodium_mg_per_hr?: number;
+  fluid_ml_per_hr?: number;
+  /** Unix seconds. */
   calculated_at: number;
-  /** False means the ranges carry the result; numeric fields are zero. */
   profile_complete?: boolean;
   carb_range_g_per_hr?: string;
   sodium_range_mg_per_hr?: string;
   fluid_range_ml_per_hr?: string;
   carriage_tactic_id?: string;
   activity_subtype?: string;
+  /** A brick or triathlon with exact numbers: each leg's share, in the order of the activity's legs. Absent for a single sport and on a prescription of ranges. */
+  legs?: LegPrescription[];
 }
 
+/** `activities.calculatePrescription`: full-tier numbers under `prescription`, teaser ranges at the top level. */
 export interface PrescriptionEnvelope extends TrialMetadata {
   tier: SubscriptionTier;
   prescription?: ActivityPrescription;
@@ -480,19 +828,29 @@ export interface PrescriptionEnvelope extends TrialMetadata {
   precision?: Precision;
 }
 
+/** `activities.getPrescription`. */
 export interface StoredPrescriptionResponse {
   prescription: ActivityPrescription;
   safety: SafetyMetadata;
 }
 
+export interface ActivityFeedbackRequest {
+  /** 1 (poor) to 5 (excellent). */
+  rating: number;
+  notes?: string;
+}
+
 export interface ActivityFeedback {
   rating?: number;
   notes?: string;
-  /** Epoch seconds. */
+  /** Unix seconds. */
   created_at: number;
 }
 
+// --- Batches and import ---
+
 export interface BatchError {
+  /** The failed item's position in your request. */
   index: number;
   code: string;
   message: string;
@@ -506,6 +864,7 @@ export interface BatchSummary {
   request_id: string;
 }
 
+/** `results` keeps request order with failed items left out; match failures by `errors[].index`. */
 export interface BatchCalculateResponse extends BatchSummary {
   results: NutritionCalculateResponse[];
   estimated_ms: number;
@@ -516,15 +875,11 @@ export interface BatchAthleteResponse extends BatchSummary {
   created: Athlete[];
 }
 
-export interface ImportActivityRequest {
-  type: ActivityType;
-  duration_min: number;
-  intensity_level?: number;
-  thermal_stress_level?: number;
-  is_race_event?: boolean;
-  external_id?: string;
+/** One activity to import: the fields of `CreateActivityRequest`, and `calculate`. */
+export type ImportActivityRequest = CreateActivityRequest & {
+  /** Calculate this activity's prescription even when the request-level `calculate` is false. */
   calculate?: boolean;
-}
+};
 
 export interface ImportPrescriptionItem {
   index: number;
@@ -539,130 +894,314 @@ export interface ActivityImportResponse extends BatchSummary {
   prescriptions?: ImportPrescriptionItem[];
 }
 
-// --- Products ---
+// --- Reference ---
 
-/** Which shape a product response carries. `teaser` means the athlete's
- *  subscription did not open the catalog: product fields are empty and the
- *  taxonomy plus a subscribe CTA come back instead. */
-export type ProductTier = 'full' | 'teaser';
-
-/** Summary-level product, returned by search and the curated listing. */
-export interface ProductSummary {
-  id: string;
-  name?: string;
-  product_name?: string;
-  brand?: string;
-  product_type?: string;
-  image_url?: string;
-  /** Per-response watermark identifying the partner this copy was served to. */
-  _fingerprint?: string;
-}
-
-/** Full product record, returned by the barcode lookup. */
-export interface Product extends ProductSummary {
-  display_name?: string;
-  barcode?: string;
-  flavor?: string;
-  serving_size?: number;
-  serving_unit?: string;
-  carb_gram?: number;
-  sodium_mg?: number;
-  fluid_ml?: number;
-  calories?: number;
-  sugar_g?: number;
-  fat_g?: number;
-  protein_g?: number;
-  fiber_g?: number;
-  caffeine_mg?: number;
-  potassium_mg?: number;
-  magnesium_mg?: number;
-  gf_ratio?: number;
-  ingredients?: string;
-  allergens?: string;
-  keywords?: string;
-  verified?: boolean;
-  source?: string;
-  editorial_review?: string;
-}
-
-export interface ProductCategory {
-  id: string;
+export interface ActivityTypeInfo {
+  id: ActivityType;
   name: string;
   description: string;
 }
 
-export interface ProductLookupResponse {
-  tier: ProductTier;
-  product: Product | null;
-  /** Teaser tier only. */
-  categories?: ProductCategory[];
-  cta?: SubscriptionCTA;
-  request_id: string;
+/** A session type made of legs, and the rules for its legs. */
+export interface LinkedSessionTypeInfo {
+  id: LinkedSessionType;
+  name: string;
+  description: string;
+  min_legs: number;
+  max_legs: number;
+  /** The sports a leg may be. */
+  leg_types: ActivityType[];
+  /** The fewest minutes one leg may have. */
+  min_leg_duration_min: number;
+  /** The most minutes the legs may add up to. */
+  max_duration_min: number;
 }
 
-export interface ProductSearchResponse {
-  tier: ProductTier;
-  products: ProductSummary[];
+export interface ActivityTypesResponse {
+  /** The single sports. */
+  activity_types: ActivityTypeInfo[];
+  /** How many entries `activity_types` holds. */
   total: number;
-  /** Teaser tier only. */
-  categories?: ProductCategory[];
-  cta?: SubscriptionCTA;
+  /** `brick` and `triathlon`, with the rules for their legs. */
+  linked_session_types?: LinkedSessionTypeInfo[];
   request_id: string;
 }
 
-export interface CuratedProductsResponse {
-  tier: ProductTier;
-  products: ProductSummary[];
-  has_more: boolean;
-  next_cursor?: string;
-  /** Teaser tier only. */
-  categories?: ProductCategory[];
-  cta?: SubscriptionCTA;
+/** One athlete setting's type, bounds and default. */
+export interface SettingsFieldSchema {
+  field: string;
+  type: 'integer' | 'string' | 'boolean';
+  description: string;
+  min?: number;
+  max?: number;
+  default: number | string | boolean;
+  /** The accepted values of a string setting. */
+  options?: string[];
+}
+
+export interface SettingsSchemaResponse {
+  settings: SettingsFieldSchema[];
+  total: number;
   request_id: string;
 }
 
-// --- AI-to-AI conversations ---
-
-export interface AIConversation {
-  id: string;
-  athlete_id: string;
-  partner_id: string;
-  message_count: number;
-  summary?: string;
-  model_used: string;
-  created_at: string;
-  updated_at: string;
+/** `POST /v1/infer/activity-type`: what you know about a workout from your system. */
+export interface InferActivityTypeRequest {
+  activity_name?: string;
+  title?: string;
+  description?: string;
+  pre_activity_comment?: string;
+  tags?: string[];
+  source_type?: string;
+  workout_type?: string;
+  device?: string;
+  tss_calculation_method?: string;
+  structure_summary?: string;
+  velocity?: number;
+  has_power?: boolean;
+  cadence?: number;
 }
 
-export interface AIMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
+export interface InferActivityTypeResponse {
+  /** A Saturday activity type, or a multisport kind such as `brick`. */
+  activity_type: string;
+  /** Same value as `activity_type`. */
+  type: string;
+  confidence: number;
+  intensity?: number;
+  rest_day?: boolean;
+  reasoning?: string;
+  alternatives?: { activity_type: ActivityType; confidence: number }[];
+  request_id: string;
+}
+
+export interface InferBrickRequest {
+  activity_name?: string;
+  title?: string;
+  description?: string;
+  structure_summary?: string;
+  tags?: string[];
+}
+
+export interface InferBrickResponse {
+  segments: { activity_type: ActivityType; order: number; name?: string; estimated_duration_min?: number; confidence?: number }[];
+  sub_types: ActivityType[];
+  total_duration_min?: number;
+  confidence: number;
+  request_id: string;
+}
+
+/** `GET /v1/`: the routes and features this key can see. */
+export interface DiscoveryResponse {
+  name: string;
+  version: string;
+  links: Record<string, string>;
+  request_id: string;
+  [key: string]: unknown;
+}
+
+export interface ErrorCatalogEntry {
+  code: string;
+  type: string;
+  http_status: number;
+  message: string;
+  retryable: boolean;
+  documentation_url: string;
+}
+
+export interface ErrorCatalogResponse {
+  errors: ErrorCatalogEntry[];
+  total: number;
+  request_id: string;
+}
+
+export interface HealthResponse {
+  status: string;
   timestamp: string;
-  tools_called?: string[];
+  version: string;
+}
+
+// --- Partner account ---
+
+export interface PartnerAccount {
+  id: string;
+  name: string;
+  contact_email: string;
+  status: 'active' | 'suspended';
+  /** `partner` for a platform partner, `individual` for a self-serve key. */
+  plan: 'partner' | 'individual';
+  rate_limits: {
+    requests_per_second: number;
+    burst_size: number;
+    requests_per_minute: number;
+    /** All calls a day; `null` when no daily ceiling applies. */
+    requests_per_day: number | null;
+    /** Calculation calls a day (nutrition, prep, product fit and compare, inference); `null` when none applies. */
+    ip_requests_per_day: number | null;
+  };
+  /** Unix milliseconds. */
+  created_at: number;
+}
+
+/** One UTC day of usage. */
+export interface DailyUsage {
+  /** `YYYY-MM-DD`, UTC. */
+  date: string;
+  total_calls: number;
+  by_endpoint: Record<string, number>;
+  /** Calculation calls, counted against `ip_requests_per_day`. */
+  ip_calls: number;
+  own_calls: number;
+  unique_athletes: number;
+  estimate_calculates: number;
+}
+
+/** `from` and `to` are `YYYY-MM-DD` (UTC). */
+export interface UsageParams {
+  from?: string;
+  to?: string;
+}
+
+export interface UsageResponse {
+  total_calls: number;
+  by_endpoint: Record<string, number>;
+  period: { from: string; to: string };
+  daily: DailyUsage[];
+  request_id: string;
+}
+
+export interface DailyUsageResponse {
+  daily: DailyUsage[];
+  period: { from: string; to: string };
+  request_id: string;
+}
+
+export interface ApiKeyInfo {
+  /** The key's id (a hash; never the key itself). */
+  id: string;
+  name: string;
+  environment: 'live' | 'test';
+  scopes: string[];
+  /** Unix milliseconds. */
+  created_at: number;
+  /** Unix milliseconds of the last authenticated call; 0 when never used. */
+  last_used_at: number;
+  revoked: boolean;
+}
+
+export interface ApiKeyListResponse {
+  api_keys: ApiKeyInfo[];
+  total: number;
+  request_id: string;
+}
+
+/** A new key. `key` is shown once: store it. */
+export interface CreatedApiKey {
+  id: string;
+  key: string;
+  name: string;
+  environment: 'live' | 'test';
+  scopes: string[];
+  /** Unix milliseconds. */
+  created_at: number;
+  message: string;
+  request_id: string;
+}
+
+/** A rotated key: the old key is revoked, `key` is the new one, shown once. */
+export interface RotatedApiKey {
+  id: string;
+  key: string;
+  name: string;
+  environment: 'live' | 'test';
+  scopes: string[];
+  /** The id of the key this one replaced. */
+  rotated_from: string;
+  message: string;
+  request_id: string;
 }
 
 // --- Webhooks ---
 
 export interface Webhook {
   id: string;
+  partner_id: string;
   url: string;
-  events: string[];
+  events: WebhookEventType[];
   active: boolean;
-  description?: string;
   fail_count: number;
-  disabled_at?: string;
-  created_at: string;
-  updated_at: string;
+  /** Unix milliseconds; set when Saturday disabled the webhook after repeated failures. */
+  disabled_at?: number;
+  /** Unix milliseconds. */
+  created_at: number;
+  /** Unix milliseconds. */
+  updated_at: number;
 }
 
+/** A new webhook with its signing secret, shown once. */
 export interface WebhookFull extends Webhook {
-  /** HMAC-SHA256 signing secret. Only returned at creation time. */
+  /** HMAC-SHA256 signing secret, 64 hex characters. Store it now: it is never returned again. */
   secret: string;
+}
+
+/** `webhooks.create`: the new webhook, with its signing secret, under `webhook`. */
+export interface WebhookCreateResponse {
+  webhook: WebhookFull;
+  message: string;
+  request_id: string;
+}
+
+export interface WebhookListResponse {
+  webhooks: Webhook[];
+  total: number;
+  request_id: string;
+}
+
+export interface UpdateWebhookRequest {
+  url?: string;
+  events?: WebhookEventType[];
+  active?: boolean;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhook_id: string;
+  partner_id: string;
+  event_id: string;
+  event_type: string;
+  url: string;
+  status: 'pending' | 'delivered' | 'failed' | 'exhausted';
+  /** The status code your endpoint returned. */
+  status_code: number;
+  /** The first kilobyte of your endpoint's response body. */
+  response_body?: string;
+  /** The delivered event body, base64. */
+  event_data?: string;
+  attempts: number;
+  /** Unix milliseconds. */
+  next_retry_at?: number;
+  /** Unix milliseconds. */
+  completed_at?: number;
+  /** Unix milliseconds. */
+  created_at: number;
+}
+
+/** `webhooks.listDeliveries`: the 50 most recent attempts, newest first. */
+export interface WebhookDeliveryList {
+  deliveries: WebhookDelivery[];
+  total: number;
+  request_id: string;
+}
+
+/** `webhooks.test`: the record of the `webhook.test` delivery, with your endpoint's status code. */
+export interface WebhookTestResponse {
+  delivery: WebhookDelivery;
+  request_id: string;
 }
 
 /** A webhook delivery's body. Verify the signature on the raw body before parsing it. */
 export interface WebhookEvent<Type extends string = WebhookEventType, Data = unknown> {
-  /** Opaque event id; drop a repeat by it. */
+  /** Drop a repeat by its id. */
   id: string;
   type: Type;
   /** Unix milliseconds. */
@@ -685,27 +1224,230 @@ export interface Organization {
   description?: string;
   sport?: string;
   member_count: number;
-  created_at: string;
+  /** Unix seconds. */
+  created_at: number;
+  /** Unix seconds. */
+  updated_at: number;
 }
 
-// --- Gear ---
+export interface CreateOrganizationRequest {
+  display_name: string;
+  description?: string;
+  sport?: string;
+}
 
-export interface GearItem {
+export interface OrganizationListResponse {
+  organizations: Organization[];
+  pagination: PaginationMeta;
+  request_id: string;
+}
+
+export interface OrganizationMember {
   id: string;
-  name: string;
-  type: GearType;
-  capacity_ml: number;
-  is_default: boolean;
-  created_at: string;
+  email: string;
+  role: 'admin' | 'member';
+  athlete_id?: string;
+  /** Unix seconds. */
+  joined_at: number;
 }
 
-// --- Pagination ---
+export interface AddMemberRequest {
+  email: string;
+  role?: 'admin' | 'member';
+  athlete_id?: string;
+}
+
+export interface OrganizationMembersResponse {
+  members: OrganizationMember[];
+  total: number;
+  request_id: string;
+}
+
+/** A discount for the organization's athletes at their own Saturday checkout. */
+export interface OrganizationOfferRequest {
+  /** 1 to 30. */
+  discount_percent: number;
+  /** `12_month`, `1_month`, or omitted for every plan. */
+  applies_to_plan?: string;
+  negotiated_by?: string;
+  /** Unix seconds. */
+  starts_at?: number;
+  /** Unix seconds. */
+  ends_at?: number;
+  note?: string;
+}
+
+export interface OrganizationOffer {
+  id: string;
+  org_id: string;
+  discount_percent: number;
+  applies_to_plan?: string;
+  active: boolean;
+  negotiated_by?: string;
+  starts_at?: number;
+  ends_at?: number;
+  /** Unix seconds. */
+  created_at: number;
+  note?: string;
+  /** The most the stacked discounts at checkout can reach, percent. */
+  stack_cap_percent: number;
+}
+
+/** A seat subscription Saturday set up for the organization. */
+export interface OrganizationSubscription {
+  id: string;
+  org_id: string;
+  partner_id: string;
+  type: 'team' | 'enterprise';
+  seats: number;
+  used_seats: number;
+  status: 'active' | 'expired' | 'cancelled';
+  /** Unix seconds. */
+  start_date: number;
+  /** Unix seconds. */
+  end_date: number;
+  /** Unix seconds. */
+  created_at: number;
+}
+
+export interface CreateOrganizationSubscriptionRequest {
+  type: 'team' | 'enterprise';
+  seats: number;
+  /** Unix seconds. */
+  start_date: number;
+  /** Unix seconds. */
+  end_date: number;
+}
+
+/** Only these four fields; any other is refused with 400 `unsupported_field`. Dates in Unix seconds. */
+export interface UpdateOrganizationSubscriptionRequest {
+  seats?: number;
+  status?: 'active' | 'expired' | 'cancelled';
+  start_date?: number;
+  end_date?: number;
+}
+
+export interface OrganizationSubscriptionListResponse {
+  subscriptions: OrganizationSubscription[];
+  total: number;
+  request_id: string;
+}
+
+export interface LicenseInput {
+  athlete_id: string;
+  email?: string;
+  name?: string;
+}
+
+export interface License {
+  athlete_id?: string;
+  email: string;
+  name?: string;
+  /** Unix seconds. */
+  added_at: number;
+  active: boolean;
+}
+
+export interface LicenseListResponse {
+  licenses: License[];
+  total: number;
+  request_id: string;
+}
+
+// --- Privacy: export, erase, consent ---
+
+export type ConsentType = 'data_processing' | 'marketing' | 'analytics';
+
+export interface ConsentRecord {
+  id: string;
+  athlete_id: string;
+  partner_id: string;
+  consent_type: ConsentType;
+  granted: boolean;
+  /** Unix seconds. */
+  granted_at: number;
+  /** Unix seconds. */
+  revoked_at?: number;
+  ip_address?: string;
+}
+
+export interface ConsentListResponse {
+  consent: ConsentRecord[];
+  total: number;
+  request_id: string;
+}
+
+/** Everything Saturday holds for the athlete under your account. */
+export interface AthleteDataExport {
+  athlete_id: string;
+  partner_id: string;
+  /** RFC 3339. */
+  exported_at: string;
+  profile: Record<string, unknown>;
+  activities?: Record<string, unknown>[];
+  consent?: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
+// --- Integrations ---
+
+export type IntegrationProvider = 'strava' | string;
+
+export interface IntegrationSyncRequest {
+  athlete_id: string;
+  /** The athlete's access token at the provider. */
+  access_token: string;
+  refresh_token?: string;
+  sync_types?: string[];
+  date_range?: { from?: string; to?: string };
+}
+
+export interface IntegrationSyncResponse {
+  provider: string;
+  status: 'completed' | 'partial' | 'failed' | 'not_configured';
+  activities_found: number;
+  activities_synced: number;
+  activities_skipped: number;
+  prescription_tier?: SubscriptionTier;
+  errors?: string[];
+  request_id?: string;
+}
+
+export interface IntegrationStatusResponse {
+  status: {
+    provider: string;
+    connected: boolean;
+    /** Unix milliseconds. */
+    last_sync_at?: number;
+    sync_count: number;
+    errors?: string[];
+  };
+  request_id: string;
+}
+
+// --- Test project ---
+
+export interface SimulateSubscriptionResponse {
+  athlete_id: string;
+  simulated_active: boolean;
+  request_id: string;
+}
+
+// --- Knowledge (early access) ---
+
+export interface KnowledgeSearchRequest {
+  query: string;
+  limit?: number;
+  category?: string;
+}
+
+// --- Lists ---
 
 export interface PaginationMeta {
-  /** Number of records on this page. */
+  /** Records on this page. */
   total: number;
   has_more: boolean;
-  /** Pass as the cursor query parameter for the next page. */
+  /** Pass as `cursor` for the next page. */
   next_cursor?: string;
 }
 
@@ -721,7 +1463,7 @@ export interface ActivityListResponse {
   request_id: string;
 }
 
-// --- Error ---
+// --- Errors ---
 
 export interface SaturdayErrorDetail {
   type: string;
@@ -890,7 +1632,18 @@ export interface HourlyCap {
 }
 
 /** The full alert rule set at one scope (PUT replaces the whole set — idempotent). */
+/** Where the email and push channels deliver. A rules read always carries it. */
+export interface ChannelConfig {
+  email: { enabled: boolean; address?: string };
+  push: { enabled: boolean; devices?: string[] };
+}
+
+/**
+ * The full alert rule set at one scope. A PUT replaces the whole set, `channel_config` included:
+ * send back the one a read returned. Left out at the overall scope, email and push alerts turn off.
+ */
 export interface AlertRulesDoc {
+  channel_config?: ChannelConfig;
   notification_rules?: Record<string, TriggerRule>;
   combinators?: Combinator[];
   quiet_hours?: QuietHours;

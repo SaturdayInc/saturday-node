@@ -1,6 +1,39 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (unreleased)
+
+Breaking changes:
+
+- `products`, `gear` and `ai` are removed, with their types and `AIStreamError`. Those routes are not open to partner keys.
+- `webhooks.create(url, events)` returns `WebhookCreateResponse`: the webhook (`WebhookFull`), with its signing secret, is under `webhook`; read `created.webhook.secret`. The `description` argument is gone; the API does not take one.
+- `organizations.create` takes an object (`{ display_name, description?, sport? }`) and `organizations.addMember` takes `{ email, role?, athlete_id? }`.
+- `knowledge.search` takes `{ query, limit?, category? }`.
+- Timestamps are numbers: `Webhook`, `Organization` and the new types say which are Unix seconds and which milliseconds.
+- `athletes.list` drops the `search` option and `activities.list` the `type` option, which the API ignored. `athletes.list` gains `externalId` (the athletes you created with that `external_id`, newest first) and `profileComplete`.
+- Retries follow what the API says. A `RateLimitError` is read by its `code`: `rate_limit_exceeded` (a throttle) is retried after `Retry-After`, and `catalog_paced` when that wait is 30 s or less; `rate_limited` (a block after an unusual request pattern) and the four daily ceilings (`daily_call_limit_reached`, `intelligence_daily_limit_reached`, `athlete_free_daily_limit_reached`, `distinct_lookup_daily_limit_reached`) throw at once. A daily ceiling has `dailyLimit` true and `resetsAt`, the UTC midnight it resets at. A 429 with no `Retry-After` is treated as a daily ceiling. A 5xx is retried after its `Retry-After`, or after 1 s, 2 s and 4 s, except on a `POST` that creates or changes a record, since the server may have done the write; calculation, product, inference, prep and export `POST`s still are, with every `GET`, `PUT`, `PATCH` and `DELETE`. The client never sleeps longer than 30 s inside one call.
+- `SaturdayError.retryAfter`, from `Retry-After` on any error that carries one. `DAILY_LIMIT_CODES` and the `RateLimitCode` type are exported.
+- `organizations.updateSubscription` takes `seats`, `status`, `start_date` and `end_date` (Unix seconds); the API refuses any other field.
+- 403 responses raise the new `PermissionError`.
+- `NutritionCalculateRequest` is a union of `SingleSessionCalculateRequest` and `LinkedSessionCalculateRequest`, and `CreateActivityRequest` of `SingleActivityRequest` and `LinkedActivityRequest`: a brick or triathlon carries `legs` and no top-level `intensity_level` or `thermal_stress_level`. `UpdateActivityRequest` is its own interface. `ImportActivityRequest` is `CreateActivityRequest & { calculate? }`.
+- `PlanBasis.source` is `PlanBasisSource` (`profile_incomplete`, `session_incomplete`, `profile_and_session_incomplete`, `stored_ranges`), with `missing_profile_fields` and `missing_session_inputs`. `ProductSession` documents no defaults: a session input left out plans from ranges.
+- `ApiKeyInfo.last_used_at` is always present: 0 for a key never used.
+
+Added:
+
+- `nutrition.productFit`, `nutrition.compareProducts` and `activities.prep`, with `PlanBasis` for plans made from the middle of the ranges, naming what is missing.
+- Bricks and triathlons: `SessionType`, `LinkedSessionType`, `CalculateLeg` and `ActivityLeg` for `legs` on calculate, batch, activity create, import and update; `LegPrescription` for each leg's share under `legs` on `NutritionCalculateResponse` and `ActivityPrescription`; `Activity.legs`. `reference.activityTypes({ activityType })` filters, and `ActivityTypesResponse.linked_session_types` (`LinkedSessionTypeInfo`) carries the rules for legs.
+- `ValidationError.suggestion`: for code `unsupported_field`, the field the request was probably meant to send, read from the API's message. `param` is the field's path in your body (`legs[1].duration_mins`).
+- `Precision.message` and `Precision.onboarding` document what a partner key gets: the missing profile answers apart from the session inputs, and the onboarding link only for profile answers.
+- `nutrition.extract` (nutrition label reading), `infer.activityType`, `infer.brickTypes`, `reference.activityTypes`, `reference.settingsSchema`.
+- `athletes.erase` (`POST /v1/athletes/{id}/delete`), `athletes.listConsent`, `recordConsent`, `revokeConsent`.
+- `partner.get`, `usage`, `usageDaily`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `rotateApiKey`.
+- `webhooks.listDeliveries` (`WebhookDeliveryList`); `webhooks.test` returns `WebhookTestResponse` (`delivery`, with your endpoint's `status_code`); `organizations.update`, offers and seat subscriptions with licenses; `integrations.sync`, `status`, `disconnect`; `testing.simulateSubscription`; `meta.discovery`, `errors`, `health`.
+- `SaturdayError.code`.
+- `AlertRulesDoc` gains `channel_config` (`ChannelConfig`: the email address and push devices alerts go to). A read always carries it, and `coach.setNotificationRules()` replaces it with the rest of the set: send back the one you read. Left out at the overall scope, the coach's email and push alerts turn off.
+- Request types document `meal_before_min` (over 180 is a fasted start), `is_race`, even effort levels and whole-number per-hour figures.
+- A live suite (`test/live.test.ts`) and a type check of its recorded responses. The suite covers bricks and triathlons through calculate, batch, activity create, prep, update and import.
+
+Earlier unreleased changes:
 
 - `import Saturday from '@saturdayinc/sdk'` now gives the client class in a plain Node ES module (an `.mjs` file, or a project with `"type": "module"`). Before, Node handed back the module object there and `new Saturday(...)` threw `Saturday is not a constructor`; TypeScript, bundlers and `require` were unaffected, and `import { Saturday }` worked everywhere. The package gains an `exports` map with an ES module entry, so imports of files inside the package (`@saturdayinc/sdk/dist/...`) no longer resolve.
 - Add `athletes.getFuelingProfile(athleteId)` for `GET /v1/athletes/{id}/fueling-profile`: the athlete's Saturday app answers while they share them with you. Returns `FuelingProfile`, a union to narrow on `sharing`: `on` carries `profile` (`FuelingProfileAnswers`, each a `FuelingProfileField` with `value` and `calculations_use`) and `updated_at`; `off` and `not_linked` carry `message`. `Athlete` gains the optional `profile_sharing` (`ProfileSharing`: `on`, `off` or `not_linked`), returned by `athletes.get`.
