@@ -112,7 +112,7 @@ interface CalculateRequestFields {
   athlete_weight_kg?: number;
   /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. Left out, the answer is ranges until it is sent. */
   meal_before_min?: number;
-  /** A race plans differently from training. Left out, the answer is ranges until it is sent. */
+  /** Whether this is a race. Left out, the answer is ranges until it is sent. */
   is_race?: boolean;
   sex?: Sex;
   age?: number;
@@ -139,9 +139,8 @@ export interface SingleSessionCalculateRequest extends CalculateRequestFields {
 }
 
 /**
- * A brick or triathlon: 2 to 10 legs, calculated as the Saturday app does, as one continuous
- * effort. Its totals are larger than its legs calculated separately, so send it as one request
- * with legs. Each leg carries its own effort and heat.
+ * A brick or triathlon: 2 to 10 legs, each with its own effort and heat. Send it as one request
+ * with legs, never as one request per leg.
  */
 export interface LinkedSessionCalculateRequest extends CalculateRequestFields {
   activity_type: LinkedSessionType;
@@ -164,7 +163,7 @@ export type NutritionCalculateRequest = SingleSessionCalculateRequest | LinkedSe
 export interface TrialMetadata {
   /** `trial` while a partner trial gives this athlete the full tier. */
   tier_source?: string;
-  /** Unix milliseconds. */
+  /** When the trial ends, Unix seconds. */
   trial_ends_at?: number;
   trial_calls_remaining_today?: number;
   trial_cap_reached?: boolean;
@@ -177,9 +176,8 @@ export interface TrialMetadata {
  * otherwise ranges (`carb_range_g_per_hr` ...). Read `precision.profile_complete` to tell them
  * apart; `tier: 'full'` alone does not mean exact. A zero value may be omitted.
  *
- * Per-hour figures are whole numbers, as the Saturday app shows them. For a fasted start
- * (`meal_before_min` over 180) the totals include a 20-minute pre-load and the per-hour figures
- * spread the totals over the session plus those 20 minutes.
+ * Per-hour figures are whole numbers, as the Saturday app's Fuel card shows them, which is not
+ * always the total divided by the session's hours. The totals are for the whole session.
  */
 export interface NutritionCalculateResponse extends TrialMetadata {
   tier: SubscriptionTier;
@@ -205,7 +203,7 @@ export interface NutritionCalculateResponse extends TrialMetadata {
 /**
  * One leg's share of a brick's or triathlon's prescription, as the Saturday app's leg cards show
  * it. The legs' totals add up to the session's totals before the session's own rounding. Per hour
- * is over the leg's minutes; the first leg of a fasted start adds the 20-minute pre-load.
+ * is as the app's leg card shows it, which is not always the leg's total divided by its hours.
  */
 export interface LegPrescription {
   duration_min: number;
@@ -229,10 +227,24 @@ export interface Precision {
   /** True: the answer carries exact numbers. False: it carries ranges. */
   profile_complete: boolean;
   /**
-   * Unanswered fields. With a partner API key they arrive most impactful first; with an
-   * athlete's OAuth access token, in a fixed order. Absent when the profile is complete.
+   * Every field this calculation still needs: profile answers and session inputs alike. With a
+   * partner API key they arrive most impactful first; with an athlete's OAuth access token, in a
+   * fixed order. A field the athlete answered in a linked Saturday app is listed too, so the list
+   * never shows which answers the app holds. Absent when nothing is missing.
    */
   missing_fields?: MissingField[];
+  /**
+   * With a partner API key, on every tier: the athlete's profile answers this calculation lacks,
+   * by the names `missing_fields` uses. The onboarding link collects them. Absent when none is
+   * missing.
+   */
+  missing_profile_fields?: string[];
+  /**
+   * With a partner API key, on every tier: the session inputs your request or activity left out.
+   * Send them. Absent when none is missing. Both lists empty is one condition of exact numbers;
+   * the other is the athlete's access (a subscription, a seat license or the trial).
+   */
+  missing_session_inputs?: SessionInput[];
   /**
    * Names what is missing. With a partner API key: the athlete's profile answers (the onboarding
    * link collects them) apart from the session inputs your request or activity left out, and
@@ -250,7 +262,11 @@ export interface Precision {
 export interface MissingField {
   /** The field name to collect, such as `sweat_level`. */
   field: string;
-  /** True for the fields exact numbers need. */
+  /**
+   * True for the safety core: sex, age, weight, sweat, saltiness, carb experience, usual carbs,
+   * effort and heat. False does not mean optional: the answer stays ranges while any listed field
+   * is missing, `required` or not.
+   */
   required: boolean;
   /** Sent with a partner API key; absent with an athlete's OAuth access token. */
   band_impact?: BandImpact;
@@ -288,8 +304,8 @@ export type SessionInput = 'intensity_level' | 'thermal_stress_level' | 'meal_be
 /**
  * Present on prep, product fit, product compare and bottle plans when the plan is not the
  * athlete's exact numbers: the profile or the session is missing inputs, so the plan uses the
- * middle of the per-hour ranges over the session (a fasted start adds its 20-minute pre-load).
- * With every input in, it is absent and the plan uses the exact numbers.
+ * middle of the per-hour ranges for the session. With every input in, it is absent and the plan
+ * uses the exact numbers.
  */
 export interface PlanBasis {
   source: PlanBasisSource;
@@ -380,31 +396,52 @@ export interface ProductRef {
   product_query?: string;
 }
 
-/**
- * The session the product is sized for, a single sport. Saturday computes the athlete's
- * prescription for it. Send all four session inputs: one left out computes at its everyday value
- * (effort 5, heat 5, fed, training), and the plan is the middle of the athlete's ranges, with
- * `plan_basis` naming the input.
- */
-export interface ProductSession {
+/** The session fields fit and compare share. */
+interface ProductSessionFields {
   athlete_id: string;
+  /** Over 180 plans a fasted start. */
+  meal_before_min?: number;
+  /** Whether this is a race. */
+  is_race?: boolean;
+}
+
+/** A single sport to size a product for. */
+export interface SingleProductSession extends ProductSessionFields {
   activity_type: ActivityType;
+  /** 1 to 2160 minutes. */
   duration_min: number;
   intensity_level?: number;
   thermal_stress_level?: number;
-  /** Over 180 plans a fasted start. */
-  meal_before_min?: number;
-  is_race?: boolean;
+  legs?: never;
 }
+
+/** A brick or triathlon to size a product for: its legs, each with its own effort and heat, as on calculate. */
+export interface LinkedProductSession extends ProductSessionFields {
+  activity_type: LinkedSessionType;
+  legs: CalculateLeg[];
+  /** The legs' total minutes. Leave it out, or send that total. */
+  duration_min?: number;
+  intensity_level?: never;
+  thermal_stress_level?: never;
+}
+
+/**
+ * The session the product is sized for. Saturday computes the athlete's prescription for it.
+ * Send every session input (effort and heat, on the legs for a brick or triathlon, plus
+ * `meal_before_min` and `is_race`): one left out computes at its everyday value (effort 5, heat 5,
+ * fed, training), and the plan is the middle of the athlete's ranges, with `plan_basis` naming the
+ * input. A session error names its field in `param`.
+ */
+export type ProductSession = SingleProductSession | LinkedProductSession;
 
 /** `POST /v1/nutrition/products/fit`. Name the product with `product_id` or `product_query`. */
 export type ProductFitRequest = ProductSession & ProductRef;
 
 /** `POST /v1/nutrition/products/compare`. */
-export interface ProductCompareRequest extends ProductSession {
+export type ProductCompareRequest = ProductSession & {
   product_a: ProductRef;
   product_b: ProductRef;
-}
+};
 
 /** Whole-session amounts. */
 export interface NutrientAmounts {
@@ -448,13 +485,29 @@ export interface ProductCategory {
 }
 
 /**
+ * One leg of a brick or triathlon on a fit answer, in the order of the legs sent: its share of
+ * the session's plan, as the Saturday app's leg cards show it, and the product sized against that
+ * share, as the app's Prep page for that leg sizes it.
+ */
+export interface ProductFitLeg {
+  activity_type: ActivityType;
+  duration_min: number;
+  prescription: NutrientAmounts;
+  fit: ProductFitDetail;
+}
+
+/**
  * Product fit. `tier: 'full'` carries `prescription` and `fit`. `tier: 'teaser'` (the athlete's
  * subscription or trial does not open the catalog) carries `categories`, `cta` and `request_id`.
  */
 export interface ProductFitResponse {
   tier: SubscriptionTier;
+  /** The whole session's plan. */
   prescription?: NutrientAmounts;
+  /** The product sized against the whole session. */
   fit?: ProductFitDetail;
+  /** A brick or triathlon with exact numbers: each leg's share and the product sized against it. Absent for a single sport and on a plan from ranges (`plan_basis`). */
+  legs?: ProductFitLeg[];
   plan_basis?: PlanBasis;
   safety: SafetyMetadata;
   categories?: ProductCategory[];
@@ -464,14 +517,34 @@ export interface ProductFitResponse {
 
 export type ProductChoice = 'product_a' | 'product_b';
 
+/** The product covering more of each nutrient at its `max_servings`; `overall` by average coverage. A tie goes to `product_a`. */
+export interface ComparisonWinner {
+  carb: ProductChoice;
+  sodium: ProductChoice;
+  fluid: ProductChoice;
+  overall: ProductChoice;
+}
+
+/** One leg of a brick or triathlon on a compare answer, in the order of the legs sent: its share of the plan and both products sized against it. */
+export interface ProductCompareLeg {
+  activity_type: ActivityType;
+  duration_min: number;
+  prescription: NutrientAmounts;
+  product_a: ProductFitDetail;
+  product_b: ProductFitDetail;
+  winner: ComparisonWinner;
+}
+
 /** Product compare. Same tiers as product fit. */
 export interface ProductCompareResponse {
   tier: SubscriptionTier;
+  /** The whole session's plan. */
   prescription?: NutrientAmounts;
   product_a?: ProductFitDetail;
   product_b?: ProductFitDetail;
-  /** The product covering more of each nutrient at its `max_servings`; `overall` by average coverage. A tie goes to `product_a`. */
-  winner?: { carb: ProductChoice; sodium: ProductChoice; fluid: ProductChoice; overall: ProductChoice };
+  winner?: ComparisonWinner;
+  /** A brick or triathlon with exact numbers: each leg's share and both products sized against it. Absent for a single sport and on a plan from ranges (`plan_basis`). */
+  legs?: ProductCompareLeg[];
   plan_basis?: PlanBasis;
   safety: SafetyMetadata;
   categories?: ProductCategory[];
@@ -481,13 +554,29 @@ export interface ProductCompareResponse {
 
 /** One product for prep. Without `servings`, Saturday sizes it to what the plan still needs, in list order. */
 export interface PrepProductInput extends ProductRef {
-  /** Servings over the whole activity. */
+  /** Servings over the whole activity, or over one leg when the list is sized per leg. */
   servings?: number;
 }
 
-/** `POST /v1/athletes/{athlete_id}/activities/{activity_id}/prep`. */
+/** One leg's products on a prep request for a brick or triathlon. */
+export interface PrepLegInput {
+  products?: PrepProductInput[];
+}
+
+/**
+ * `POST /v1/athletes/{athlete_id}/activities/{activity_id}/prep`. On a brick or triathlon with
+ * exact numbers, `products` is sized against each leg (its `servings` counting per leg); send
+ * `legs` instead for a product list per leg. Send one or the other: with `legs`, `products` is not
+ * read.
+ */
 export interface PrepRequest {
   products?: PrepProductInput[];
+  /**
+   * A brick or triathlon only: one entry per leg of the activity, in order. Refused with a
+   * `ValidationError` (`invalid_value` on `legs`) on a single session or with another count.
+   * On a plan from ranges, which has no legs, the lists are sized together as one list.
+   */
+  legs?: PrepLegInput[];
 }
 
 /** One product at its servings. */
@@ -504,11 +593,40 @@ export interface GearItem {
   type: string;
   capacity_ml: number;
   is_default: boolean;
+  /** Unix seconds. */
   created_at: number;
+  /** Unix seconds. */
   updated_at: number;
 }
 
-/** Prep: the activity's prescription, what the products deliver, and what is left. Totals are for the whole activity. */
+/**
+ * One leg of a brick or triathlon on a prep answer, in leg order: the leg's share of the plan, as
+ * the Saturday app's leg card shows it, and its products sized against that share, as the app's
+ * Prep page for that leg sizes them.
+ */
+export interface PrepLeg {
+  activity_type: ActivityType;
+  duration_min: number;
+  prescription: NutrientAmounts;
+  products: PrepProduct[];
+  totals_from_products: NutrientAmounts;
+  remaining_gap: NutrientAmounts;
+  coverage_pct: { carb: number; sodium: number; fluid: number };
+  /** Present when the leg's products overshoot its share. */
+  warnings?: string[];
+  /** Present when a gap remains on the leg, saying what the base mix covers. */
+  note?: string;
+}
+
+/**
+ * Prep: the activity's prescription, what the products deliver, and what is left. Totals are for
+ * the whole activity. On a brick or triathlon with exact numbers, `legs` preps each leg and the
+ * top level is the legs added up: each product once with its servings and nutrients summed over
+ * the legs, `totals_from_products` and `remaining_gap` the legs' sums, `coverage_pct` those totals
+ * against `prescription`, and `warnings` the legs' warnings, each naming its leg. `prescription`
+ * stays the session's plan; the legs' shares add up to it before the session's own rounding, so
+ * `prescription` less the totals can differ from `remaining_gap` by that rounding.
+ */
 export interface PrepResponse {
   prescription: NutrientAmounts;
   /** Each resolved product at its servings. A product that matches nothing in the catalog is left out. */
@@ -523,6 +641,8 @@ export interface PrepResponse {
   warnings?: string[];
   /** Present when a gap remains, saying what the base mix covers. */
   note?: string;
+  /** A brick or triathlon with exact numbers: each leg prepped against its share. Absent for a single session and on a plan from ranges. */
+  legs?: PrepLeg[];
   plan_basis?: PlanBasis;
   safety: SafetyMetadata;
 }
@@ -680,7 +800,7 @@ export interface FuelingProfileShared {
   sharing: 'on';
   message: null;
   profile: FuelingProfileAnswers;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   updated_at: number;
 }
 
@@ -1039,7 +1159,7 @@ export interface PartnerAccount {
     /** Calculation calls a day (nutrition, prep, product fit and compare, inference); `null` when none applies. */
     ip_requests_per_day: number | null;
   };
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   created_at: number;
 }
 
@@ -1082,9 +1202,9 @@ export interface ApiKeyInfo {
   name: string;
   environment: 'live' | 'test';
   scopes: string[];
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   created_at: number;
-  /** Unix milliseconds of the last authenticated call; 0 when never used. */
+  /** The last authenticated call, Unix seconds; 0 when never used. */
   last_used_at: number;
   revoked: boolean;
 }
@@ -1102,7 +1222,7 @@ export interface CreatedApiKey {
   name: string;
   environment: 'live' | 'test';
   scopes: string[];
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   created_at: number;
   message: string;
   request_id: string;
@@ -1130,11 +1250,11 @@ export interface Webhook {
   events: WebhookEventType[];
   active: boolean;
   fail_count: number;
-  /** Unix milliseconds; set when Saturday disabled the webhook after repeated failures. */
+  /** Unix seconds; set when Saturday disabled the webhook after repeated failures. */
   disabled_at?: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   created_at: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   updated_at: number;
 }
 
@@ -1178,11 +1298,11 @@ export interface WebhookDelivery {
   /** The delivered event body, base64. */
   event_data?: string;
   attempts: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   next_retry_at?: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   completed_at?: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   created_at: number;
 }
 
@@ -1204,7 +1324,7 @@ export interface WebhookEvent<Type extends string = WebhookEventType, Data = unk
   /** Drop a repeat by its id. */
   id: string;
   type: Type;
-  /** Unix milliseconds. */
+  /** When the event happened, Unix seconds. The signature header's `t` is Unix seconds too. */
   created_at: number;
   data: Data;
 }
@@ -1381,9 +1501,11 @@ export interface ConsentListResponse {
 export interface AthleteDataExport {
   athlete_id: string;
   partner_id: string;
-  /** RFC 3339. */
-  exported_at: string;
+  /** When the export was made, Unix seconds. */
+  exported_at: number;
+  /** The athlete record as stored, every stored field included. Every time in the export's records is Unix seconds. */
   profile: Record<string, unknown>;
+  /** Each activity as stored, its stored prescription included. */
   activities?: Record<string, unknown>[];
   consent?: Record<string, unknown>[];
   [key: string]: unknown;
@@ -1417,7 +1539,7 @@ export interface IntegrationStatusResponse {
   status: {
     provider: string;
     connected: boolean;
-    /** Unix milliseconds. */
+    /** Unix seconds. */
     last_sync_at?: number;
     sync_count: number;
     errors?: string[];

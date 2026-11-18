@@ -255,12 +255,15 @@ class NutritionResource {
     return this.client.request('POST', '/v1/nutrition/calculate/batch', { scenarios });
   }
 
-  /** Size one catalog product against the athlete's prescription for a session. */
+  /**
+   * Size one catalog product against the athlete's prescription for a session. A brick or
+   * triathlon carries `legs`, and its exact answer sizes the product for each leg under `legs`.
+   */
   productFit(req: T.ProductFitRequest): Promise<T.ProductFitResponse> {
     return this.client.request('POST', '/v1/nutrition/products/fit', req);
   }
 
-  /** Size two catalog products against the athlete's prescription and name the better fit. */
+  /** Size two catalog products against the athlete's prescription and name the better fit; per leg too for a brick or triathlon. */
   compareProducts(req: T.ProductCompareRequest): Promise<T.ProductCompareResponse> {
     return this.client.request('POST', '/v1/nutrition/products/compare', req);
   }
@@ -384,7 +387,11 @@ class ActivitiesResource {
     return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/prescription`);
   }
 
-  /** Size catalog products against the activity's prescription and show the gap left. */
+  /**
+   * Size catalog products against the activity's prescription and show the gap left. A brick or
+   * triathlon with exact numbers is prepped leg by leg under `legs`: send `products` to size one
+   * list against each leg, or `legs` for a list per leg.
+   */
   prep(athleteId: string, activityId: string, req: T.PrepRequest = {}): Promise<T.PrepResponse> {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/prep`, req);
   }

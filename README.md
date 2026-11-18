@@ -66,9 +66,10 @@ Show `plan.attribution` wherever you show the numbers, and show every safety war
 
 A calculation carries exact per-hour numbers and totals only when the athlete's profile is complete and their tier is full; otherwise it carries ranges such as `"60-80"`. `precision.profile_complete` tells you which. `tier: 'full'` alone does not mean exact.
 
-- `precision.missing_fields` lists what is still unanswered, most impactful first, with how much each answer would narrow the ranges. Collect those answers in your UI (`saturday.onboarding.questions()` gives the questions) or send the athlete to `precision.onboarding.url`.
-- Send every session input on every call: `intensity_level`, `thermal_stress_level`, `meal_before_min` and `is_race`. One left out returns ranges even for a complete profile, and `precision.message` names it apart from the profile answers the athlete still owes; `precision.onboarding` comes only with the latter.
-- Per-hour figures are whole numbers. For a fasted start (`meal_before_min` over 180) the totals include a 20-minute pre-load, and the per-hour figures spread the totals over the session plus those 20 minutes.
+- `precision.missing_fields` lists what is still unanswered, most impactful first, with how much each answer would narrow the ranges. `required: true` marks the safety core; every listed field is needed for exact numbers, `required` or not.
+- `precision.missing_profile_fields` names the athlete's profile answers still missing: collect them in your UI (`saturday.onboarding.questions()` gives the questions) or send the athlete to `precision.onboarding.url`.
+- `precision.missing_session_inputs` names the session inputs your call left out. Send every session input on every call: `intensity_level`, `thermal_stress_level`, `meal_before_min` and `is_race`. One left out returns ranges even for a complete profile; `precision.onboarding` comes only when profile answers are missing.
+- Per-hour figures are whole numbers, as the Saturday app's Fuel card shows them, which is not always the total divided by the session's hours. Totals are for the whole session.
 - A zero may be omitted from the response, so read numbers with `?? 0`.
 - A new athlete's first calculation starts a 30-day trial of the full tier: 15 calls on the first day, then 5 a day. `trial_calls_remaining_today` and `trial_ends_at` show where it stands.
 
@@ -111,6 +112,19 @@ const fit = await saturday.nutrition.productFit({
   is_race: true,
 });
 if (fit.tier === 'full') console.log(fit.fit?.verdict);
+
+const brickFit = await saturday.nutrition.productFit({
+  athlete_id: 'ATHLETE_ID',
+  product_query: 'maurten gel 100',
+  activity_type: 'brick',
+  meal_before_min: 120,
+  is_race: false,
+  legs: [
+    { activity_type: 'bike', duration_min: 90, intensity_level: 6, thermal_stress_level: 6 },
+    { activity_type: 'run', duration_min: 30, intensity_level: 7, thermal_stress_level: 6 },
+  ],
+});
+for (const leg of brickFit.legs ?? []) console.log(`${leg.activity_type}: ${leg.fit.max_servings} servings`);
 ```
 
 A stored activity uses `type` and `is_race_event`; a calculation uses `activity_type` and `is_race`. The API refuses the other spelling with a `ValidationError` whose `code` is `unsupported_field`.
@@ -119,7 +133,7 @@ When the athlete's profile or the session is missing inputs, prep, product fit a
 
 ## Bricks and triathlons
 
-A brick or a triathlon is one session with legs, calculated as the Saturday app does it, as one continuous effort: send it as one call, never one per leg. Each leg carries its own effort and heat; `duration_min` is the legs' total and may be left out.
+A brick or a triathlon is one session with legs: send it as one call, never one per leg. Each leg carries its own effort and heat; `duration_min` is the legs' total and may be left out.
 
 ```typescript
 import Saturday from '@saturdayinc/sdk';
@@ -150,12 +164,24 @@ const stored = await saturday.activities.create('ATHLETE_ID', {
 });
 const calculated = await saturday.activities.calculatePrescription('ATHLETE_ID', stored.id);
 console.log(calculated.prescription?.legs);
+
+// One product list per leg; send `products` instead to size one list against each leg.
+const prep = await saturday.activities.prep('ATHLETE_ID', stored.id, {
+  legs: [
+    { products: [] },
+    { products: [{ product_query: 'tailwind endurance fuel' }] },
+    { products: [{ product_query: 'maurten gel 100', servings: 2 }] },
+  ],
+});
+for (const leg of prep.legs ?? []) console.log(leg.activity_type, leg.products.length, leg.remaining_gap);
 ```
 
 - `legs` on an exact answer (calculate, batch, the stored prescription, import) is each leg's share, in order, as the Saturday app's leg cards show it. Answers with ranges carry no leg figures.
 - A leg's sport is `activity_type` on a calculation and `type` on an activity, as for a single session.
 - `activities.update` with `legs` replaces them; a brick or triathlon refuses a top-level effort or heat. Changing `type` to a single sport drops the legs.
-- `saturday.reference.activityTypes()` lists the rules under `linked_session_types`. Product fit and compare size for a single sport; prep sizes a stored brick or triathlon as one session.
+- Prep, product fit and compare answer `legs` too: each leg's share with the products sized against it, as the Saturday app's Prep page for that leg sizes them. Fit and compare also size the whole session at the top level; prep's top level is its legs added up, each product once. A plan from ranges (`plan_basis`) carries no legs.
+- Prep takes `products`, sized against each leg with its `servings` counting per leg, or `legs`, one product list per leg in order. Per-leg lists on a single session, or a count other than the activity's legs, are refused with a `ValidationError` on `legs`.
+- `saturday.reference.activityTypes()` lists the rules under `linked_session_types`.
 
 ## Resources
 
@@ -178,6 +204,8 @@ console.log(calculated.prescription?.legs);
 
 Every method returns the API's JSON as typed. Lists keep their array under its name (`athletes`, `activities`) with `pagination.next_cursor` to pass back as `cursor`. Batch responses keep request order with failed items left out; match a failure to your input by `errors[].index`.
 
+Every timestamp a partner key receives is a number of Unix seconds: on athletes, activities, webhooks and their deliveries, API keys, your account, `trial_ends_at`, the fueling profile's `updated_at`, the export's `exported_at` and every time in its records. Coach routes answer in Unix milliseconds.
+
 `athletes.updateSettings` replaces the whole settings object: send every setting you want kept. `athletes.delete` removes the athlete and everything stored under them in your account. `athletes.erase` is for a right-to-erasure request: it also ends the athlete's connected-provider grants, erases what those providers sent, and keeps an audit record of the deletion.
 
 Nutrition and knowledge sit behind [feature gates](https://docs.saturday.fit/guides/feature-gates) that Saturday opens per partner. Until a gate is open for your key, its routes answer `403` with code `feature_alpha` (`PermissionError`); ask api@saturday.fit to open one.
@@ -197,7 +225,7 @@ console.log(athlete.id);
 
 ## Webhooks
 
-`webhooks.create()` returns the new webhook under `webhook`, with `secret`, the key that signs every delivery. It is returned this once: store it before anything else. `webhooks.test()` delivers a `webhook.test` event at once and returns the delivery record with your endpoint's status code; `webhooks.listDeliveries()` returns the 50 most recent attempts. Webhook timestamps are Unix milliseconds.
+`webhooks.create()` returns the new webhook under `webhook`, with `secret`, the key that signs every delivery. It is returned this once: store it before anything else. `webhooks.test()` delivers a `webhook.test` event at once and returns the delivery record with your endpoint's status code; `webhooks.listDeliveries()` returns the 50 most recent attempts. Webhook and delivery times, and each event's `created_at`, are Unix seconds, as is the signature header's `t`.
 
 ```typescript
 import Saturday from '@saturdayinc/sdk';
