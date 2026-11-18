@@ -3,9 +3,7 @@
 [![npm](https://img.shields.io/npm/v/@saturdayinc/sdk)](https://www.npmjs.com/package/@saturdayinc/sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Official TypeScript/Node.js SDK for the [Saturday Nutrition Intelligence API](https://docs.saturday.fit).
-
-Personalized fuel, hydration, and electrolyte prescriptions for endurance athletes.
+The official TypeScript and Node.js client for the [Saturday API](https://docs.saturday.fit): carbohydrate, sodium and fluid prescriptions for endurance sessions, sized to each athlete, and product fit and prep against them.
 
 ## Install
 
@@ -13,122 +11,183 @@ Personalized fuel, hydration, and electrolyte prescriptions for endurance athlet
 npm install @saturdayinc/sdk
 ```
 
+Node.js 18 or later. No runtime dependencies.
+
 ## Quick start
+
+Create an athlete with a complete profile, then calculate a session for them. Use an `sk_test_` key while you build.
 
 ```typescript
 import Saturday from '@saturdayinc/sdk';
 
-const saturday = new Saturday({ apiKey: 'sk_live_...' });
+const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
 
-// Calculate a nutrition prescription
-const prescription = await saturday.nutrition.calculate({
-  activity_type: 'bike',
-  duration_min: 180,
-  athlete_weight_kg: 75,
-  thermal_stress_level: 7,
-  is_race: true,
+const athlete = await saturday.athletes.create({
+  external_id: 'user-42',
+  sex: 'female',
+  year_of_birth: 1990,
+  weight_kg: 62,
+  settings: {
+    sweat_level: 5,
+    saltiness: 5,
+    satiety_level: 5,
+    fitness_level: 5,
+    carb_experience: 'range_40_60',
+    usual_carb_consumption: 'range_60_80',
+    concerns_answered: true,
+  },
 });
 
-// Safety metadata is included on every tier.
-console.log(prescription.safety.warnings);
-const carbs = prescription.carb_range_g_per_hr ?? prescription.carb_g_per_hr ?? 0;
-const sodium = prescription.sodium_range_mg_per_hr ?? prescription.sodium_mg_per_hr ?? 0;
-const fluid = prescription.fluid_range_ml_per_hr ?? prescription.fluid_ml_per_hr ?? 0;
-console.log(`Carbs: ${carbs} g/hr`);
-console.log(`Sodium: ${sodium} mg/hr`);
-console.log(`Fluid: ${fluid} mL/hr`);
+const plan = await saturday.nutrition.calculate({
+  athlete_id: athlete.id,
+  activity_type: 'bike',
+  duration_min: 180,
+  intensity_level: 5,
+  thermal_stress_level: 7,
+  meal_before_min: 120,
+  is_race: false,
+});
+
+if (plan.precision?.profile_complete) {
+  console.log(`Carbs: ${plan.carb_g_per_hr ?? 0} g/hr`);
+  console.log(`Sodium: ${plan.sodium_mg_per_hr ?? 0} mg/hr`);
+  console.log(`Fluid: ${plan.fluid_ml_per_hr ?? 0} mL/hr`);
+} else {
+  console.log(`Carbs: ${plan.carb_range_g_per_hr} g/hr`);
+  console.log(`Sodium: ${plan.sodium_range_mg_per_hr} mg/hr`);
+  console.log(`Fluid: ${plan.fluid_range_ml_per_hr} mL/hr`);
+}
+for (const warning of plan.safety.warnings ?? []) console.log(warning);
 ```
 
-Teaser-tier responses and incomplete profiles return ranges rather than exact numbers, and the `full` tier alone does not guarantee exact values. A zero value may be omitted from the response, so the example prints `0` for it. See [Athlete Onboarding](https://docs.saturday.fit/guides/onboarding).
+Show `plan.attribution` wherever you show the numbers, and show every safety warning.
 
-## Features
+## Exact numbers and ranges
 
-- TypeScript types for requests, responses, and errors
-- Automatic retry on `429` and `5xx` responses for JSON operations: up to 3 retries, with 1 s, 2 s, and 4 s backoff. AI stream writes are never replayed
-- Typed errors: `AuthenticationError`, `RateLimitError`, `ValidationError`, `NotFoundError`, `AIStreamError`
-- API key and OAuth2 Bearer token authentication
-- `SafetyMetadata` type with `not_instructions` on every prescription
+A calculation carries exact per-hour numbers and totals only when the athlete's profile is complete and their tier is full; otherwise it carries ranges such as `"60-80"`. `precision.profile_complete` tells you which. `tier: 'full'` alone does not mean exact.
+
+- `precision.missing_fields` lists what is still unanswered, most impactful first, with how much each answer would narrow the ranges. Collect those answers in your UI (`saturday.onboarding.questions()` gives the questions) or send the athlete to `precision.onboarding.url`.
+- Send `meal_before_min` and `is_race` on every call. Leaving either out returns ranges even for a complete profile.
+- Per-hour figures are whole numbers. For a fasted start (`meal_before_min` over 180) the totals include a 20-minute pre-load, and the per-hour figures spread the totals over the session plus those 20 minutes.
+- A zero may be omitted from the response, so read numbers with `?? 0`.
+- A new athlete's first calculation starts a 30-day trial of the full tier: 15 calls on the first day, then 5 a day. `trial_calls_remaining_today` and `trial_ends_at` show where it stands.
+
+## Prep and product fit
+
+Store a session, calculate it, then size the products the athlete plans to carry against it.
+
+```typescript
+import Saturday from '@saturdayinc/sdk';
+
+const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
+
+const ride = await saturday.activities.create('ATHLETE_ID', {
+  type: 'bike',
+  duration_min: 150,
+  intensity_level: 6,
+  thermal_stress_level: 6,
+  meal_before_min: 120,
+  is_race_event: false,
+});
+await saturday.activities.calculatePrescription('ATHLETE_ID', ride.id);
+
+const prep = await saturday.activities.prep('ATHLETE_ID', ride.id, {
+  products: [
+    { product_query: 'maurten gel 100', servings: 2 },
+    { product_query: 'tailwind endurance fuel' },
+  ],
+});
+for (const product of prep.products) console.log(`${product.servings} x ${product.product_name}`);
+console.log('Still needed:', prep.remaining_gap);
+
+const fit = await saturday.nutrition.productFit({
+  athlete_id: 'ATHLETE_ID',
+  product_query: 'maurten gel 100',
+  activity_type: 'run',
+  duration_min: 90,
+  meal_before_min: 120,
+  is_race: true,
+});
+if (fit.tier === 'full') console.log(fit.fit?.verdict);
+```
+
+A stored activity uses `type` and `is_race_event`; a calculation uses `activity_type` and `is_race`. The API refuses the other spelling with a `ValidationError` whose `code` is `unsupported_field`.
+
+When the athlete's profile is missing answers, prep, product fit and compare plan from the middle of the athlete's ranges and say so in `plan_basis`. Product answers follow the athlete's Saturday subscription or trial: without one, `tier` is `'teaser'` and the response carries product categories in place of the fit.
+
+## Resources
+
+| Resource | Methods |
+|----------|---------|
+| `saturday.nutrition` | `calculate`, `batchCalculate`, `productFit`, `compareProducts`, `extract` |
+| `saturday.athletes` | `create`, `get`, `list`, `update`, `delete`, `getSettings`, `updateSettings`, `getFuelingProfile`, `batchCreate`, `export`, `erase`, `listConsent`, `recordConsent`, `revokeConsent` |
+| `saturday.activities` | `create`, `get`, `list`, `update`, `delete`, `calculatePrescription`, `getPrescription`, `prep`, `importActivities`, `submitFeedback` |
+| `saturday.onboarding` | `questions` |
+| `saturday.reference` | `activityTypes`, `settingsSchema` |
+| `saturday.infer` | `activityType`, `brickTypes` |
+| `saturday.partner` | `get`, `usage`, `usageDaily`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `rotateApiKey` |
+| `saturday.webhooks` | `create`, `list`, `get`, `update`, `delete`, `test`, `deliveries` |
+| `saturday.organizations` | `create`, `list`, `get`, `update`, `addMember`, `listMembers`, `removeMember`, `setOffer`, `getOffer`, `deleteOffer`, `createSubscription`, `listSubscriptions`, `updateSubscription`, `addLicenses`, `listLicenses`, `removeLicense` |
+| `saturday.integrations` | `sync`, `status`, `disconnect` |
+| `saturday.testing` | `simulateSubscription` (test keys only) |
+| `saturday.meta` | `discovery`, `errors`, `health` |
+| `saturday.knowledge` | `search`, `listTopics`, `getArticle` (early access) |
+| `saturday.coach` | Roster reads, alert and report configuration, coach webhooks and billing reads, with a coach key |
+
+Every method returns the API's JSON as typed. Lists keep their array under its name (`athletes`, `activities`) with `pagination.next_cursor` to pass back as `cursor`. Batch responses keep request order with failed items left out; match a failure to your input by `errors[].index`.
+
+`athletes.updateSettings` replaces the whole settings object: send every setting you want kept. `athletes.delete` removes the athlete record; `athletes.erase` removes the athlete and everything stored for them.
+
+## Errors, retries and limits
+
+Every API error is a `SaturdayError` with `status`, `code`, `message`, `requestId` and the full `error` object. Subclasses: `ValidationError` (400, with `param`), `AuthenticationError` (401), `PermissionError` (403), `NotFoundError` (404), `RateLimitError` (429).
+
+```typescript
+import Saturday, { RateLimitError, ValidationError } from '@saturdayinc/sdk';
+
+const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
+try {
+  await saturday.nutrition.calculate({ activity_type: 'run', duration_min: 60 });
+} catch (error) {
+  if (error instanceof RateLimitError && error.dailyLimit) {
+    console.log('Daily limit reached; it resets at midnight UTC.');
+  } else if (error instanceof ValidationError) {
+    console.log(`Fix ${error.param}: ${error.message}`);
+  } else {
+    throw error;
+  }
+}
+```
+
+The client retries a 5xx (after 1 s, 2 s, then 4 s) and a 429 whose `Retry-After` is 60 seconds or less (after that many seconds), up to `maxRetries` times. A longer wait comes back to you as a `RateLimitError` with `retryAfter` in seconds: product answers, for example, are paced for some minutes once a key has received a large share of the catalog in a day. A 429 without `Retry-After` is a daily ceiling: `dailyLimit` is true and nothing succeeds before midnight UTC. `saturday.partner.get()` shows your limits and `saturday.partner.usage()` what you have used.
 
 ## Configuration
 
 ```typescript
+import Saturday from '@saturdayinc/sdk';
+
 const saturday = new Saturday({
   apiKey: 'sk_test_...',
   baseUrl: 'https://api.saturday.fit', // default
-  timeout: 30000, // per attempt, in milliseconds, including the body read; default 30000
-  maxRetries: 3, // default; 0 disables retries
-});
-```
-
-## Authentication
-
-```typescript
-// Partner API key (server-to-server)
-const serverClient = new Saturday({ apiKey: 'sk_live_...' });
-
-// OAuth2 Bearer token (athlete-delegated access); it takes precedence over the API key
-const delegatedClient = new Saturday({
-  apiKey: 'sk_live_...',
-  bearerToken: 'eyJ...',
+  timeout: 30000, // per attempt, in milliseconds, including the body read
+  maxRetries: 3, // 0 disables retries
 });
 
-// Coach API key, for the coach resource
-const coachClient = new Saturday({ apiKey: 'cp_live_...' });
+// An athlete's OAuth2 access token, sent in place of the API key
+const delegated = new Saturday({ apiKey: 'sk_live_...', bearerToken: 'eyJ...' });
 ```
 
-Partner keys carry the `sk_live_` or `sk_test_` prefix; coach keys carry `cp_live_` or `cp_test_`.
-
-## Resources
-
-| Resource | Description |
-|----------|-------------|
-| `saturday.nutrition` | Calculate prescriptions, batch calculate |
-| `saturday.athletes` | Athlete CRUD, settings, the athlete's shared Saturday app answers, batch create, GDPR data export |
-| `saturday.activities` | Activity CRUD, prescription calculation, import, feedback |
-| `saturday.products` | Product search, barcode lookup, curated list, categories |
-| `saturday.ai` | AI event streams, plus JSON conversation metadata, history, listing, and deletion; see AI writes below |
-| `saturday.webhooks` | Webhook registration and management |
-| `saturday.organizations` | Team and organization management with members |
-| `saturday.gear` | Athlete gear inventory |
-| `saturday.knowledge` | Sports nutrition knowledge base search |
-| `saturday.onboarding` | The versioned onboarding question schema, for collecting an athlete's profile in your UI |
-| `saturday.coach` | Roster fueling reads, the coach's alert and report configuration, coach webhooks, and read-only billing (`seatState`, `ledger`, `tierStatus`, `connectSummary`, `connectEarnings`, `connectTransactions`, `connectArrangements`; the key must carry `billing:read`), with a coach key |
-
-## Prescription and batch responses
-
-Responses remain raw JSON objects. `nutrition.calculate()` returns flat nutrition fields. `activities.calculatePrescription()` returns a `PrescriptionEnvelope`: full-tier results are under `prescription`, while teaser ranges are at the top level. Full-tier prescriptions can also contain ranges when inputs are incomplete.
-
-`activities.getPrescription()` returns `{ prescription, safety }`, with no `tier` field. Activity timestamps, including `prescription.calculated_at`, use epoch seconds; `trial_ends_at` uses epoch milliseconds. Safety warnings may be `null`.
-
-```typescript
-const saturday = new Saturday({ apiKey: 'sk_live_...' });
-const stored = await saturday.activities.getPrescription('ath_123', 'act_123');
-const carbs = stored.prescription.carb_range_g_per_hr ?? stored.prescription.carb_g_per_hr;
-console.log(`Carbs: ${carbs} g/hr`);
-for (const warning of stored.safety.warnings ?? []) console.log(warning);
-```
-
-Batch calculations return flat `results[]`, not indexed prescription wrappers. Athlete batches return `created[]`, not `athletes[]`. Success arrays preserve input order with failed items omitted; `errors[]` contains each failed item's original `index`, `code`, and `message`. Do not use a success-array position as the original input index after partial failure.
-
-`activities.importActivities(athleteId, activities, { calculate: true })` creates activities and optionally calculates prescriptions. Omit the third argument to avoid global calculation; individual activities may explicitly set `calculate: true`. A global `false` does not override a per-activity `true`. Calculation outcomes appear in `prescriptions[]`; a failed calculation does not undo an imported activity. Each batch/import item counts toward the applicable quota; requested calculations may also consume trial calls.
-
-The corrected declarations can expose TypeScript errors in code that relied on the former shapes. Update field access rather than casting to the old flat nutrition type. No response flattening or runtime conversion is performed.
-
-Athlete and activity list responses keep the resource array under `athletes` or `activities`. Pagination is nested: check `page.pagination.has_more` and pass `page.pagination.next_cursor` as the next request's `cursor` option. `page.pagination.total` counts records on that page, not the entire collection.
-
-The legacy athlete-list `search` and activity-list `type` options are currently ignored by the backend. They remain accepted for source compatibility, but do not filter results.
-
-Athlete settings use flat concern flags, such as `{ sweat_level: 5, gut_distress: true }`, not a nested `concerns` object. `athletes.updateSettings()` replaces the complete settings for a partner-managed athlete; omitted settings reset. Send the complete intended settings, including values you want to preserve. The SDK does not fetch or merge settings implicitly.
+Partner keys start `sk_live_` or `sk_test_`; coach keys start `cp_live_` or `cp_test_`. A test key reaches the test environment, where `saturday.testing.simulateSubscription(athleteId)` gives an athlete the full tier.
 
 ## Athlete profile sharing
 
-An athlete whose Saturday account is connected to your athlete record can choose to share their Saturday app answers with you. `athletes.getFuelingProfile(athleteId)` returns a `FuelingProfile`; narrow on `sharing`. Only `on` carries `profile` (sex, age, weight and the fueling answers, each with its `value` and `calculations_use`); `off` and `not_linked` carry a `message` saying why there are none. `athletes.get()` returns the same state as `profile_sharing`.
+An athlete who connects their Saturday account to your athlete record can share their Saturday app answers with you. `athletes.getFuelingProfile(athleteId)` returns a `FuelingProfile`; narrow on `sharing`. Only `on` carries `profile`; `off` and `not_linked` carry a `message`.
 
 ```typescript
 import Saturday, { type FuelingProfileUpdatedEvent, type ProfileSharingChangedEvent } from '@saturdayinc/sdk';
 
 const saturday = new Saturday({ apiKey: 'sk_live_...' });
-const fueling = await saturday.athletes.getFuelingProfile('ath_123');
+const fueling = await saturday.athletes.getFuelingProfile('ATHLETE_ID');
 if (fueling.sharing === 'on') {
   const sweat = fueling.profile.sweat_level;
   console.log(`Sweat level ${sweat.value ?? 'not answered'}; calculations use ${sweat.calculations_use}`);
@@ -136,58 +195,22 @@ if (fueling.sharing === 'on') {
   console.log(fueling.message);
 }
 
-// The two sharing webhooks carry the athlete record, with profile_sharing; read the route again on either.
+// Both sharing webhooks carry the athlete record with profile_sharing.
 function onSharingEvent(event: ProfileSharingChangedEvent | FuelingProfileUpdatedEvent) {
   if (event.type === 'athlete.fueling_profile_updated') console.log(event.data.id, event.data.changed_fields);
   else console.log(event.data.id, event.data.profile_sharing);
 }
 ```
 
-`value` is the app answer, `null` when the athlete has not answered it in the app. `calculations_use` says where the value Saturday's calculations use comes from: `partner` (yours), `saturday_app`, or `default`. Full guide: [Reading an athlete's fueling profile](https://docs.saturday.fit/guides/fueling-profile).
+Guide: [Reading an athlete's fueling profile](https://docs.saturday.fit/guides/fueling-profile).
 
-## AI writes
+## Tests
 
-Use `ai.createConversationStream(athleteId, message)` and `ai.sendMessageStream(conversationId, message)`. They return async generators of `{ event, data, rawData, id? }`, preserving unknown event names and JSON fields. `id` is present only when the server sent an SSE `id:` line for that event; the server sends none today. The metadata/history read methods still return JSON.
-
-Compatibility change: the legacy `ai.createConversation()` and `ai.sendMessage()` signatures are retained but now reject locally with `AIStreamError` code `streaming_required`, before any HTTP request. They cannot return their old metadata/message promises from the actual SSE wire response. Migrate to the explicit stream methods; no timestamps or metadata are invented.
-
-```typescript
-import Saturday, { AIStreamError } from '@saturdayinc/sdk';
-
-const client = new Saturday({ apiKey: 'sk_live_...' });
-const controller = new AbortController();
-try {
-  for await (const event of client.ai.createConversationStream(
-    'YOUR_ATHLETE_ID', 'Help me review my fueling plan',
-    { signal: controller.signal, timeout: 60000 },
-  )) {
-    // Keep safety_warning, error, tool/action and unknown events, not only text.
-    console.log(event.event, event.data);
-  }
-} catch (error) {
-  if (error instanceof AIStreamError) console.error(error.error.code, error.event);
-  throw error; // No automatic retry: the server may have accepted the write.
-}
-```
-
-The `message_start` event supplies `data.conversation_id`. Current names include `text_delta`, `safety_warning`, `error`, `tool_call`, `tool_result`, `action`, `replay` and `message_end`. `data` is `unknown`: narrow it before accessing fields. `rawData` retains the original SSE data text. `message_end` is not a success verdict: server error events are yielded, then iteration raises `stream_error` after the response finishes. Warnings, including generation-halted safety warnings, must remain visible even if no exception is raised.
-
-Each stream POST is attempted exactly once, including HTTP 429/5xx, connection errors, parse failures, cancellation and premature EOF. `maxRetries` does not apply. Malformed JSON/UTF-8 raises `malformed_stream`; missing final framing or `message_end` raises `incomplete_stream`. Preserve received events as partial output, not a complete answer. These writes have no idempotency key; inspect conversation state before deciding whether to submit another message.
-
-Redirects are refused with `AIStreamError` code `redirect`, so the SDK never forwards the POST to another URL. Connection failures use `connection_error`; HTTP failures retain the usual typed Saturday errors and parsed server details.
-
-Persist the received events if you need an exact record. Stored conversation history is not a guaranteed replay of streamed assistant output.
-
-The timeout is a total deadline in milliseconds, covering headers and the entire body. It defaults to the client `timeout` when one is configured, else 60 s: a turn with tool calls can run up to the API's 60 s request cap. An `AbortSignal` cancels a pending read. Breaking a `for await` loop closes the response and releases its reader. Always finish or close an iterator; abandoning it without either leaves cleanup to the deadline. Cancellation cannot undo inference the server has accepted. No reconnect is triggered by an SSE `retry` or `replay` field/event.
+`npm test` runs the unit tests with mocked HTTP. `test/live.test.ts` runs every partner method against a real API with a test key; [test/LIVE.md](test/LIVE.md) says how.
 
 ## Documentation
 
-Full API reference: [docs.saturday.fit](https://docs.saturday.fit)
-
-## Requirements
-
-- Node.js 18+ (uses native `fetch`)
-- TypeScript 5.0+ for the bundled types
+[docs.saturday.fit](https://docs.saturday.fit)
 
 ## License
 

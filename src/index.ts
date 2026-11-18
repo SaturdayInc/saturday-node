@@ -1,27 +1,16 @@
 /**
- * Saturday Nutrition Intelligence API — Official TypeScript SDK
+ * Saturday API: the official TypeScript SDK.
  *
- * Personalized fuel, hydration, and electrolyte prescriptions for endurance
- * athletes. Calculate carbohydrate, sodium, and fluid targets based on activity
- * type, duration, athlete profile, and environmental conditions.
+ * Fueling prescriptions (carbohydrate, sodium and fluid) for endurance sessions, sized to each
+ * athlete, plus product fit and prep against them.
  *
  * @example
  * ```typescript
  * import Saturday from '@saturdayinc/sdk';
  *
- * const saturday = new Saturday({ apiKey: 'sk_live_...' });
- *
- * const prescription = await saturday.nutrition.calculate({
- *   activity_type: 'bike',
- *   duration_min: 180,
- *   athlete_weight_kg: 75,
- *   thermal_stress_level: 7,
- * });
- *
- * // Safety metadata is included on every tier.
- * console.log(prescription.safety.warnings);
- * const carbs = prescription.carb_range_g_per_hr ?? prescription.carb_g_per_hr ?? 0;
- * console.log(`Carbs: ${carbs} g/hr`);
+ * const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
+ * const plan = await saturday.nutrition.calculate({ activity_type: 'bike', duration_min: 120 });
+ * console.log(plan.carb_g_per_hr ?? plan.carb_range_g_per_hr);
  * ```
  *
  * @packageDocumentation
@@ -29,18 +18,69 @@
 
 export { Saturday as default } from './client';
 export { Saturday } from './client';
-export { AIStreamError } from './ai-stream';
-export type { AIStreamEvent, AIStreamOptions } from './ai-stream';
-export { SaturdayError, AuthenticationError, RateLimitError, ValidationError, NotFoundError } from './errors';
+export { SaturdayError, AuthenticationError, PermissionError, RateLimitError, ValidationError, NotFoundError } from './errors';
 export type {
   SaturdayConfig,
-  NutritionCalculateRequest,
-  NutritionCalculateResponse,
+  ActivityType,
+  Sex,
+  SubscriptionTier,
+  CarbExperience,
+  UsualCarbConsumption,
+  WebhookEventType,
+  ProfileSharing,
+  CalculationsUse,
+  SafetyMetadata,
   Attribution,
+  Concerns,
+  NutritionCalculateRequest,
   TrialMetadata,
+  NutritionCalculateResponse,
+  SubscriptionCTA,
+  Precision,
+  MissingField,
+  BandImpact,
+  OnboardingInvite,
+  PlanBasis,
+  NutritionExtractRequest,
+  NutritionExtractResponse,
+  ProductRef,
+  ProductSession,
+  ProductFitRequest,
+  ProductCompareRequest,
+  NutrientAmounts,
+  PerServing,
+  LimitingFactor,
+  ProductFitDetail,
+  ProductCategory,
+  ProductFitResponse,
+  ProductChoice,
+  ProductCompareResponse,
+  PrepProductInput,
+  PrepRequest,
+  PrepProduct,
+  GearItem,
+  PrepResponse,
+  OnboardingQuestion,
+  OnboardingOption,
+  OnboardingQuestionsResponse,
+  Athlete,
+  CreateAthleteRequest,
+  AthleteSettings,
+  ListAthletesParams,
+  FuelingProfileField,
+  FuelingConcerns,
+  FuelingProfileAnswers,
+  FuelingProfileFieldName,
+  FuelingProfileShared,
+  FuelingProfileNotShared,
+  FuelingProfile,
+  Activity,
+  CreateActivityRequest,
+  UpdateActivityRequest,
   ActivityPrescription,
   PrescriptionEnvelope,
   StoredPrescriptionResponse,
+  ActivityFeedbackRequest,
   ActivityFeedback,
   BatchError,
   BatchSummary,
@@ -49,50 +89,68 @@ export type {
   ImportActivityRequest,
   ImportPrescriptionItem,
   ActivityImportResponse,
-  SafetyMetadata,
-  // Graduated precision (API_OB)
-  Precision,
-  MissingField,
-  BandImpact,
-  OnboardingInvite,
-  // Onboarding (headless schema)
-  OnboardingQuestion,
-  OnboardingOption,
-  OnboardingQuestionsResponse,
-  Athlete,
-  AthleteSettings,
-  CreateAthleteRequest,
-  // Profile sharing (the athlete's Saturday app answers)
-  ProfileSharing,
-  CalculationsUse,
-  FuelingProfile,
-  FuelingProfileShared,
-  FuelingProfileNotShared,
-  FuelingProfileAnswers,
-  FuelingProfileField,
-  FuelingProfileFieldName,
-  FuelingConcerns,
-  Activity,
-  CreateActivityRequest,
-  Product,
-  ProductSummary,
-  ProductTier,
-  ProductCategory,
-  ProductLookupResponse,
-  ProductSearchResponse,
-  CuratedProductsResponse,
-  SubscriptionCTA,
-  AIConversation,
+  ActivityTypeInfo,
+  ActivityTypesResponse,
+  SettingsFieldSchema,
+  SettingsSchemaResponse,
+  InferActivityTypeRequest,
+  InferActivityTypeResponse,
+  InferBrickRequest,
+  InferBrickResponse,
+  DiscoveryResponse,
+  ErrorCatalogEntry,
+  ErrorCatalogResponse,
+  HealthResponse,
+  PartnerAccount,
+  DailyUsage,
+  UsageParams,
+  UsageResponse,
+  DailyUsageResponse,
+  ApiKeyInfo,
+  ApiKeyListResponse,
+  CreatedApiKey,
+  RotatedApiKey,
   Webhook,
-  WebhookEventType,
+  WebhookWithSecret,
+  CreateWebhookResponse,
+  WebhookListResponse,
+  UpdateWebhookRequest,
+  WebhookDelivery,
+  WebhookDeliveriesResponse,
+  WebhookTestResponse,
   WebhookEvent,
   ProfileSharingChangedEvent,
   FuelingProfileUpdatedEvent,
   Organization,
+  CreateOrganizationRequest,
+  OrganizationListResponse,
+  OrganizationMember,
+  AddMemberRequest,
+  OrganizationMembersResponse,
+  OrganizationOfferRequest,
+  OrganizationOffer,
+  OrganizationSubscription,
+  CreateOrganizationSubscriptionRequest,
+  UpdateOrganizationSubscriptionRequest,
+  OrganizationSubscriptionListResponse,
+  LicenseInput,
+  License,
+  LicenseListResponse,
+  ConsentType,
+  ConsentRecord,
+  ConsentListResponse,
+  AthleteDataExport,
+  IntegrationProvider,
+  IntegrationSyncRequest,
+  IntegrationSyncResponse,
+  IntegrationStatusResponse,
+  SimulateSubscriptionResponse,
+  KnowledgeSearchRequest,
+  PaginationMeta,
   AthleteListResponse,
   ActivityListResponse,
-  PaginationMeta,
-  // Coach API (Module 5)
+  SaturdayErrorDetail,
+  // Coach API
   CoachWindow,
   CoachFocus,
   CoachScope,
@@ -116,7 +174,7 @@ export type {
   AlertRulesDoc,
   CoachReportSettings,
   CoachWebhookEndpoint,
-  // Coach billing (read-only, billing:read)
+  CoachWebhookWithSecret,
   CoachLedgerView,
   CoachSeatState,
   CoachLedgerEntry,
@@ -133,5 +191,4 @@ export type {
   CoachConnectChargesPage,
   CoachBillingArrangement,
   CoachConnectArrangements,
-  CoachWebhookWithSecret,
 } from './types';

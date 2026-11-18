@@ -1,216 +1,184 @@
+import type * as T from './types';
 import type {
-  SaturdayConfig,
-  NutritionCalculateRequest,
-  NutritionCalculateResponse,
-  BatchCalculateResponse,
-  BatchAthleteResponse,
-  PrescriptionEnvelope,
-  StoredPrescriptionResponse,
-  ImportActivityRequest,
-  ActivityImportResponse,
-  ActivityFeedback,
-  Athlete,
-  CreateAthleteRequest,
-  Activity,
-  CreateActivityRequest,
-  AthleteSettings,
-  FuelingProfile,
-  ProductCategory,
-  ProductLookupResponse,
-  ProductSearchResponse,
-  CuratedProductsResponse,
-  AIConversation,
-  AIMessage,
-  Webhook,
-  WebhookFull,
-  Organization,
-  GearItem,
-  AthleteListResponse,
-  ActivityListResponse,
-  CoachWindow,
+  AlertRulesDoc,
+  AthleteReport,
+
+  CoachConnectArrangements,
+  CoachConnectChargesPage,
+  CoachConnectEarnings,
+  CoachConnectSummary,
   CoachFocus,
-  CoachScope,
+  CoachLedgerPage,
+  CoachLedgerView,
   CoachPreset,
+  CoachReportSettings,
+  CoachScope,
+  CoachSeatState,
+  CoachTierStatus,
+  CoachWebhookEndpoint,
+  CoachWebhookEvent,
+  CoachWebhookWithSecret,
+  CoachWindow,
+  FuelingRollup,
   Roster,
   RosterDigest,
-  FuelingRollup,
-  AthleteReport,
   SessionDetail,
-  AlertRulesDoc,
-  CoachReportSettings,
-  CoachWebhookEndpoint,
-  CoachLedgerView,
-  CoachSeatState,
-  CoachLedgerPage,
-  CoachTierStatus,
-  CoachConnectSummary,
-  CoachConnectEarnings,
-  CoachConnectChargesPage,
-  CoachConnectArrangements,
-  CoachWebhookWithSecret,
-  CoachWebhookEvent,
-  OnboardingQuestionsResponse,
 } from './types';
 import {
   SaturdayError,
   AuthenticationError,
+  PermissionError,
   RateLimitError,
   ValidationError,
   NotFoundError,
 } from './errors';
-import { AIStreamError, streamAI } from './ai-stream';
-import type { AIStreamEvent, AIStreamOptions } from './ai-stream';
 
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
-// AI turns run up to the API's 60 s request cap, so an unconfigured stream deadline is longer than the JSON default.
-const DEFAULT_STREAM_TIMEOUT = 60000;
 const DEFAULT_MAX_RETRIES = 3;
-const SDK_VERSION = '0.7.0';
+// A longer Retry-After is returned to the caller rather than waited out inside one call.
+const MAX_RETRY_AFTER_S = 60;
+const SDK_VERSION = '0.8.0';
+
+type Query = Record<string, string | number | boolean | undefined>;
+
+/** Encode one path segment. */
+const seg = (value: string) => encodeURIComponent(value);
+
+function withQuery(path: string, query?: Query): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
 
 /**
- * Saturday Nutrition Intelligence API client.
- *
- * Provides personalized fuel, hydration, and electrolyte prescriptions for
- * endurance athletes. Safety metadata is always included in responses —
- * athlete safety cannot be paywalled.
+ * Saturday API client: fueling prescriptions (carbohydrate, sodium and fluid) for endurance
+ * sessions, sized to each athlete.
  *
  * @example
  * ```typescript
- * const saturday = new Saturday({ apiKey: 'sk_live_...' });
- * const rx = await saturday.nutrition.calculate({
+ * const saturday = new Saturday({ apiKey: 'sk_test_...' });
+ * const athlete = await saturday.athletes.create({ external_id: 'user-42', sex: 'female', year_of_birth: 1990, weight_kg: 62 });
+ * const plan = await saturday.nutrition.calculate({
+ *   athlete_id: athlete.id,
  *   activity_type: 'run',
  *   duration_min: 90,
- *   thermal_stress_level: 8,
+ *   intensity_level: 5,
+ *   thermal_stress_level: 6,
+ *   meal_before_min: 120,
+ *   is_race: false,
  * });
  * ```
  */
 export class Saturday {
-  private readonly config: Required<Omit<SaturdayConfig, 'bearerToken'>> & { bearerToken?: string };
-  private readonly streamTimeout: number;
+  private readonly config: Required<Omit<T.SaturdayConfig, 'bearerToken'>> & { bearerToken?: string };
 
-  /** Nutrition intelligence endpoints — the crown jewel. */
+  /** Calculations, product fit and compare, and nutrition label reading. */
   readonly nutrition: NutritionResource;
-
-  /** Partner-scoped athlete management. */
+  /** Your athletes, their settings, shared Saturday answers, consent, export and erasure. */
   readonly athletes: AthletesResource;
-
-  /** Activity management and prescription calculation. */
+  /** Sessions, their prescriptions, prep, import and feedback. */
   readonly activities: ActivitiesResource;
-
-  /** Product database search and lookup. */
-  readonly products: ProductsResource;
-
-  /** AI-to-AI conversations with Saturday's assistant (feature-gated: ai_to_ai_conversations). */
-  readonly ai: AIResource;
-
-  /** Webhook event subscriptions. */
-  readonly webhooks: WebhooksResource;
-
-  /** Organization and team management. */
-  readonly organizations: OrganizationsResource;
-
-  /** Gear inventory management (feature-gated: gear). */
-  readonly gear: GearResource;
-
-  /** Knowledge base search. */
-  readonly knowledge: KnowledgeResource;
-
-  /** Athlete-onboarding question schema (the headless collection mechanism). */
+  /** The onboarding question schema, for collecting a profile in your own UI. */
   readonly onboarding: OnboardingResource;
-
+  /** Activity types and the athlete settings schema. */
+  readonly reference: ReferenceResource;
+  /** Map a workout from your system to a Saturday activity type. */
+  readonly infer: InferResource;
+  /** Your partner account: limits, usage and API keys. */
+  readonly partner: PartnerResource;
+  /** Webhook endpoints and their deliveries. */
+  readonly webhooks: WebhooksResource;
+  /** Organizations, members, offers and seat subscriptions. */
+  readonly organizations: OrganizationsResource;
+  /** Activity sync from a provider such as Strava. */
+  readonly integrations: IntegrationsResource;
+  /** Test project only: simulate an athlete's Saturday subscription. */
+  readonly testing: TestingResource;
+  /** Discovery, the error catalog and health. */
+  readonly meta: MetaResource;
+  /** Knowledge base search (early access). */
+  readonly knowledge: KnowledgeResource;
   /**
-   * Coach API — roster fueling reads + the coach's own alerting/report config
-   * (Module 5). Requires a coach API key (`cp_live_`/`cp_test_`, passed as
-   * `apiKey`) or an OAuth2 coach-scoped bearer token, and the Pro-Coach+ tier.
+   * Coach API: roster fueling reads and the coach's alerting and report configuration.
+   * Needs a coach key (`cp_live_` or `cp_test_`) or a coach-scoped OAuth2 token.
    */
   readonly coach: CoachResource;
 
-  constructor(config: SaturdayConfig) {
+  constructor(config: T.SaturdayConfig) {
     this.config = {
       apiKey: config.apiKey,
-      baseUrl: config.baseUrl || DEFAULT_BASE_URL,
+      baseUrl: (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, ''),
       timeout: config.timeout || DEFAULT_TIMEOUT,
       maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       bearerToken: config.bearerToken,
     };
-    this.streamTimeout = config.timeout || DEFAULT_STREAM_TIMEOUT;
 
     this.nutrition = new NutritionResource(this);
     this.athletes = new AthletesResource(this);
     this.activities = new ActivitiesResource(this);
-    this.products = new ProductsResource(this);
-    this.ai = new AIResource(this);
+    this.onboarding = new OnboardingResource(this);
+    this.reference = new ReferenceResource(this);
+    this.infer = new InferResource(this);
+    this.partner = new PartnerResource(this);
     this.webhooks = new WebhooksResource(this);
     this.organizations = new OrganizationsResource(this);
-    this.gear = new GearResource(this);
+    this.integrations = new IntegrationsResource(this);
+    this.testing = new TestingResource(this);
+    this.meta = new MetaResource(this);
     this.knowledge = new KnowledgeResource(this);
-    this.onboarding = new OnboardingResource(this);
     this.coach = new CoachResource(this);
   }
 
   /**
-   * Make an authenticated API request with retry logic.
-   * Retries on 429 (rate limit) and 5xx (server errors) with exponential backoff.
+   * Send an authenticated request. A 5xx, or a 429 whose `Retry-After` is 60 seconds or less, is
+   * retried up to `maxRetries` times; any other 429 and every other 4xx throw at once.
    */
-  async request<T>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<T> {
+  async request<R>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<R> {
     const url = `${this.config.baseUrl}${path}`;
     let lastError: SaturdayError | undefined;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
-      if (attempt > 0) {
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = Math.pow(2, attempt - 1) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'User-Agent': `saturday-node/${SDK_VERSION}`,
-        'X-SDK-Version': SDK_VERSION,
-      };
-
-      // Auth: Bearer token (OAuth2) takes priority over API key
-      if (this.config.bearerToken) {
-        headers['Authorization'] = `Bearer ${this.config.bearerToken}`;
-      } else {
-        headers['Authorization'] = `Bearer ${this.config.apiKey}`;
-      }
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
-
+      let retryDelayMs = 0;
       try {
         const response = await fetch(url, {
           method,
-          headers,
-          body: body ? JSON.stringify(body) : undefined,
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': `saturday-node/${SDK_VERSION}`,
+            'X-SDK-Version': SDK_VERSION,
+            Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
           signal: controller.signal,
         });
 
         if (response.ok) {
-          if (response.status === 204) return undefined as T;
-          if (responseType === 'arrayBuffer') return await response.arrayBuffer() as T;
-          return await response.json() as T;
+          if (response.status === 204) return undefined as R;
+          if (responseType === 'arrayBuffer') return await response.arrayBuffer() as R;
+          return await response.json() as R;
         }
 
-        // Parse error response
         const errorBody: any = await response.json().catch((error: unknown) => {
           if ((error as Error)?.name === 'AbortError') throw error;
-          return { error: { type: 'api_error', code: 'unknown', message: 'Unknown error' } };
+          return { error: { type: 'api_error', code: 'unknown', message: `HTTP ${response.status}` } };
         });
-        const errorDetail = errorBody.error || errorBody;
-
-        // Map to typed errors
-        const error = this.mapError(response.status, errorDetail, response.headers);
+        const error = this.mapError(response.status, errorBody?.error || errorBody, response.headers);
         lastError = error;
 
-        // Only retry on rate limit or server errors
-        if (response.status === 429 || response.status >= 500) {
-          continue;
+        if (error instanceof RateLimitError) {
+          if (error.dailyLimit || error.retryAfter! > MAX_RETRY_AFTER_S) throw error;
+          retryDelayMs = error.retryAfter! * 1000;
+        } else if (response.status >= 500) {
+          retryDelayMs = Math.pow(2, attempt) * 1000;
+        } else {
+          throw error;
         }
-
-        throw error;
       } catch (e) {
         if (e instanceof SaturdayError) throw e;
         if ((e as Error).name === 'AbortError') {
@@ -224,368 +192,433 @@ export class Saturday {
       } finally {
         clearTimeout(timeoutId);
       }
+      if (attempt < this.config.maxRetries) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
     }
 
-    // All retries exhausted
-    throw lastError || new SaturdayError(0, {
-      type: 'api_error',
-      code: 'max_retries_exceeded',
-      message: 'Maximum retry attempts exceeded',
-    });
-  }
-
-  /** @internal AI writes have no automatic retry, even on 429 or 5xx. */
-  streamRequest(path: string, body: unknown, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
-    return streamAI(`${this.config.baseUrl}${path}`, {
-      'Content-Type': 'application/json',
-      'User-Agent': `saturday-node/${SDK_VERSION}`,
-      'X-SDK-Version': SDK_VERSION,
-      Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
-    }, body, this.streamTimeout, options, (status, detail, headers) => this.mapError(status, detail, headers));
+    throw lastError!;
   }
 
   private mapError(status: number, detail: any, headers: Headers): SaturdayError {
     switch (status) {
+      case 400:
+      case 422:
+        return new ValidationError(detail, status);
       case 401:
         return new AuthenticationError(detail);
+      case 403:
+        return new PermissionError(detail);
       case 404:
         return new NotFoundError(detail);
       case 429: {
-        const retryAfter = parseInt(headers.get('Retry-After') || '60', 10);
-        return new RateLimitError(detail, retryAfter);
+        const header = headers.get('Retry-After');
+        const seconds = header === null ? undefined : parseInt(header, 10);
+        return new RateLimitError(detail, Number.isFinite(seconds) ? seconds : undefined);
       }
-      case 400:
-      case 422:
-        return new ValidationError(detail);
       default:
         return new SaturdayError(status, detail);
     }
   }
 }
 
-// --- Resource Classes ---
+// --- Resources ---
 
 class NutritionResource {
   constructor(private client: Saturday) {}
 
-  /** Calculate a personalized fuel/hydration/electrolyte prescription. */
-  async calculate(req: NutritionCalculateRequest): Promise<NutritionCalculateResponse> {
+  /**
+   * Calculate a prescription for one session. Send `athlete_id` to use a stored athlete; send
+   * `meal_before_min` and `is_race` for exact numbers.
+   */
+  calculate(req: T.NutritionCalculateRequest): Promise<T.NutritionCalculateResponse> {
     return this.client.request('POST', '/v1/nutrition/calculate', req);
   }
 
-  /** Batch calculate up to 50 scenarios; quota is charged per scenario. */
-  async batchCalculate(scenarios: NutritionCalculateRequest[]): Promise<BatchCalculateResponse> {
+  /** Calculate up to 50 sessions in one call. Each scenario counts as one call against your limits. */
+  batchCalculate(scenarios: T.NutritionCalculateRequest[]): Promise<T.BatchCalculateResponse> {
     return this.client.request('POST', '/v1/nutrition/calculate/batch', { scenarios });
+  }
+
+  /** Size one catalog product against the athlete's prescription for a session. */
+  productFit(req: T.ProductFitRequest): Promise<T.ProductFitResponse> {
+    return this.client.request('POST', '/v1/nutrition/products/fit', req);
+  }
+
+  /** Size two catalog products against the athlete's prescription and name the better fit. */
+  compareProducts(req: T.ProductCompareRequest): Promise<T.ProductCompareResponse> {
+    return this.client.request('POST', '/v1/nutrition/products/compare', req);
+  }
+
+  /** Read a nutrition label from one or more photos. */
+  extract(req: T.NutritionExtractRequest): Promise<T.NutritionExtractResponse> {
+    return this.client.request('POST', '/v1/nutrition/extract', req);
   }
 }
 
 class AthletesResource {
   constructor(private client: Saturday) {}
 
-  async create(athlete: CreateAthleteRequest): Promise<Athlete> {
+  create(athlete: T.CreateAthleteRequest): Promise<T.Athlete> {
     return this.client.request('POST', '/v1/athletes', athlete);
   }
 
-  async get(athleteId: string): Promise<Athlete> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}`);
+  get(athleteId: string): Promise<T.Athlete> {
+    return this.client.request('GET', `/v1/athletes/${seg(athleteId)}`);
   }
 
-  async list(params?: {
-    limit?: number;
-    cursor?: string;
-    /** @deprecated Ignored by the current API. */
-    search?: string;
-  }): Promise<AthleteListResponse> {
-    const query = new URLSearchParams();
-    if (params?.limit) query.set('limit', String(params.limit));
-    if (params?.cursor) query.set('cursor', params.cursor);
-    if (params?.search) query.set('search', params.search);
-    const qs = query.toString();
-    return this.client.request('GET', `/v1/athletes${qs ? '?' + qs : ''}`);
+  /** One page of athletes. Pass `pagination.next_cursor` back as `cursor`. */
+  list(params?: T.ListAthletesParams): Promise<T.AthleteListResponse> {
+    return this.client.request('GET', withQuery('/v1/athletes', { ...params }));
   }
 
-  async update(athleteId: string, updates: Partial<CreateAthleteRequest>): Promise<Athlete> {
-    return this.client.request('PATCH', `/v1/athletes/${athleteId}`, updates);
+  /** Update the fields you send. Settings sent here replace the stored settings. */
+  update(athleteId: string, updates: Partial<T.CreateAthleteRequest>): Promise<T.Athlete> {
+    return this.client.request('PATCH', `/v1/athletes/${seg(athleteId)}`, updates);
   }
 
-  async delete(athleteId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/athletes/${athleteId}`);
+  /** Delete the athlete record. To erase everything stored for the athlete, use `erase`. */
+  delete(athleteId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/athletes/${seg(athleteId)}`);
   }
 
-  async getSettings(athleteId: string): Promise<AthleteSettings> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}/settings`);
+  getSettings(athleteId: string): Promise<T.AthleteSettings> {
+    return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/settings`);
   }
 
-  /**
-   * The athlete's Saturday app answers, while they share them with you. Check `sharing` first:
-   * only `on` carries `profile`; `off` and `not_linked` carry a `message` saying why not.
-   */
-  async getFuelingProfile(athleteId: string): Promise<FuelingProfile> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}/fueling-profile`);
+  /** Replace the athlete's settings. Send every setting you want kept: omitted ones are cleared. */
+  updateSettings(athleteId: string, settings: T.AthleteSettings): Promise<T.AthleteSettings> {
+    return this.client.request('PATCH', `/v1/athletes/${seg(athleteId)}/settings`, settings);
   }
 
-  /** Replaces partner-managed athlete settings; send the complete intended settings. */
-  async updateSettings(athleteId: string, settings: AthleteSettings): Promise<AthleteSettings> {
-    return this.client.request('PATCH', `/v1/athletes/${athleteId}/settings`, settings);
+  /** The athlete's Saturday app answers while they share them with you. Narrow on `sharing`. */
+  getFuelingProfile(athleteId: string): Promise<T.FuelingProfile> {
+    return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/fueling-profile`);
   }
 
-  /** Batch create up to 100 athletes; quota is charged per athlete. */
-  async batchCreate(athletes: CreateAthleteRequest[]): Promise<BatchAthleteResponse> {
+  /** Create up to 100 athletes in one call. */
+  batchCreate(athletes: T.CreateAthleteRequest[]): Promise<T.BatchAthleteResponse> {
     return this.client.request('POST', '/v1/athletes/batch', { athletes });
   }
 
-  /** Export all athlete data (GDPR data portability). */
-  async export(athleteId: string): Promise<any> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/export`);
+  /** Everything Saturday holds for the athlete under your account (data portability). */
+  export(athleteId: string): Promise<T.AthleteDataExport> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/export`);
+  }
+
+  /** Erase the athlete and everything stored for them under your account (right to erasure). */
+  erase(athleteId: string): Promise<void> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/delete`);
+  }
+
+  listConsent(athleteId: string): Promise<T.ConsentListResponse> {
+    return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/consent`);
+  }
+
+  recordConsent(athleteId: string, consent: { consent_type: T.ConsentType; granted: boolean }): Promise<T.ConsentRecord> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/consent`, consent);
+  }
+
+  revokeConsent(athleteId: string, consentId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/athletes/${seg(athleteId)}/consent/${seg(consentId)}`);
   }
 }
 
 class ActivitiesResource {
   constructor(private client: Saturday) {}
 
-  async create(athleteId: string, activity: CreateActivityRequest): Promise<Activity> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/activities`, activity);
+  create(athleteId: string, activity: T.CreateActivityRequest): Promise<T.Activity> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities`, activity);
   }
 
-  async get(athleteId: string, activityId: string): Promise<Activity> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}/activities/${activityId}`);
+  get(athleteId: string, activityId: string): Promise<T.Activity> {
+    return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}`);
   }
 
-  async list(athleteId: string, params?: {
-    limit?: number;
-    cursor?: string;
-    /** @deprecated Ignored by the current API. */
-    type?: string;
-  }): Promise<ActivityListResponse> {
-    const query = new URLSearchParams();
-    if (params?.limit) query.set('limit', String(params.limit));
-    if (params?.cursor) query.set('cursor', params.cursor);
-    if (params?.type) query.set('type', params.type);
-    const qs = query.toString();
-    return this.client.request('GET', `/v1/athletes/${athleteId}/activities${qs ? '?' + qs : ''}`);
+  /** One page of the athlete's activities. Pass `pagination.next_cursor` back as `cursor`. */
+  list(athleteId: string, params?: { limit?: number; cursor?: string }): Promise<T.ActivityListResponse> {
+    return this.client.request('GET', withQuery(`/v1/athletes/${seg(athleteId)}/activities`, { ...params }));
   }
 
-  async update(athleteId: string, activityId: string, updates: Partial<CreateActivityRequest>): Promise<Activity> {
-    return this.client.request('PATCH', `/v1/athletes/${athleteId}/activities/${activityId}`, updates);
+  update(athleteId: string, activityId: string, updates: T.UpdateActivityRequest): Promise<T.Activity> {
+    return this.client.request('PATCH', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}`, updates);
   }
 
-  async delete(athleteId: string, activityId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/athletes/${athleteId}/activities/${activityId}`);
+  delete(athleteId: string, activityId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}`);
   }
 
-  /** Calculate/recalculate a nutrition prescription for this activity. */
-  async calculatePrescription(athleteId: string, activityId: string): Promise<PrescriptionEnvelope> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/calculate`);
+  /** Calculate the activity's prescription and store it. */
+  calculatePrescription(athleteId: string, activityId: string): Promise<T.PrescriptionEnvelope> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/calculate`);
   }
 
-  /** Get the stored prescription for an activity. */
-  async getPrescription(athleteId: string, activityId: string): Promise<StoredPrescriptionResponse> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}/activities/${activityId}/prescription`);
+  /** The stored prescription. 404 `prescription_not_found` until the activity has been calculated. */
+  getPrescription(athleteId: string, activityId: string): Promise<T.StoredPrescriptionResponse> {
+    return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/prescription`);
   }
 
-  /** Import up to 200 activities; calculation is opt-in, quota is per activity. */
-  async importActivities(athleteId: string, activities: ImportActivityRequest[], options?: { calculate?: boolean }): Promise<ActivityImportResponse> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/activities/import`, { activities, ...options });
+  /** Size catalog products against the activity's prescription and show the gap left. */
+  prep(athleteId: string, activityId: string, req: T.PrepRequest = {}): Promise<T.PrepResponse> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/prep`, req);
   }
 
-  /** Submit post-activity feedback on prescription quality. */
-  async submitFeedback(athleteId: string, activityId: string, feedback: {
-    /** Overall prescription quality, 1 (poor) to 5 (excellent). */
-    rating: number;
-    notes?: string;
-  }): Promise<ActivityFeedback> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/activities/${activityId}/feedback`, feedback);
+  /**
+   * Import up to 200 activities. `calculate: true` calculates every one; an item's own
+   * `calculate: true` calculates that item even when the request-level option is false.
+   */
+  importActivities(athleteId: string, activities: T.ImportActivityRequest[], options?: { calculate?: boolean }): Promise<T.ActivityImportResponse> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/import`, { activities, ...options });
+  }
+
+  submitFeedback(athleteId: string, activityId: string, feedback: T.ActivityFeedbackRequest): Promise<T.ActivityFeedback> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/feedback`, feedback);
   }
 }
 
-class ProductsResource {
+/**
+ * The headless onboarding schema: the same questions the hosted page asks. Render them in your
+ * UI, write the answers with `athletes.update` or `athletes.updateSettings`, and show the
+ * response's `attribution` with them.
+ */
+class OnboardingResource {
   constructor(private client: Saturday) {}
 
-  async getByBarcode(barcode: string, athleteId: string): Promise<ProductLookupResponse> {
-    const qs = new URLSearchParams({ athlete_id: athleteId });
-    return this.client.request('GET', `/v1/products/${barcode}?${qs}`);
-  }
-
-  async search(query: string, athleteId: string): Promise<ProductSearchResponse> {
-    const qs = new URLSearchParams({ q: query, athlete_id: athleteId });
-    return this.client.request('GET', `/v1/products/search?${qs}`);
-  }
-
-  /** Pass `next_cursor` from the previous response to advance (10 per page). */
-  async listCurated(athleteId: string, cursor?: string): Promise<CuratedProductsResponse> {
-    const qs = new URLSearchParams({ athlete_id: athleteId });
-    if (cursor) qs.set('cursor', cursor);
-    return this.client.request('GET', `/v1/products/curated?${qs}`);
-  }
-
-  /** The taxonomy is the free tier: every athlete gets the same answer. */
-  async listCategories(athleteId: string): Promise<{ categories: ProductCategory[] }> {
-    const qs = new URLSearchParams({ athlete_id: athleteId });
-    return this.client.request('GET', `/v1/products/categories?${qs}`);
+  questions(): Promise<T.OnboardingQuestionsResponse> {
+    return this.client.request('GET', '/v1/onboarding/questions');
   }
 }
 
-class AIResource {
+class ReferenceResource {
   constructor(private client: Saturday) {}
 
-  /** @deprecated Use createConversationStream. This method fails locally without sending an AI request. */
-  async createConversation(athleteId: string, initialMessage?: string): Promise<AIConversation> {
-    throw new AIStreamError('streaming_required', 'Use ai.createConversationStream(athleteId, message) and consume every event. No request was sent.');
+  activityTypes(): Promise<T.ActivityTypesResponse> {
+    return this.client.request('GET', '/v1/activity-types');
   }
 
-  /** @deprecated Use sendMessageStream. This method fails locally without sending an AI request. */
-  async sendMessage(convId: string, message: string): Promise<AIMessage> {
-    throw new AIStreamError('streaming_required', 'Use ai.sendMessageStream(convId, message) and consume every event. No request was sent.');
+  settingsSchema(): Promise<T.SettingsSchemaResponse> {
+    return this.client.request('GET', '/v1/settings/schema');
+  }
+}
+
+class InferResource {
+  constructor(private client: Saturday) {}
+
+  /** Map a workout from your system (name, tags, device) to a Saturday activity type. */
+  activityType(req: T.InferActivityTypeRequest): Promise<T.InferActivityTypeResponse> {
+    return this.client.request('POST', '/v1/infer/activity-type', req);
   }
 
-  /** Start a conversation and receive the existing SSE event stream, without retries. */
-  createConversationStream(athleteId: string, message: string, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
-    return this.client.streamRequest('/v1/ai/conversations', { athlete_id: athleteId, message }, options);
+  /** Split a multisport workout into its legs. */
+  brickTypes(req: T.InferBrickRequest): Promise<T.InferBrickResponse> {
+    return this.client.request('POST', '/v1/infer/brick-types', req);
+  }
+}
+
+class PartnerResource {
+  constructor(private client: Saturday) {}
+
+  /** Your account and its limits. */
+  get(): Promise<T.PartnerAccount> {
+    return this.client.request('GET', '/v1/partner');
   }
 
-  /** Send one message and receive all events, including warnings and server errors. */
-  sendMessageStream(convId: string, message: string, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
-    return this.client.streamRequest(`/v1/ai/conversations/${encodeURIComponent(convId)}/messages`, { message }, options);
+  /** Calls over a period, 30 days by default. */
+  usage(params?: T.UsageParams): Promise<T.UsageResponse> {
+    return this.client.request('GET', withQuery('/v1/partner/usage', { ...params }));
   }
 
-  /** Get stored JSON history. The limit argument is retained for compatibility but ignored by the server. */
-  async getMessages(convId: string, params?: { limit?: number }): Promise<{ messages: AIMessage[] }> {
-    const qs = params?.limit ? `?limit=${params.limit}` : '';
-    return this.client.request('GET', `/v1/ai/conversations/${convId}/messages${qs}`);
+  /** Calls per UTC day, 7 days by default. */
+  usageDaily(params?: T.UsageParams): Promise<T.DailyUsageResponse> {
+    return this.client.request('GET', withQuery('/v1/partner/usage/daily', { ...params }));
   }
 
-  /** Get conversation metadata. */
-  async getConversation(convId: string): Promise<AIConversation> {
-    return this.client.request('GET', `/v1/ai/conversations/${convId}`);
+  listApiKeys(): Promise<T.ApiKeyListResponse> {
+    return this.client.request('GET', '/v1/partner/api-keys');
   }
 
-  /** Delete a conversation. */
-  async deleteConversation(convId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/ai/conversations/${convId}`);
+  /** Create a key. The response's `key` is shown once. */
+  createApiKey(name: string, opts?: { scopes?: string[] }): Promise<T.CreatedApiKey> {
+    return this.client.request('POST', '/v1/partner/api-keys', { name, ...opts });
   }
 
-  /** List up to 50 conversations. The limit argument is retained for compatibility but ignored by the server. */
-  async listConversations(athleteId: string, params?: { limit?: number }): Promise<{ conversations: AIConversation[] }> {
-    const qs = params?.limit ? `?limit=${params.limit}` : '';
-    return this.client.request('GET', `/v1/athletes/${athleteId}/ai/conversations${qs}`);
+  revokeApiKey(keyId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/partner/api-keys/${seg(keyId)}`);
+  }
+
+  /** Replace a key with a new one and revoke the old one at once. */
+  rotateApiKey(keyId: string): Promise<T.RotatedApiKey> {
+    return this.client.request('POST', `/v1/partner/api-keys/${seg(keyId)}/rotate`);
   }
 }
 
 class WebhooksResource {
   constructor(private client: Saturday) {}
 
-  async create(url: string, events: string[], description?: string): Promise<WebhookFull> {
-    return this.client.request('POST', '/v1/webhooks', { url, events, description });
+  /** Register an endpoint. The response carries the signing secret once. */
+  create(url: string, events: T.WebhookEventType[]): Promise<T.CreateWebhookResponse> {
+    return this.client.request('POST', '/v1/webhooks', { url, events });
   }
 
-  async list(): Promise<{ webhooks: Webhook[] }> {
+  list(): Promise<T.WebhookListResponse> {
     return this.client.request('GET', '/v1/webhooks');
   }
 
-  async get(webhookId: string): Promise<Webhook> {
-    return this.client.request('GET', `/v1/webhooks/${webhookId}`);
+  get(webhookId: string): Promise<T.Webhook> {
+    return this.client.request('GET', `/v1/webhooks/${seg(webhookId)}`);
   }
 
-  async update(webhookId: string, updates: { url?: string; events?: string[]; active?: boolean }): Promise<Webhook> {
-    return this.client.request('PATCH', `/v1/webhooks/${webhookId}`, updates);
+  update(webhookId: string, updates: T.UpdateWebhookRequest): Promise<T.Webhook> {
+    return this.client.request('PATCH', `/v1/webhooks/${seg(webhookId)}`, updates);
   }
 
-  async delete(webhookId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/webhooks/${webhookId}`);
+  delete(webhookId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/webhooks/${seg(webhookId)}`);
   }
 
-  async test(webhookId: string): Promise<any> {
-    return this.client.request('POST', `/v1/webhooks/${webhookId}/test`);
+  /** Send a `webhook.test` event to the endpoint now. */
+  test(webhookId: string): Promise<T.WebhookTestResponse> {
+    return this.client.request('POST', `/v1/webhooks/${seg(webhookId)}/test`);
+  }
+
+  /** Recent delivery attempts to the endpoint, newest first. */
+  deliveries(webhookId: string): Promise<T.WebhookDeliveriesResponse> {
+    return this.client.request('GET', `/v1/webhooks/${seg(webhookId)}/deliveries`);
   }
 }
 
 class OrganizationsResource {
   constructor(private client: Saturday) {}
 
-  async create(displayName: string, opts?: { description?: string; sport?: string }): Promise<Organization> {
-    return this.client.request('POST', '/v1/organizations', { display_name: displayName, ...opts });
+  create(org: T.CreateOrganizationRequest): Promise<T.Organization> {
+    return this.client.request('POST', '/v1/organizations', org);
   }
 
-  async list(): Promise<{ organizations: Organization[] }> {
+  list(): Promise<T.OrganizationListResponse> {
     return this.client.request('GET', '/v1/organizations');
   }
 
-  async get(orgId: string): Promise<Organization> {
-    return this.client.request('GET', `/v1/organizations/${orgId}`);
+  get(orgId: string): Promise<T.Organization> {
+    return this.client.request('GET', `/v1/organizations/${seg(orgId)}`);
   }
 
-  async addMember(orgId: string, email: string, role: 'admin' | 'member', athleteId?: string): Promise<any> {
-    return this.client.request('POST', `/v1/organizations/${orgId}/members`, { email, role, athlete_id: athleteId });
+  update(orgId: string, updates: Partial<T.CreateOrganizationRequest>): Promise<T.Organization> {
+    return this.client.request('PATCH', `/v1/organizations/${seg(orgId)}`, updates);
   }
 
-  async listMembers(orgId: string): Promise<{ members: any[] }> {
-    return this.client.request('GET', `/v1/organizations/${orgId}/members`);
+  addMember(orgId: string, member: T.AddMemberRequest): Promise<T.OrganizationMember> {
+    return this.client.request('POST', `/v1/organizations/${seg(orgId)}/members`, member);
   }
 
-  async removeMember(orgId: string, memberId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/organizations/${orgId}/members/${memberId}`);
+  listMembers(orgId: string): Promise<T.OrganizationMembersResponse> {
+    return this.client.request('GET', `/v1/organizations/${seg(orgId)}/members`);
+  }
+
+  removeMember(orgId: string, memberId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/organizations/${seg(orgId)}/members/${seg(memberId)}`);
+  }
+
+  /** Set the organization's checkout discount, replacing any active one. */
+  setOffer(orgId: string, offer: T.OrganizationOfferRequest): Promise<T.OrganizationOffer> {
+    return this.client.request('PUT', `/v1/organizations/${seg(orgId)}/offer`, offer);
+  }
+
+  /** The active offer. 404 `org_offer_not_found` when there is none. */
+  getOffer(orgId: string): Promise<T.OrganizationOffer> {
+    return this.client.request('GET', `/v1/organizations/${seg(orgId)}/offer`);
+  }
+
+  deleteOffer(orgId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/organizations/${seg(orgId)}/offer`);
+  }
+
+  /**
+   * Create a seat subscription. Seat subscriptions are set up with Saturday: without an
+   * allowance on your account this is refused with 403 `organization_subscription_restricted`.
+   */
+  createSubscription(orgId: string, sub: T.CreateOrganizationSubscriptionRequest): Promise<T.OrganizationSubscription> {
+    return this.client.request('POST', `/v1/organizations/${seg(orgId)}/subscriptions`, sub);
+  }
+
+  listSubscriptions(orgId: string): Promise<T.OrganizationSubscriptionListResponse> {
+    return this.client.request('GET', `/v1/organizations/${seg(orgId)}/subscriptions`);
+  }
+
+  updateSubscription(orgId: string, subId: string, updates: T.UpdateOrganizationSubscriptionRequest): Promise<T.OrganizationSubscription> {
+    return this.client.request('PATCH', `/v1/organizations/${seg(orgId)}/subscriptions/${seg(subId)}`, updates);
+  }
+
+  /** License athletes on a seat subscription; each license gives that athlete the full tier. */
+  addLicenses(orgId: string, subId: string, licenses: T.LicenseInput[]): Promise<T.LicenseListResponse> {
+    return this.client.request('POST', `/v1/organizations/${seg(orgId)}/subscriptions/${seg(subId)}/licenses`, { licenses });
+  }
+
+  listLicenses(orgId: string, subId: string): Promise<T.LicenseListResponse> {
+    return this.client.request('GET', `/v1/organizations/${seg(orgId)}/subscriptions/${seg(subId)}/licenses`);
+  }
+
+  removeLicense(orgId: string, subId: string, athleteId: string): Promise<void> {
+    return this.client.request('DELETE', `/v1/organizations/${seg(orgId)}/subscriptions/${seg(subId)}/licenses/${seg(athleteId)}`);
   }
 }
 
-class GearResource {
+class IntegrationsResource {
   constructor(private client: Saturday) {}
 
-  async list(athleteId: string): Promise<{ gear: GearItem[] }> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}/gear`);
+  /** Pull the athlete's activities from the provider into Saturday. */
+  sync(provider: T.IntegrationProvider, req: T.IntegrationSyncRequest): Promise<T.IntegrationSyncResponse> {
+    return this.client.request('POST', `/v1/integrations/${seg(provider)}/sync`, req);
   }
 
-  async create(athleteId: string, gear: { name: string; type: string; capacity_ml: number; is_default?: boolean }): Promise<GearItem> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/gear`, gear);
+  status(provider: T.IntegrationProvider, athleteId: string): Promise<T.IntegrationStatusResponse> {
+    return this.client.request('GET', withQuery(`/v1/integrations/${seg(provider)}/status`, { athlete_id: athleteId }));
   }
 
-  async update(athleteId: string, gearId: string, updates: Partial<GearItem>): Promise<GearItem> {
-    return this.client.request('PATCH', `/v1/athletes/${athleteId}/gear/${gearId}`, updates);
-  }
-
-  async delete(athleteId: string, gearId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/athletes/${athleteId}/gear/${gearId}`);
+  disconnect(provider: T.IntegrationProvider, athleteId: string): Promise<unknown> {
+    return this.client.request('POST', `/v1/integrations/${seg(provider)}/disconnect`, { athlete_id: athleteId });
   }
 }
 
+/** Test project only (`sk_test_` keys). In production these routes answer 404. */
+class TestingResource {
+  constructor(private client: Saturday) {}
+
+  /** Give the athlete a simulated Saturday subscription (`active: true`) or take it away. */
+  simulateSubscription(athleteId: string, active = true): Promise<T.SimulateSubscriptionResponse> {
+    return this.client.request('POST', `/v1/test/athletes/${seg(athleteId)}/simulate-subscription`, { active });
+  }
+}
+
+class MetaResource {
+  constructor(private client: Saturday) {}
+
+  /** The routes and features this key can see. */
+  discovery(): Promise<T.DiscoveryResponse> {
+    return this.client.request('GET', '/v1/');
+  }
+
+  /** Every error code the API can return, with its HTTP status and whether a retry can succeed. */
+  errors(): Promise<T.ErrorCatalogResponse> {
+    return this.client.request('GET', '/v1/errors');
+  }
+
+  health(): Promise<T.HealthResponse> {
+    return this.client.request('GET', '/v1/health');
+  }
+}
+
+/** Early access: a key without access gets 403 `feature_alpha`. */
 class KnowledgeResource {
   constructor(private client: Saturday) {}
 
-  async search(query: string, params?: { limit?: number; category?: string }): Promise<any> {
-    return this.client.request('POST', '/v1/knowledge/search', { query, ...params });
+  search(req: T.KnowledgeSearchRequest): Promise<unknown> {
+    return this.client.request('POST', '/v1/knowledge/search', req);
   }
 
-  async listTopics(): Promise<{ topics: any[] }> {
+  listTopics(): Promise<unknown> {
     return this.client.request('GET', '/v1/knowledge/topics');
   }
 
-  async getArticle(articleId: string): Promise<any> {
-    return this.client.request('GET', `/v1/knowledge/articles/${articleId}`);
-  }
-}
-
-/**
- * Onboarding resource — the headless mechanism for collecting an athlete's
- * fueling profile in your own UI. `questions()` returns the versioned schema
- * (the same definitions the hosted page renders); render it natively and write
- * answers via `athletes.updateSettings()` or athlete create/update. Exact
- * numbers require a complete profile — every calculate response's `precision`
- * object tells you what's still missing.
- *
- * **Attribution is required** when you render these questions in your UI — the
- * schema response carries the attribution object, same contract as calculations.
- *
- * @example
- * ```typescript
- * const { questions } = await saturday.onboarding.questions();
- * for (const q of questions) renderQuestion(q); // your UI
- * ```
- */
-class OnboardingResource {
-  constructor(private client: Saturday) {}
-
-  /** Fetch the versioned onboarding question schema. */
-  async questions(): Promise<OnboardingQuestionsResponse> {
-    return this.client.request('GET', '/v1/onboarding/questions');
+  getArticle(articleId: string): Promise<unknown> {
+    return this.client.request('GET', `/v1/knowledge/articles/${seg(articleId)}`);
   }
 }
 
