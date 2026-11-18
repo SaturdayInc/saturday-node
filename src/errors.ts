@@ -42,7 +42,7 @@ export class PermissionError extends SaturdayError {
 }
 
 /**
- * 429. A rate limit or pacing carries `retryAfter` in seconds; the client waits out one of 60
+ * 429. A rate limit or pacing carries `retryAfter` in seconds; the client waits out one of 30
  * seconds or less itself. A daily ceiling has no `retryAfter` (`dailyLimit` is true) and resets
  * at midnight UTC.
  */

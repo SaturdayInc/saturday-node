@@ -126,7 +126,7 @@ When the athlete's profile is missing answers, prep, product fit and compare pla
 | `saturday.reference` | `activityTypes`, `settingsSchema` |
 | `saturday.infer` | `activityType`, `brickTypes` |
 | `saturday.partner` | `get`, `usage`, `usageDaily`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `rotateApiKey` |
-| `saturday.webhooks` | `create`, `list`, `get`, `update`, `delete`, `test`, `deliveries` |
+| `saturday.webhooks` | `create`, `list`, `get`, `update`, `delete`, `test`, `listDeliveries` |
 | `saturday.organizations` | `create`, `list`, `get`, `update`, `addMember`, `listMembers`, `removeMember`, `setOffer`, `getOffer`, `deleteOffer`, `createSubscription`, `listSubscriptions`, `updateSubscription`, `addLicenses`, `listLicenses`, `removeLicense` |
 | `saturday.integrations` | `sync`, `status`, `disconnect` |
 | `saturday.testing` | `simulateSubscription` (test keys only) |
@@ -136,7 +136,50 @@ When the athlete's profile is missing answers, prep, product fit and compare pla
 
 Every method returns the API's JSON as typed. Lists keep their array under its name (`athletes`, `activities`) with `pagination.next_cursor` to pass back as `cursor`. Batch responses keep request order with failed items left out; match a failure to your input by `errors[].index`.
 
-`athletes.updateSettings` replaces the whole settings object: send every setting you want kept. `athletes.delete` removes the athlete record; `athletes.erase` removes the athlete and everything stored for them.
+`athletes.updateSettings` replaces the whole settings object: send every setting you want kept. `athletes.delete` removes the athlete and everything stored under them in your account. `athletes.erase` is for a right-to-erasure request: it also ends the athlete's connected-provider grants, erases what those providers sent, and keeps an audit record of the deletion.
+
+Nutrition and knowledge sit behind [feature gates](https://docs.saturday.fit/guides/feature-gates) that Saturday opens per partner. Until a gate is open for your key, its routes answer `403` with code `feature_alpha` (`PermissionError`); ask api@saturday.fit to open one.
+
+## Finding an athlete by your own id
+
+`athletes.list({ externalId })` returns the athletes you created with that `external_id`, newest first, in one page. The API does not deduplicate `external_id`, so look an athlete up this way before creating one when a create may have been interrupted.
+
+```typescript
+import Saturday from '@saturdayinc/sdk';
+
+const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
+const { athletes } = await saturday.athletes.list({ externalId: 'user-42' });
+const athlete = athletes[0] ?? await saturday.athletes.create({ external_id: 'user-42', name: 'Sam' });
+console.log(athlete.id);
+```
+
+## Webhooks
+
+`webhooks.create()` returns the new webhook under `webhook`, with `secret`, the key that signs every delivery. It is returned this once: store it before anything else. `webhooks.test()` delivers a `webhook.test` event at once and returns the delivery record with your endpoint's status code; `webhooks.listDeliveries()` returns the 50 most recent attempts. Webhook timestamps are Unix milliseconds.
+
+```typescript
+import Saturday from '@saturdayinc/sdk';
+
+const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
+const created = await saturday.webhooks.create('https://example.com/saturday', ['athlete.created', 'prescription.calculated']);
+const signingSecret = created.webhook.secret; // store it now
+const { delivery } = await saturday.webhooks.test(created.webhook.id);
+console.log(delivery.status, delivery.status_code, signingSecret.length);
+```
+
+See [Webhooks](https://docs.saturday.fit/guides/webhooks) for verifying signatures.
+
+## Coach alert rules
+
+`coach.setNotificationRules()` replaces the whole rule set at a scope, `channel_config` included. Read the rules first and send them back with your change: a set without `channel_config` clears it at that scope, and at the overall scope that turns the coach's email and push alerts off.
+
+```typescript
+import Saturday from '@saturdayinc/sdk';
+
+const coach = new Saturday({ apiKey: process.env.SATURDAY_COACH_KEY! });
+const rules = await coach.coach.getNotificationRules({ scope: 'overall' });
+await coach.coach.setNotificationRules('overall', { ...rules, hourly_cap: { enabled: true, per_hour: 2 } });
+```
 
 ## Errors, retries and limits
 
@@ -159,7 +202,7 @@ try {
 }
 ```
 
-The client retries a 5xx (after 1 s, 2 s, then 4 s) and a 429 whose `Retry-After` is 60 seconds or less (after that many seconds), up to `maxRetries` times. A longer wait comes back to you as a `RateLimitError` with `retryAfter` in seconds: product answers, for example, are paced for some minutes once a key has received a large share of the catalog in a day. A 429 without `Retry-After` is a daily ceiling: `dailyLimit` is true and nothing succeeds before midnight UTC. `saturday.partner.get()` shows your limits and `saturday.partner.usage()` what you have used.
+The client retries a 429 whose `Retry-After` is 30 seconds or less, after that many seconds, and a 5xx after 1 s, 2 s and 4 s, up to `maxRetries` times. A 5xx on a `POST` that creates or changes a record (an athlete, an activity, an import, a webhook) is not retried, since the server may have done the write; the calculation, product, inference, prep and export `POST`s are. A longer `Retry-After` comes back to you as a `RateLimitError` with `retryAfter` in seconds: after a calculation sweep, or when product answers are paced once a key has received a large share of the catalog in a day. A 429 without `Retry-After` is a daily ceiling: `dailyLimit` is true and nothing succeeds before midnight UTC. `saturday.partner.get()` shows your limits and `saturday.partner.usage()` what you have used.
 
 ## Configuration
 

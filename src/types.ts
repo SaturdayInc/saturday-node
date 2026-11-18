@@ -535,10 +535,14 @@ export interface AthleteSettings {
 export interface ListAthletesParams {
   limit?: number;
   cursor?: string;
-  /** Return only the athlete with this `external_id`. */
-  external_id?: string;
-  /** Return only athletes whose profile is (or is not) complete. */
-  profile_complete?: boolean;
+  /**
+   * Only the athletes you created with this `external_id`, newest first, in one page. The API
+   * does not deduplicate `external_id`, so look an athlete up this way before creating one when a
+   * create may have been interrupted.
+   */
+  externalId?: string;
+  /** Only athletes whose stored profile is (or is not) complete. */
+  profileComplete?: boolean;
 }
 
 // --- Fueling profile (the athlete's Saturday app answers, when shared) ---
@@ -968,13 +972,14 @@ export interface Webhook {
 }
 
 /** A new webhook with its signing secret, shown once. */
-export interface WebhookWithSecret extends Webhook {
-  /** HMAC-SHA256 signing secret. */
+export interface WebhookFull extends Webhook {
+  /** HMAC-SHA256 signing secret, 64 hex characters. Store it now: it is never returned again. */
   secret: string;
 }
 
-export interface CreateWebhookResponse {
-  webhook: WebhookWithSecret;
+/** `webhooks.create`: the new webhook, with its signing secret, under `webhook`. */
+export interface WebhookCreateResponse {
+  webhook: WebhookFull;
   message: string;
   request_id: string;
 }
@@ -999,9 +1004,11 @@ export interface WebhookDelivery {
   event_type: string;
   url: string;
   status: 'pending' | 'delivered' | 'failed' | 'exhausted';
+  /** The status code your endpoint returned. */
   status_code: number;
+  /** The first kilobyte of your endpoint's response body. */
   response_body?: string;
-  /** The event body, base64. */
+  /** The delivered event body, base64. */
   event_data?: string;
   attempts: number;
   /** Unix milliseconds. */
@@ -1012,16 +1019,17 @@ export interface WebhookDelivery {
   created_at: number;
 }
 
-export interface WebhookDeliveriesResponse {
+/** `webhooks.listDeliveries`: the 50 most recent attempts, newest first. */
+export interface WebhookDeliveryList {
   deliveries: WebhookDelivery[];
   total: number;
   request_id: string;
 }
 
-/** The result of `webhooks.test`: the delivery of the `webhook.test` event, with your endpoint's status code. */
+/** `webhooks.test`: the record of the `webhook.test` delivery, with your endpoint's status code. */
 export interface WebhookTestResponse {
   delivery: WebhookDelivery;
-  [key: string]: unknown;
+  request_id: string;
 }
 
 /** A webhook delivery's body. Verify the signature on the raw body before parsing it. */
@@ -1455,7 +1463,18 @@ export interface HourlyCap {
 }
 
 /** The full alert rule set at one scope (PUT replaces the whole set — idempotent). */
+/** Where the email and push channels deliver. A rules read always carries it. */
+export interface ChannelConfig {
+  email: { enabled: boolean; address?: string };
+  push: { enabled: boolean; devices?: string[] };
+}
+
+/**
+ * The full alert rule set at one scope. A PUT replaces the whole set, `channel_config` included:
+ * send back the one a read returned. Left out at the overall scope, email and push alerts turn off.
+ */
 export interface AlertRulesDoc {
+  channel_config?: ChannelConfig;
   notification_rules?: Record<string, TriggerRule>;
   combinators?: Combinator[];
   quiet_hours?: QuietHours;

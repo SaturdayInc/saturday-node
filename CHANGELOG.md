@@ -5,12 +5,12 @@
 Breaking changes:
 
 - `products`, `gear` and `ai` are removed, with their types and `AIStreamError`. Those routes are not open to partner keys.
-- `webhooks.create(url, events)` returns `CreateWebhookResponse`: the webhook, with its signing secret, is under `webhook`. The `description` argument is gone; the API does not take one.
+- `webhooks.create(url, events)` returns `WebhookCreateResponse`: the webhook (`WebhookFull`), with its signing secret, is under `webhook`; read `created.webhook.secret`. The `description` argument is gone; the API does not take one.
 - `organizations.create` takes an object (`{ display_name, description?, sport? }`) and `organizations.addMember` takes `{ email, role?, athlete_id? }`.
 - `knowledge.search` takes `{ query, limit?, category? }`.
 - Timestamps are numbers: `Webhook`, `Organization` and the new types say which are Unix seconds and which milliseconds.
-- `athletes.list` drops the `search` option and `activities.list` the `type` option, which the API ignored. `athletes.list` gains `external_id` and `profile_complete` filters.
-- A 429 without `Retry-After` is a daily ceiling: it is no longer retried, and `RateLimitError.dailyLimit` is true. `retryAfter` is `undefined` there. A `Retry-After` over 60 seconds is returned to you, not waited out. 5xx retries wait 1 s, 2 s and 4 s as before.
+- `athletes.list` drops the `search` option and `activities.list` the `type` option, which the API ignored. `athletes.list` gains `externalId` (the athletes you created with that `external_id`, newest first) and `profileComplete`.
+- Retries follow what the API says. A 429 is retried after its `Retry-After` when that is 30 s or less; a 429 without `Retry-After` (a daily ceiling or daily budget) throws at once with `RateLimitError.dailyLimit` true and `retryAfter` `undefined`, and a longer one (a block of minutes) throws with `retryAfter`. A 5xx on a `POST` that creates or changes a record is no longer retried, since the server may have done the write; calculation, product, inference, prep and export `POST`s still are, with every `GET`, `PUT`, `PATCH` and `DELETE`.
 - 403 responses raise the new `PermissionError`.
 
 Added:
@@ -19,8 +19,9 @@ Added:
 - `nutrition.extract` (nutrition label reading), `infer.activityType`, `infer.brickTypes`, `reference.activityTypes`, `reference.settingsSchema`.
 - `athletes.erase` (`POST /v1/athletes/{id}/delete`), `athletes.listConsent`, `recordConsent`, `revokeConsent`.
 - `partner.get`, `usage`, `usageDaily`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `rotateApiKey`.
-- `webhooks.deliveries`; `organizations.update`, offers and seat subscriptions with licenses; `integrations.sync`, `status`, `disconnect`; `testing.simulateSubscription`; `meta.discovery`, `errors`, `health`.
+- `webhooks.listDeliveries` (`WebhookDeliveryList`); `webhooks.test` returns `WebhookTestResponse` (`delivery`, with your endpoint's `status_code`); `organizations.update`, offers and seat subscriptions with licenses; `integrations.sync`, `status`, `disconnect`; `testing.simulateSubscription`; `meta.discovery`, `errors`, `health`.
 - `SaturdayError.code`.
+- `AlertRulesDoc` gains `channel_config` (`ChannelConfig`: the email address and push devices alerts go to). A read always carries it, and `coach.setNotificationRules()` replaces it with the rest of the set: send back the one you read. Left out at the overall scope, the coach's email and push alerts turn off.
 - Request types document `meal_before_min` (over 180 is a fasted start), `is_race`, even effort levels and whole-number per-hour figures.
 - A live suite (`test/live.test.ts`) and a type check of its recorded responses.
 

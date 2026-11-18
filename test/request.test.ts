@@ -142,3 +142,37 @@ it('returns a Retry-After longer than a minute to the caller instead of waiting 
   expect((error as RateLimitError).dailyLimit).toBe(false);
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+it('does not retry a create on a 5xx, since the server may have written it', async () => {
+  const fetchMock = jest.fn().mockImplementation(async () => Response.json({ error: { message: 'Try again' } }, { status: 503 }));
+  global.fetch = fetchMock;
+  const client = new Saturday({ apiKey: 'sk_test_fake' });
+  await expect(client.athletes.create({ external_id: 'u-1' })).rejects.toMatchObject({ status: 503 });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ['a calculation', (c: Saturday) => c.nutrition.calculate({ activity_type: 'run', duration_min: 60 })],
+  ['an activity calculate', (c: Saturday) => c.activities.calculatePrescription('ath_1', 'act_1')],
+  ['prep', (c: Saturday) => c.activities.prep('ath_1', 'act_1')],
+])('still retries %s on a 5xx', async (_name, call) => {
+  jest.useFakeTimers();
+  const fetchMock = jest.fn()
+    .mockResolvedValueOnce(Response.json({ error: { message: 'Try again' } }, { status: 503 }))
+    .mockResolvedValueOnce(Response.json({ tier: 'teaser' }));
+  global.fetch = fetchMock;
+  const result = call(new Saturday({ apiKey: 'sk_test_fake' }));
+  await jest.advanceTimersByTimeAsync(1100);
+  await expect(result).resolves.toEqual({ tier: 'teaser' });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it('returns a 31-second Retry-After to the caller', async () => {
+  const fetchMock = jest.fn().mockImplementation(async () => Response.json({
+    error: { type: 'rate_limit_error', code: 'rate_limit_exceeded', message: 'Slow down' },
+  }, { status: 429, headers: { 'Retry-After': '31' } }));
+  global.fetch = fetchMock;
+  const error = await new Saturday({ apiKey: 'sk_test_fake' }).onboarding.questions().catch((e: unknown) => e);
+  expect((error as RateLimitError).retryAfter).toBe(31);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

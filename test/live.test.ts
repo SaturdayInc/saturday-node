@@ -100,7 +100,7 @@ describeLive('live API', () => {
     expect(partial.profile_complete).toBe(false);
 
     capture('athlete_get', 'Athlete', await saturday.athletes.get(complete.id));
-    const found = capture('athlete_list', 'AthleteListResponse', await saturday.athletes.list({ external_id: `${run}-a` }));
+    const found = capture('athlete_list', 'AthleteListResponse', await saturday.athletes.list({ externalId: `${run}-a` }));
     expect(found.athletes.map(a => a.id)).toEqual([complete.id]);
     const renamed = await saturday.athletes.update(complete.id, { name: 'Live Suite' });
     expect(renamed.name).toBe('Live Suite');
@@ -248,7 +248,7 @@ describeLive('live API', () => {
   });
 
   it('webhooks: create, get, update, deliveries, delete', async () => {
-    const created = capture('webhook_created', 'CreateWebhookResponse',
+    const created = capture('webhook_created', 'WebhookCreateResponse',
       await saturday.webhooks.create('https://example.com/saturday-live-suite', ['prescription.calculated']));
     expect(created.webhook.secret.length).toBeGreaterThan(20);
     const id = created.webhook.id;
@@ -256,7 +256,7 @@ describeLive('live API', () => {
     capture('webhook', 'Webhook', await saturday.webhooks.get(id));
     const paused = await saturday.webhooks.update(id, { active: false });
     expect(paused.active).toBe(false);
-    capture('webhook_deliveries', 'WebhookDeliveriesResponse', await saturday.webhooks.deliveries(id));
+    capture('webhook_deliveries', 'WebhookDeliveryList', await saturday.webhooks.listDeliveries(id));
     await saturday.webhooks.delete(id);
     expect(await refusal(saturday.webhooks.get(id))).toBeInstanceOf(NotFoundError);
   });

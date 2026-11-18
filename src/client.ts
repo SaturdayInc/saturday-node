@@ -36,8 +36,21 @@ import {
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_MAX_RETRIES = 3;
-// A longer Retry-After is returned to the caller rather than waited out inside one call.
-const MAX_RETRY_AFTER_S = 60;
+// The longest Retry-After a 429 is waited out for. A longer one is a block that lasts minutes.
+const MAX_RETRY_AFTER_S = 30;
+
+/**
+ * A 5xx is retried only where a repeat cannot make a second record: every GET, PUT, PATCH and
+ * DELETE, and the POSTs that compute or read (calculations, product fit and compare, label
+ * reading, inference, an activity's calculate and prep, export).
+ */
+function retrySafeOnServerError(method: string, path: string): boolean {
+  if (method !== 'POST') return true;
+  const bare = path.split('?')[0];
+  return bare.startsWith('/v1/nutrition/') || bare.startsWith('/v1/infer/')
+    || /^\/v1\/athletes\/[^/]+\/activities\/[^/]+\/(calculate|prep)$/.test(bare)
+    || /^\/v1\/athletes\/[^/]+\/export$/.test(bare);
+}
 const SDK_VERSION = '0.8.0';
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -134,8 +147,9 @@ export class Saturday {
   }
 
   /**
-   * Send an authenticated request. A 5xx, or a 429 whose `Retry-After` is 60 seconds or less, is
-   * retried up to `maxRetries` times; any other 429 and every other 4xx throw at once.
+   * Send an authenticated request. A 429 whose `Retry-After` is 30 seconds or less is retried after
+   * that wait; a 5xx is retried after 1, 2 and 4 seconds, except on a POST that creates or changes a
+   * record. Up to `maxRetries` times. Any other 429 and every other 4xx throw at once.
    */
   async request<R>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<R> {
     const url = `${this.config.baseUrl}${path}`;
@@ -174,7 +188,7 @@ export class Saturday {
         if (error instanceof RateLimitError) {
           if (error.dailyLimit || error.retryAfter! > MAX_RETRY_AFTER_S) throw error;
           retryDelayMs = error.retryAfter! * 1000;
-        } else if (response.status >= 500) {
+        } else if (response.status >= 500 && retrySafeOnServerError(method, path)) {
           retryDelayMs = Math.pow(2, attempt) * 1000;
         } else {
           throw error;
@@ -267,7 +281,10 @@ class AthletesResource {
 
   /** One page of athletes. Pass `pagination.next_cursor` back as `cursor`. */
   list(params?: T.ListAthletesParams): Promise<T.AthleteListResponse> {
-    return this.client.request('GET', withQuery('/v1/athletes', { ...params }));
+    return this.client.request('GET', withQuery('/v1/athletes', {
+      limit: params?.limit, cursor: params?.cursor,
+      external_id: params?.externalId, profile_complete: params?.profileComplete,
+    }));
   }
 
   /** Update the fields you send. Settings sent here replace the stored settings. */
@@ -275,7 +292,10 @@ class AthletesResource {
     return this.client.request('PATCH', `/v1/athletes/${seg(athleteId)}`, updates);
   }
 
-  /** Delete the athlete record. To erase everything stored for the athlete, use `erase`. */
+  /**
+   * Delete the athlete and everything stored under them in your account (activities,
+   * prescriptions, consent records). For a data-subject erasure request use `erase`.
+   */
   delete(athleteId: string): Promise<void> {
     return this.client.request('DELETE', `/v1/athletes/${seg(athleteId)}`);
   }
@@ -304,7 +324,11 @@ class AthletesResource {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/export`);
   }
 
-  /** Erase the athlete and everything stored for them under your account (right to erasure). */
+  /**
+   * Erase the athlete for a right-to-erasure request: everything `delete` removes, plus ending the
+   * athlete's connected-provider grants and erasing the data those providers sent, with an audit
+   * record of the deletion.
+   */
   erase(athleteId: string): Promise<void> {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/delete`);
   }
@@ -453,8 +477,8 @@ class PartnerResource {
 class WebhooksResource {
   constructor(private client: Saturday) {}
 
-  /** Register an endpoint. The response carries the signing secret once. */
-  create(url: string, events: T.WebhookEventType[]): Promise<T.CreateWebhookResponse> {
+  /** Register an endpoint. Store `response.webhook.secret` now: it signs every delivery and is never returned again. */
+  create(url: string, events: T.WebhookEventType[]): Promise<T.WebhookCreateResponse> {
     return this.client.request('POST', '/v1/webhooks', { url, events });
   }
 
@@ -474,13 +498,13 @@ class WebhooksResource {
     return this.client.request('DELETE', `/v1/webhooks/${seg(webhookId)}`);
   }
 
-  /** Send a `webhook.test` event to the endpoint now. */
+  /** Deliver a `webhook.test` event now and return the delivery record, with your endpoint's status code. */
   test(webhookId: string): Promise<T.WebhookTestResponse> {
     return this.client.request('POST', `/v1/webhooks/${seg(webhookId)}/test`);
   }
 
-  /** Recent delivery attempts to the endpoint, newest first. */
-  deliveries(webhookId: string): Promise<T.WebhookDeliveriesResponse> {
+  /** The 50 most recent delivery attempts to the endpoint, newest first. */
+  listDeliveries(webhookId: string): Promise<T.WebhookDeliveryList> {
     return this.client.request('GET', `/v1/webhooks/${seg(webhookId)}/deliveries`);
   }
 }
