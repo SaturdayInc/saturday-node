@@ -278,7 +278,7 @@ describeLive('live API', () => {
 
     capture('organization_subscriptions', 'OrganizationSubscriptionListResponse', await saturday.organizations.listSubscriptions(org.id));
     const restricted = await refusal(saturday.organizations.createSubscription(org.id, {
-      type: 'team', seats: 5, start_date: Date.now(), end_date: Date.now() + 86400000,
+      type: 'team', seats: 5, start_date: Math.floor(Date.now() / 1000), end_date: Math.floor(Date.now() / 1000) + 86400,
     }));
     expect(restricted).toBeInstanceOf(PermissionError);
     expect((restricted as PermissionError).code).toBe('organization_subscription_restricted');

@@ -1135,20 +1135,20 @@ export interface OrganizationSubscription {
   seats: number;
   used_seats: number;
   status: 'active' | 'expired' | 'cancelled';
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   start_date: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   end_date: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   created_at: number;
 }
 
 export interface CreateOrganizationSubscriptionRequest {
   type: 'team' | 'enterprise';
   seats: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   start_date: number;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   end_date: number;
 }
 
@@ -1174,7 +1174,7 @@ export interface License {
   athlete_id?: string;
   email: string;
   name?: string;
-  /** Unix milliseconds. */
+  /** Unix seconds. */
   added_at: number;
   active: boolean;
 }
