@@ -14,7 +14,7 @@
         "settings_schema": "/v1/settings/schema"
       },
       "name": "Saturday API",
-      "request_id": "req_c0c563b3d22a",
+      "request_id": "req_8d070e44c740",
       "self_serve": {
         "docs": "https://docs.saturday.fit",
         "key_claim": "GET /v1/signup/claim?session_id=… (one-time reveal after checkout; also emailed)",
@@ -336,7 +336,47 @@
           "code": "rate_limit_exceeded",
           "type": "rate_limit_error",
           "http_status": 429,
-          "message": "Too many requests for this partner, athlete, or daily ceiling. Retry after the Retry-After seconds.",
+          "message": "Too many requests per second for this partner or athlete. Retry after the Retry-After seconds.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "daily_call_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The partner's daily call limit is reached. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "intelligence_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The daily limit on the intelligence endpoints (nutrition, products, inference, knowledge, AI) is reached; data endpoints keep serving. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "athlete_free_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The daily limit on calculations without an athlete is reached; calculations for your athletes keep working. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "distinct_lookup_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "The day's distinct product lookups or searches ran out; repeats keep working. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "catalog_paced",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "New products are paced after a large share of the catalog in 24 hours; products already received keep working. Retry after the Retry-After seconds.",
           "retryable": true,
           "documentation_url": "https://docs.saturday.fit/rate-limiting"
         },
@@ -344,7 +384,7 @@
           "code": "rate_limited",
           "type": "rate_limit_error",
           "http_status": 429,
-          "message": "A request pattern limit: the calculator refused a sweep of near-identical or athlete-free calculations, a day's distinct product lookups or searches ran out, or new products are paced after a large share of the catalog in 24 hours. Repeats keep working; retry after the Retry-After seconds when present, else later.",
+          "message": "The calculator refused a sweep of near-identical calculations. Retry after the Retry-After seconds.",
           "retryable": true,
           "documentation_url": "https://docs.saturday.fit/rate-limiting"
         },
@@ -621,15 +661,15 @@
           "documentation_url": "https://docs.saturday.fit/error-handling"
         }
       ],
-      "request_id": "req_af2ca6ede868",
-      "total": 73
+      "request_id": "req_d035767c6711",
+      "total": 78
     }
   },
   "health": {
     "type": "HealthResponse",
     "body": {
       "status": "ok",
-      "timestamp": "2026-11-18T02:28:27Z",
+      "timestamp": "2026-11-18T04:36:26Z",
       "version": "1.0.0"
     }
   },
@@ -673,14 +713,80 @@
           "description": "Hiking, backpacking, mountaineering"
         }
       ],
-      "request_id": "req_88e7b9e03df8",
+      "linked_session_types": [
+        {
+          "id": "brick",
+          "name": "Brick",
+          "description": "Two or more sports back to back, fueled as one continuous effort",
+          "min_legs": 2,
+          "max_legs": 10,
+          "leg_types": [
+            "bike",
+            "run",
+            "swim",
+            "row",
+            "ski",
+            "lift",
+            "hike"
+          ],
+          "min_leg_duration_min": 5,
+          "max_duration_min": 2160
+        },
+        {
+          "id": "triathlon",
+          "name": "Triathlon",
+          "description": "Swim, bike and run (or other legs) back to back, fueled as one continuous effort",
+          "min_legs": 2,
+          "max_legs": 10,
+          "leg_types": [
+            "bike",
+            "run",
+            "swim",
+            "row",
+            "ski",
+            "lift",
+            "hike"
+          ],
+          "min_leg_duration_min": 5,
+          "max_duration_min": 2160
+        }
+      ],
+      "request_id": "req_b8bef7d46ea6",
       "total": 7
+    }
+  },
+  "activity_types_filtered": {
+    "type": "ActivityTypesResponse",
+    "body": {
+      "activity_types": [],
+      "linked_session_types": [
+        {
+          "id": "brick",
+          "name": "Brick",
+          "description": "Two or more sports back to back, fueled as one continuous effort",
+          "min_legs": 2,
+          "max_legs": 10,
+          "leg_types": [
+            "bike",
+            "run",
+            "swim",
+            "row",
+            "ski",
+            "lift",
+            "hike"
+          ],
+          "min_leg_duration_min": 5,
+          "max_duration_min": 2160
+        }
+      ],
+      "request_id": "req_704028448eb1",
+      "total": 0
     }
   },
   "settings_schema": {
     "type": "SettingsSchemaResponse",
     "body": {
-      "request_id": "req_eee3bc1f08aa",
+      "request_id": "req_379563f22c0c",
       "settings": [
         {
           "field": "sweat_level",
@@ -1079,16 +1185,16 @@
           ]
         }
       ],
-      "request_id": "req_2db7cf632a8e",
+      "request_id": "req_f752e69eba49",
       "schema_version": "2026-06-12.1"
     }
   },
   "athlete": {
     "type": "Athlete",
     "body": {
-      "id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "partner_id": "partner_example",
-      "external_id": "sdk-node-4d6ec1b0-a",
+      "external_id": "sdk-node-c2e04239-a",
       "sex": "female",
       "year_of_birth": 1990,
       "weight_kg": 62,
@@ -1102,17 +1208,17 @@
         "performance": true,
         "concerns_answered": true
       },
-      "created_at": 1794968907,
-      "updated_at": 1794968907,
+      "created_at": 1794976586,
+      "updated_at": 1794976586,
       "profile_complete": true
     }
   },
   "athlete_get": {
     "type": "Athlete",
     "body": {
-      "id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "partner_id": "partner_example",
-      "external_id": "sdk-node-4d6ec1b0-a",
+      "external_id": "sdk-node-c2e04239-a",
       "sex": "female",
       "year_of_birth": 1990,
       "weight_kg": 62,
@@ -1126,8 +1232,8 @@
         "performance": true,
         "concerns_answered": true
       },
-      "created_at": 1794968907,
-      "updated_at": 1794968907,
+      "created_at": 1794976586,
+      "updated_at": 1794976586,
       "subscription_status": "teaser",
       "profile_sharing": "not_linked",
       "profile_complete": true
@@ -1138,9 +1244,9 @@
     "body": {
       "athletes": [
         {
-          "id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+          "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
           "partner_id": "partner_example",
-          "external_id": "sdk-node-4d6ec1b0-a",
+          "external_id": "sdk-node-c2e04239-a",
           "sex": "female",
           "year_of_birth": 1990,
           "weight_kg": 62,
@@ -1154,8 +1260,8 @@
             "performance": true,
             "concerns_answered": true
           },
-          "created_at": 1794968907,
-          "updated_at": 1794968907,
+          "created_at": 1794976586,
+          "updated_at": 1794976586,
           "profile_complete": true
         }
       ],
@@ -1163,7 +1269,7 @@
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_e8f14b1cd8d8"
+      "request_id": "req_a9ba4e71169e"
     }
   },
   "settings": {
@@ -1183,7 +1289,7 @@
     "type": "FuelingProfile",
     "body": {
       "object": "fueling_profile",
-      "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "sharing": "not_linked",
       "message": "This athlete has not connected a Saturday account, so there are no Saturday app answers to share."
     }
@@ -1193,12 +1299,12 @@
     "body": {
       "created": [
         {
-          "id": "f08dc470-c4cc-4365-b6d1-680f853159ae",
+          "id": "660f58db-b668-4845-a5dc-cc848b3ff916",
           "partner_id": "partner_example",
-          "external_id": "sdk-node-4d6ec1b0-c",
+          "external_id": "sdk-node-c2e04239-c",
           "settings": {},
-          "created_at": 1794968908,
-          "updated_at": 1794968908,
+          "created_at": 1794976586,
+          "updated_at": 1794976586,
           "profile_complete": false
         }
       ],
@@ -1212,7 +1318,7 @@
       "total": 2,
       "succeeded": 1,
       "failed": 1,
-      "request_id": "req_a48a21f176f0"
+      "request_id": "req_6d4a4d7d3ea9"
     }
   },
   "calculate_exact": {
@@ -1243,7 +1349,7 @@
         "profile_complete": true
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797560909153,
+      "trial_ends_at": 1797568587115,
       "trial_calls_remaining_today": 14
     }
   },
@@ -1362,14 +1468,14 @@
             "display_label": "your fitness level"
           }
         ],
-        "message": "For exact numbers, a few key details are still needed: how much carb your gut is trained for, how many carbs you usually take in, your sex, how salty your sweat is, your age, how much you sweat. Each one narrows the range.",
+        "message": "For exact numbers, fill in what is missing. This athlete's profile is missing sex, age, sweat_level, saltiness, carb_experience, usual_carb_consumption, satiety_level, fitness_level, concerns: the onboarding link collects them.",
         "onboarding": {
           "url": "https://saturday.fit/onboard?ot=example&test=1",
           "message": "Answer the missing questions once and this athlete gets exact numbers on every future call — or they can onboard once in the Saturday app and stay exact here forever."
         }
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797560916150,
+      "trial_ends_at": 1797568593751,
       "trial_calls_remaining_today": 14
     }
   },
@@ -1548,7 +1654,7 @@
             "display_label": "whether it's a race"
           }
         ],
-        "message": "For exact numbers, a few key details are still needed: how much carb your gut is trained for, how hot it will be, your body weight, how hard the effort will be, how many carbs you usually take in, your sex, how salty your sweat is, your age, how much you sweat. Each one narrows the range.",
+        "message": "For exact numbers, fill in what is missing. This athlete's profile is missing sex, age, athlete_weight_kg, sweat_level, saltiness, carb_experience, usual_carb_consumption, satiety_level, fitness_level, concerns: the onboarding link collects them. This session is missing intensity_level, thermal_stress_level, meal_before_min, is_race. Send them in the request body.",
         "onboarding": {
           "message": "Answer the missing questions once and this athlete gets exact numbers on every future call — or they can onboard once in the Saturday app and stay exact here forever."
         }
@@ -1585,8 +1691,8 @@
             "profile_complete": true
           },
           "tier_source": "trial",
-          "trial_ends_at": 1797560909153,
-          "trial_calls_remaining_today": 11
+          "trial_ends_at": 1797568587115,
+          "trial_calls_remaining_today": 10
         }
       ],
       "errors": [
@@ -1599,16 +1705,16 @@
       "total": 2,
       "succeeded": 1,
       "failed": 1,
-      "estimated_ms": 1933,
-      "elapsed_ms": 1359,
-      "request_id": "req_5e2d1ded6df9"
+      "estimated_ms": 1997,
+      "elapsed_ms": 1361,
+      "request_id": "req_3fca37bc8562"
     }
   },
   "activity": {
     "type": "Activity",
     "body": {
-      "id": "c9e29f7c-28a8-4245-8482-02e756001261",
-      "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "id": "a568416f-d04d-4322-a8c3-6cab2d303afb",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "partner_id": "partner_example",
       "type": "bike",
       "duration_min": 150,
@@ -1616,16 +1722,16 @@
       "thermal_stress_level": 6,
       "is_race_event": false,
       "meal_before_min": 120,
-      "external_id": "sdk-node-4d6ec1b0-w1",
-      "created_at": 1794968921,
-      "updated_at": 1794968921
+      "external_id": "sdk-node-c2e04239-w1",
+      "created_at": 1794976601,
+      "updated_at": 1794976601
     }
   },
   "activity_get": {
     "type": "Activity",
     "body": {
-      "id": "c9e29f7c-28a8-4245-8482-02e756001261",
-      "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "id": "a568416f-d04d-4322-a8c3-6cab2d303afb",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "partner_id": "partner_example",
       "type": "bike",
       "duration_min": 150,
@@ -1633,9 +1739,9 @@
       "thermal_stress_level": 6,
       "is_race_event": false,
       "meal_before_min": 120,
-      "external_id": "sdk-node-4d6ec1b0-w1",
-      "created_at": 1794968921,
-      "updated_at": 1794968921
+      "external_id": "sdk-node-c2e04239-w1",
+      "created_at": 1794976601,
+      "updated_at": 1794976601
     }
   },
   "activity_list": {
@@ -1643,8 +1749,8 @@
     "body": {
       "activities": [
         {
-          "id": "c9e29f7c-28a8-4245-8482-02e756001261",
-          "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+          "id": "a568416f-d04d-4322-a8c3-6cab2d303afb",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
           "partner_id": "partner_example",
           "type": "bike",
           "duration_min": 150,
@@ -1652,16 +1758,16 @@
           "thermal_stress_level": 6,
           "is_race_event": false,
           "meal_before_min": 120,
-          "external_id": "sdk-node-4d6ec1b0-w1",
-          "created_at": 1794968921,
-          "updated_at": 1794968921
+          "external_id": "sdk-node-c2e04239-w1",
+          "created_at": 1794976601,
+          "updated_at": 1794976601
         }
       ],
       "pagination": {
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_bde25ed694cb"
+      "request_id": "req_f72914c35548"
     }
   },
   "activity_calculate": {
@@ -1675,7 +1781,7 @@
         "carb_g_per_hr": 71,
         "sodium_mg_per_hr": 790,
         "fluid_ml_per_hr": 750,
-        "calculated_at": 1794968921
+        "calculated_at": 1794976601
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1695,8 +1801,8 @@
         "profile_complete": true
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797560909153,
-      "trial_calls_remaining_today": 10
+      "trial_ends_at": 1797568587115,
+      "trial_calls_remaining_today": 9
     }
   },
   "activity_prescription": {
@@ -1709,7 +1815,7 @@
         "carb_g_per_hr": 71,
         "sodium_mg_per_hr": 790,
         "fluid_ml_per_hr": 750,
-        "calculated_at": 1794968921
+        "calculated_at": 1794976601
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1762,7 +1868,7 @@
         "sodium": 90,
         "fluid": 1
       },
-      "note": "Base mix (Speed Nectar) covers the rest: sugar 0g, sodium citrate 200mg, water 1980mL. Products are additions to the base recipe — this gap is normal and often optimal.",
+      "note": "Base mix (Speed Nectar) covers the rest: sugar 0g, sodium citrate 200mg, water 1980mL. Products are additions to the base recipe: this gap is normal and often optimal.",
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
         "max_safe_sodium_mg_per_hr": 3000,
@@ -1778,7 +1884,7 @@
     "body": {
       "rating": 4,
       "notes": "live suite",
-      "created_at": 1794968925
+      "created_at": 1794976604
     }
   },
   "activity_import": {
@@ -1786,8 +1892,8 @@
     "body": {
       "imported": [
         {
-          "id": "e2bf2ea3-12b7-4757-9791-9befdbb50620",
-          "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+          "id": "12ff83ec-b0a9-453b-b8a8-71872aded9a9",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
           "partner_id": "partner_example",
           "type": "run",
           "duration_min": 45,
@@ -1795,7 +1901,7 @@
           "thermal_stress_level": 4,
           "is_race_event": false,
           "meal_before_min": 120,
-          "external_id": "sdk-node-4d6ec1b0-i1",
+          "external_id": "sdk-node-c2e04239-i1",
           "prescription": {
             "total_carb_g": 15,
             "total_sodium_mg": 0,
@@ -1803,20 +1909,20 @@
             "carb_g_per_hr": 20,
             "sodium_mg_per_hr": 0,
             "fluid_ml_per_hr": 330,
-            "calculated_at": 1794968925
+            "calculated_at": 1794976604
           },
-          "created_at": 1794968925,
-          "updated_at": 1794968925
+          "created_at": 1794976604,
+          "updated_at": 1794976604
         }
       ],
       "total": 1,
       "succeeded": 1,
       "failed": 0,
-      "request_id": "req_76af980898f9",
+      "request_id": "req_d1ba7914f569",
       "prescriptions": [
         {
           "index": 0,
-          "activity_id": "e2bf2ea3-12b7-4757-9791-9befdbb50620",
+          "activity_id": "12ff83ec-b0a9-453b-b8a8-71872aded9a9",
           "result": {
             "tier": "full",
             "prescription": {
@@ -1826,7 +1932,7 @@
               "carb_g_per_hr": 20,
               "sodium_mg_per_hr": 0,
               "fluid_ml_per_hr": 330,
-              "calculated_at": 1794968925
+              "calculated_at": 1794976604
             },
             "safety": {
               "max_safe_fluid_ml_per_hr": 1500,
@@ -1846,8 +1952,411 @@
               "profile_complete": true
             },
             "tier_source": "trial",
-            "trial_ends_at": 1797560909153,
-            "trial_calls_remaining_today": 9
+            "trial_ends_at": 1797568587115,
+            "trial_calls_remaining_today": 8
+          }
+        }
+      ]
+    }
+  },
+  "calculate_brick": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "full",
+      "carb_g_per_hr": 70,
+      "sodium_mg_per_hr": 400,
+      "fluid_ml_per_hr": 600,
+      "total_carb_g": 140,
+      "total_sodium_mg": 800,
+      "total_fluid_ml": 1200,
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      },
+      "legs": [
+        {
+          "duration_min": 90,
+          "total_carb_g": 110,
+          "total_sodium_mg": 600,
+          "total_fluid_ml": 900,
+          "carb_g_per_hr": 73,
+          "sodium_mg_per_hr": 400,
+          "fluid_ml_per_hr": 600
+        },
+        {
+          "duration_min": 30,
+          "total_carb_g": 30,
+          "total_sodium_mg": 200,
+          "total_fluid_ml": 250,
+          "carb_g_per_hr": 60,
+          "sodium_mg_per_hr": 400,
+          "fluid_ml_per_hr": 500
+        }
+      ]
+    }
+  },
+  "calculate_triathlon": {
+    "type": "NutritionCalculateResponse",
+    "body": {
+      "tier": "full",
+      "carb_g_per_hr": 71,
+      "sodium_mg_per_hr": 710,
+      "fluid_ml_per_hr": 670,
+      "total_carb_g": 200,
+      "total_sodium_mg": 2000,
+      "total_fluid_ml": 1900,
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      },
+      "legs": [
+        {
+          "duration_min": 30,
+          "total_carb_g": 60,
+          "total_sodium_mg": 427,
+          "total_fluid_ml": 441,
+          "carb_g_per_hr": 72,
+          "sodium_mg_per_hr": 510,
+          "fluid_ml_per_hr": 530
+        },
+        {
+          "duration_min": 80,
+          "total_carb_g": 95,
+          "total_sodium_mg": 1000,
+          "total_fluid_ml": 1000,
+          "carb_g_per_hr": 71,
+          "sodium_mg_per_hr": 750,
+          "fluid_ml_per_hr": 750
+        },
+        {
+          "duration_min": 40,
+          "total_carb_g": 45,
+          "total_sodium_mg": 550,
+          "total_fluid_ml": 450,
+          "carb_g_per_hr": 68,
+          "sodium_mg_per_hr": 830,
+          "fluid_ml_per_hr": 680
+        }
+      ]
+    }
+  },
+  "activity_brick": {
+    "type": "Activity",
+    "body": {
+      "id": "251f8824-0855-4d29-89af-b3bb2f6b393d",
+      "athlete_id": "7876177b-cd07-4fe6-b322-fb24ffb635af",
+      "partner_id": "partner_example",
+      "type": "brick",
+      "duration_min": 120,
+      "is_race_event": false,
+      "legs": [
+        {
+          "type": "bike",
+          "duration_min": 90,
+          "intensity_level": 6,
+          "thermal_stress_level": 6
+        },
+        {
+          "type": "run",
+          "duration_min": 30,
+          "intensity_level": 7,
+          "thermal_stress_level": 6
+        }
+      ],
+      "meal_before_min": 120,
+      "external_id": "sdk-node-c2e04239-brick",
+      "created_at": 1794976618,
+      "updated_at": 1794976618
+    }
+  },
+  "activity_calculate_brick": {
+    "type": "PrescriptionEnvelope",
+    "body": {
+      "tier": "full",
+      "prescription": {
+        "total_carb_g": 140,
+        "total_sodium_mg": 800,
+        "total_fluid_ml": 1200,
+        "carb_g_per_hr": 70,
+        "sodium_mg_per_hr": 400,
+        "fluid_ml_per_hr": 600,
+        "calculated_at": 1794976618,
+        "legs": [
+          {
+            "duration_min": 90,
+            "total_carb_g": 110,
+            "total_sodium_mg": 600,
+            "total_fluid_ml": 900,
+            "carb_g_per_hr": 73,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 600
+          },
+          {
+            "duration_min": 30,
+            "total_carb_g": 30,
+            "total_sodium_mg": 200,
+            "total_fluid_ml": 250,
+            "carb_g_per_hr": 60,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 500
+          }
+        ]
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "attribution": {
+        "text": "Powered by Saturday",
+        "logo_url": "https://saturday.fit/logo.png",
+        "link": "https://saturday.fit",
+        "required": true
+      },
+      "precision": {
+        "profile_complete": true
+      }
+    }
+  },
+  "activity_prescription_brick": {
+    "type": "StoredPrescriptionResponse",
+    "body": {
+      "prescription": {
+        "total_carb_g": 140,
+        "total_sodium_mg": 800,
+        "total_fluid_ml": 1200,
+        "carb_g_per_hr": 70,
+        "sodium_mg_per_hr": 400,
+        "fluid_ml_per_hr": 600,
+        "calculated_at": 1794976618,
+        "legs": [
+          {
+            "duration_min": 90,
+            "total_carb_g": 110,
+            "total_sodium_mg": 600,
+            "total_fluid_ml": 900,
+            "carb_g_per_hr": 73,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 600
+          },
+          {
+            "duration_min": 30,
+            "total_carb_g": 30,
+            "total_sodium_mg": 200,
+            "total_fluid_ml": 250,
+            "carb_g_per_hr": 60,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 500
+          }
+        ]
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 1,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      }
+    }
+  },
+  "prep_brick": {
+    "type": "PrepResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 140,
+        "sodium_mg": 800,
+        "fluid_ml": 1200
+      },
+      "products": [
+        {
+          "product_id": "mau-100-gel",
+          "product_name": "Maurten Gel 100",
+          "servings": 3,
+          "carb_g": 75,
+          "sodium_mg": 60,
+          "fluid_ml": 30
+        },
+        {
+          "product_id": "twind-endfuel-powd",
+          "product_name": "Tailwind Endurance Fuel",
+          "servings": 3,
+          "carb_g": 75,
+          "sodium_mg": 930,
+          "fluid_ml": 0
+        }
+      ],
+      "totals_from_products": {
+        "carb_g": 150,
+        "sodium_mg": 990,
+        "fluid_ml": 30
+      },
+      "remaining_gap": {
+        "carb_g": 0,
+        "sodium_mg": 0,
+        "fluid_ml": 1170
+      },
+      "coverage_pct": {
+        "carb": 100,
+        "sodium": 100,
+        "fluid": 3
+      },
+      "note": "Base mix (Speed Nectar) covers the rest: sugar 0g, sodium citrate 0mg, water 1170mL. Products are additions to the base recipe: this gap is normal and often optimal.",
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      }
+    }
+  },
+  "activity_import_brick": {
+    "type": "ActivityImportResponse",
+    "body": {
+      "imported": [
+        {
+          "id": "039abc6d-dc68-4487-8783-4535f6e1479f",
+          "athlete_id": "7876177b-cd07-4fe6-b322-fb24ffb635af",
+          "partner_id": "partner_example",
+          "type": "brick",
+          "duration_min": 120,
+          "is_race_event": false,
+          "legs": [
+            {
+              "type": "bike",
+              "duration_min": 90,
+              "intensity_level": 6,
+              "thermal_stress_level": 6
+            },
+            {
+              "type": "run",
+              "duration_min": 30,
+              "intensity_level": 7,
+              "thermal_stress_level": 6
+            }
+          ],
+          "meal_before_min": 120,
+          "external_id": "sdk-node-c2e04239-i-brick",
+          "prescription": {
+            "total_carb_g": 140,
+            "total_sodium_mg": 800,
+            "total_fluid_ml": 1200,
+            "carb_g_per_hr": 70,
+            "sodium_mg_per_hr": 400,
+            "fluid_ml_per_hr": 600,
+            "calculated_at": 1794976622,
+            "legs": [
+              {
+                "duration_min": 90,
+                "total_carb_g": 110,
+                "total_sodium_mg": 600,
+                "total_fluid_ml": 900,
+                "carb_g_per_hr": 73,
+                "sodium_mg_per_hr": 400,
+                "fluid_ml_per_hr": 600
+              },
+              {
+                "duration_min": 30,
+                "total_carb_g": 30,
+                "total_sodium_mg": 200,
+                "total_fluid_ml": 250,
+                "carb_g_per_hr": 60,
+                "sodium_mg_per_hr": 400,
+                "fluid_ml_per_hr": 500
+              }
+            ]
+          },
+          "created_at": 1794976622,
+          "updated_at": 1794976622
+        }
+      ],
+      "total": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "request_id": "req_bcdd2668db17",
+      "prescriptions": [
+        {
+          "index": 0,
+          "activity_id": "039abc6d-dc68-4487-8783-4535f6e1479f",
+          "result": {
+            "tier": "full",
+            "prescription": {
+              "total_carb_g": 140,
+              "total_sodium_mg": 800,
+              "total_fluid_ml": 1200,
+              "carb_g_per_hr": 70,
+              "sodium_mg_per_hr": 400,
+              "fluid_ml_per_hr": 600,
+              "calculated_at": 1794976622,
+              "legs": [
+                {
+                  "duration_min": 90,
+                  "total_carb_g": 110,
+                  "total_sodium_mg": 600,
+                  "total_fluid_ml": 900,
+                  "carb_g_per_hr": 73,
+                  "sodium_mg_per_hr": 400,
+                  "fluid_ml_per_hr": 600
+                },
+                {
+                  "duration_min": 30,
+                  "total_carb_g": 30,
+                  "total_sodium_mg": 200,
+                  "total_fluid_ml": 250,
+                  "carb_g_per_hr": 60,
+                  "sodium_mg_per_hr": 400,
+                  "fluid_ml_per_hr": 500
+                }
+              ]
+            },
+            "safety": {
+              "max_safe_fluid_ml_per_hr": 1500,
+              "max_safe_sodium_mg_per_hr": 3000,
+              "confidence_score": 1,
+              "requires_human_review": false,
+              "warnings": [],
+              "not_instructions": true
+            },
+            "attribution": {
+              "text": "Powered by Saturday",
+              "logo_url": "https://saturday.fit/logo.png",
+              "link": "https://saturday.fit",
+              "required": true
+            },
+            "precision": {
+              "profile_complete": true
+            }
           }
         }
       ]
@@ -1887,7 +2396,7 @@
           "sodium_mg": 440,
           "fluid_ml": 620
         },
-        "verdict": "At 3 servings, maxes out carbs but only provides 12% of sodium. The remaining sodium comes from sodium citrate or salt in the base mix."
+        "verdict": "At 3 servings, maxes out carbs but only provides 12% of sodium. The remaining sodium comes from salt in the base mix."
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1933,11 +2442,22 @@
           "sodium_mg": 0,
           "fluid_ml": 1100
         },
-        "verdict": "At 3.75 servings: provides 72% carbs, 100% sodium. The rest comes from base ingredients (sugar + sodium citrate + water)."
+        "verdict": "At 3.75 servings: provides 72% carbs, 100% sodium. The rest comes from base ingredients (sugar + salt + water)."
       },
       "plan_basis": {
-        "source": "range_midpoint",
-        "message": "Planned from the middle of this athlete's ranges, because their profile is missing answers. Once they answer the rest, this plan uses their exact numbers.",
+        "source": "profile_incomplete",
+        "message": "Planned from the middle of this athlete's ranges. Their profile is missing sex, age, sweat_level, saltiness, carb_experience, usual_carb_consumption, satiety_level, fitness_level, concerns: the onboarding link collects them. With all of them in, this plan uses the athlete's exact numbers.",
+        "missing_profile_fields": [
+          "sex",
+          "age",
+          "sweat_level",
+          "saltiness",
+          "carb_experience",
+          "usual_carb_consumption",
+          "satiety_level",
+          "fitness_level",
+          "concerns"
+        ],
         "carb_range_g_per_hr": "50-80",
         "sodium_range_mg_per_hr": "200-600",
         "fluid_range_ml_per_hr": "300-800",
@@ -1945,6 +2465,64 @@
           "url": "https://saturday.fit/onboard?ot=example&test=1",
           "message": "Answer the missing questions once and this athlete gets exact numbers on every future call — or they can onboard once in the Saturday app and stay exact here forever."
         }
+      },
+      "safety": {
+        "max_safe_fluid_ml_per_hr": 1500,
+        "max_safe_sodium_mg_per_hr": 3000,
+        "confidence_score": 0.7,
+        "requires_human_review": false,
+        "warnings": [],
+        "not_instructions": true
+      },
+      "tier": "full"
+    }
+  },
+  "product_fit_session_inputs": {
+    "type": "ProductFitResponse",
+    "body": {
+      "prescription": {
+        "carb_g": 70,
+        "sodium_mg": 450,
+        "fluid_ml": 600
+      },
+      "fit": {
+        "product_id": "mau-100-gel",
+        "product_name": "Maurten Gel 100",
+        "product_type": "gel",
+        "brand": "Maurten",
+        "per_serving": {
+          "carb_g": 25,
+          "sodium_mg": 20,
+          "fluid_ml": 10,
+          "caffeine_mg": 0
+        },
+        "max_servings": 3,
+        "at_max_servings": {
+          "carb_g": 75,
+          "sodium_mg": 60,
+          "fluid_ml": 30
+        },
+        "carb_coverage_pct": 100,
+        "sodium_coverage_pct": 13,
+        "fluid_coverage_pct": 5,
+        "limiting_factor": "carbs",
+        "remaining_gap": {
+          "carb_g": 0,
+          "sodium_mg": 390,
+          "fluid_ml": 570
+        },
+        "verdict": "At 3 servings, maxes out carbs but only provides 13% of sodium. The remaining sodium comes from salt in the base mix."
+      },
+      "plan_basis": {
+        "source": "session_incomplete",
+        "message": "Planned from the middle of this athlete's ranges. This session is missing meal_before_min, is_race. Send them in the request body. With all of them in, this plan uses the athlete's exact numbers.",
+        "missing_session_inputs": [
+          "meal_before_min",
+          "is_race"
+        ],
+        "carb_range_g_per_hr": "40-50",
+        "sodium_range_mg_per_hr": "200-400",
+        "fluid_range_ml_per_hr": "300-500"
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1991,7 +2569,7 @@
           "sodium_mg": 2040,
           "fluid_ml": 1920
         },
-        "verdict": "At 8 servings, maxes out carbs but only provides 7% of sodium. The remaining sodium comes from sodium citrate or salt in the base mix."
+        "verdict": "At 8 servings, maxes out carbs but only provides 7% of sodium. The remaining sodium comes from salt in the base mix."
       },
       "product_b": {
         "product_id": "twind-endfuel-powd",
@@ -2018,7 +2596,7 @@
           "sodium_mg": 0,
           "fluid_ml": 2000
         },
-        "verdict": "At 8.25 servings: provides 98% carbs, 100% sodium. The rest comes from base ingredients (sugar + sodium citrate + water)."
+        "verdict": "At 8.25 servings: provides 98% carbs, 100% sodium. The rest comes from base ingredients (sugar + salt + water)."
       },
       "winner": {
         "carb": "product_b",
@@ -2040,8 +2618,8 @@
   "simulate_subscription": {
     "type": "SimulateSubscriptionResponse",
     "body": {
-      "athlete_id": "6eb47c1c-0358-4e8b-97c1-9dd27dc4088f",
-      "request_id": "req_7328a7808005",
+      "athlete_id": "64cdac25-08d8-4fd4-bef6-30bb6f8be06f",
+      "request_id": "req_c516eb63e461",
       "simulated_active": true
     }
   },
@@ -2060,71 +2638,67 @@
         "requests_per_day": 10000,
         "ip_requests_per_day": 5000
       },
-      "created_at": 1794968901704
+      "created_at": 1794976582226
     }
   },
   "usage": {
     "type": "UsageResponse",
     "body": {
       "by_endpoint": {
-        "/v1/activity-types": 1,
-        "/v1/athletes": 3,
+        "/v1/activity-types": 2,
+        "/v1/athletes": 4,
         "/v1/athletes/batch": 2,
         "/v1/athletes/{athlete_id}": 2,
-        "/v1/athletes/{athlete_id}/activities": 2,
-        "/v1/athletes/{athlete_id}/activities/import": 1,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}": 3,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 2,
+        "/v1/athletes/{athlete_id}/activities": 3,
+        "/v1/athletes/{athlete_id}/activities/import": 2,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
         "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 1,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 1,
-        "/v1/athletes/{athlete_id}/delete": 1,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 3,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+        "/v1/athletes/{athlete_id}/delete": 2,
         "/v1/athletes/{athlete_id}/fueling-profile": 1,
         "/v1/athletes/{athlete_id}/settings": 2,
-        "/v1/nutrition/calculate": 5,
-        "/v1/nutrition/calculate/batch": 2,
+        "/v1/nutrition/calculate": 10,
+        "/v1/nutrition/calculate/batch": 4,
         "/v1/nutrition/products/compare": 1,
-        "/v1/nutrition/products/fit": 2,
+        "/v1/nutrition/products/fit": 3,
         "/v1/onboarding/questions": 1,
         "/v1/partner": 1,
         "/v1/settings/schema": 1,
-        "/v1/test/athletes/{athlete_id}/simulate-subscription": 2,
-        "product_compare": 1,
-        "product_fit": 3
+        "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
       },
       "daily": [
         {
           "date": "2026-11-18",
-          "total_calls": 42,
+          "total_calls": 62,
           "by_endpoint": {
-            "/v1/activity-types": 1,
-            "/v1/athletes": 3,
+            "/v1/activity-types": 2,
+            "/v1/athletes": 4,
             "/v1/athletes/batch": 2,
             "/v1/athletes/{athlete_id}": 2,
-            "/v1/athletes/{athlete_id}/activities": 2,
-            "/v1/athletes/{athlete_id}/activities/import": 1,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}": 3,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 2,
+            "/v1/athletes/{athlete_id}/activities": 3,
+            "/v1/athletes/{athlete_id}/activities/import": 2,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
             "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 1,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 1,
-            "/v1/athletes/{athlete_id}/delete": 1,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 3,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+            "/v1/athletes/{athlete_id}/delete": 2,
             "/v1/athletes/{athlete_id}/fueling-profile": 1,
             "/v1/athletes/{athlete_id}/settings": 2,
-            "/v1/nutrition/calculate": 5,
-            "/v1/nutrition/calculate/batch": 2,
+            "/v1/nutrition/calculate": 10,
+            "/v1/nutrition/calculate/batch": 4,
             "/v1/nutrition/products/compare": 1,
-            "/v1/nutrition/products/fit": 2,
+            "/v1/nutrition/products/fit": 3,
             "/v1/onboarding/questions": 1,
             "/v1/partner": 1,
             "/v1/settings/schema": 1,
-            "/v1/test/athletes/{athlete_id}/simulate-subscription": 2,
-            "product_compare": 1,
-            "product_fit": 3
+            "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
           },
-          "ip_calls": 14,
-          "own_calls": 24,
-          "unique_athletes": 3,
+          "ip_calls": 28,
+          "own_calls": 34,
+          "unique_athletes": 4,
           "estimate_calculates": 1
         }
       ],
@@ -2132,8 +2706,8 @@
         "from": "2026-10-19",
         "to": "2026-11-18"
       },
-      "request_id": "req_960b602b1042",
-      "total_calls": 42
+      "request_id": "req_f7a6825dd281",
+      "total_calls": 62
     }
   },
   "usage_daily": {
@@ -2142,37 +2716,35 @@
       "daily": [
         {
           "date": "2026-11-18",
-          "total_calls": 43,
+          "total_calls": 63,
           "by_endpoint": {
-            "/v1/activity-types": 1,
-            "/v1/athletes": 3,
+            "/v1/activity-types": 2,
+            "/v1/athletes": 4,
             "/v1/athletes/batch": 2,
             "/v1/athletes/{athlete_id}": 2,
-            "/v1/athletes/{athlete_id}/activities": 2,
-            "/v1/athletes/{athlete_id}/activities/import": 1,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}": 3,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 2,
+            "/v1/athletes/{athlete_id}/activities": 3,
+            "/v1/athletes/{athlete_id}/activities/import": 2,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
             "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 1,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 1,
-            "/v1/athletes/{athlete_id}/delete": 1,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 3,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+            "/v1/athletes/{athlete_id}/delete": 2,
             "/v1/athletes/{athlete_id}/fueling-profile": 1,
             "/v1/athletes/{athlete_id}/settings": 2,
-            "/v1/nutrition/calculate": 5,
-            "/v1/nutrition/calculate/batch": 2,
+            "/v1/nutrition/calculate": 10,
+            "/v1/nutrition/calculate/batch": 4,
             "/v1/nutrition/products/compare": 1,
-            "/v1/nutrition/products/fit": 2,
+            "/v1/nutrition/products/fit": 3,
             "/v1/onboarding/questions": 1,
             "/v1/partner": 1,
             "/v1/partner/usage": 1,
             "/v1/settings/schema": 1,
-            "/v1/test/athletes/{athlete_id}/simulate-subscription": 2,
-            "product_compare": 1,
-            "product_fit": 3
+            "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
           },
-          "ip_calls": 14,
-          "own_calls": 25,
-          "unique_athletes": 3,
+          "ip_calls": 28,
+          "own_calls": 35,
+          "unique_athletes": 4,
           "estimate_calculates": 1
         }
       ],
@@ -2180,7 +2752,7 @@
         "from": "2026-11-11",
         "to": "2026-11-18"
       },
-      "request_id": "req_3d83d5e5241c"
+      "request_id": "req_ce2d576b2b24"
     }
   },
   "api_keys": {
@@ -2188,31 +2760,31 @@
     "body": {
       "api_keys": [
         {
-          "id": "0963c5f3575b5af57e82cd9a2f2d4294e049957514a19cac6633e957f42a9a78",
+          "id": "5a73c19ca6fa1d41ce455aaf2af3a6c3bf32d0b23f4f8688afc02d9d6e890f94",
           "name": "sdk-live",
           "environment": "test",
           "scopes": [
             "*"
           ],
-          "created_at": 1794968901812,
-          "last_used_at": 1794968927702,
+          "created_at": 1794976582262,
+          "last_used_at": 1794976624889,
           "revoked": false
         }
       ],
-      "request_id": "req_449fb8f01a63",
+      "request_id": "req_a8c63f2a8f7b",
       "total": 1
     }
   },
   "api_key_created": {
     "type": "CreatedApiKey",
     "body": {
-      "created_at": 1794968927781,
+      "created_at": 1794976624910,
       "environment": "test",
-      "id": "84866983745facb0fd2856ead285b677bfb0b8484a02251dbcc35efa99d8bce4",
+      "id": "afb089252c852b12a686161d02ac75ded203bc35f0a5d250d112545200b6f221",
       "key": "sk_test_example",
       "message": "Store this key securely — it will not be shown again.",
-      "name": "sdk-node-4d6ec1b0-key",
-      "request_id": "req_1f9f4e983d02",
+      "name": "sdk-node-c2e04239-key",
+      "request_id": "req_f27bc02b2362",
       "scopes": [
         "*"
       ]
@@ -2222,12 +2794,12 @@
     "type": "RotatedApiKey",
     "body": {
       "environment": "test",
-      "id": "0ca4cc35513477cbeb656bacaaa0d504d54c897660180bc1c6dbdd8018884df0",
+      "id": "8bd995a7d2bf86f9890579a1f9ef10a99bcd21292a949fcd326ffbc916f6f7fa",
       "key": "sk_test_example",
       "message": "Store this key securely — it will not be shown again. The old key has been revoked.",
-      "name": "sdk-node-4d6ec1b0-key",
-      "request_id": "req_f3bf6722e2c0",
-      "rotated_from": "84866983745facb0fd2856ead285b677bfb0b8484a02251dbcc35efa99d8bce4",
+      "name": "sdk-node-c2e04239-key",
+      "request_id": "req_7b711211e708",
+      "rotated_from": "afb089252c852b12a686161d02ac75ded203bc35f0a5d250d112545200b6f221",
       "scopes": [
         "*"
       ]
@@ -2237,17 +2809,17 @@
     "type": "WebhookCreateResponse",
     "body": {
       "message": "Store the secret securely — it will not be shown again. Use it to verify webhook signatures.",
-      "request_id": "req_e6ed36b924c2",
+      "request_id": "req_b29384e62739",
       "webhook": {
-        "id": "6128849c-f6cc-4c19-94db-0c0657cda209",
+        "id": "278a1e86-ede9-4edd-9853-463147eb21b4",
         "partner_id": "partner_example",
         "url": "https://example.com/saturday-live-suite",
         "events": [
           "prescription.calculated"
         ],
         "active": true,
-        "created_at": 1794968927952,
-        "updated_at": 1794968927952,
+        "created_at": 1794976624943,
+        "updated_at": 1794976624943,
         "fail_count": 0,
         "secret": "whsec_example"
       }
@@ -2256,19 +2828,19 @@
   "webhook_list": {
     "type": "WebhookListResponse",
     "body": {
-      "request_id": "req_3ec514504055",
+      "request_id": "req_b00491507593",
       "total": 1,
       "webhooks": [
         {
-          "id": "6128849c-f6cc-4c19-94db-0c0657cda209",
+          "id": "278a1e86-ede9-4edd-9853-463147eb21b4",
           "partner_id": "partner_example",
           "url": "https://example.com/saturday-live-suite",
           "events": [
             "prescription.calculated"
           ],
           "active": true,
-          "created_at": 1794968927952,
-          "updated_at": 1794968927952,
+          "created_at": 1794976624943,
+          "updated_at": 1794976624943,
           "fail_count": 0
         }
       ]
@@ -2277,15 +2849,15 @@
   "webhook": {
     "type": "Webhook",
     "body": {
-      "id": "6128849c-f6cc-4c19-94db-0c0657cda209",
+      "id": "278a1e86-ede9-4edd-9853-463147eb21b4",
       "partner_id": "partner_example",
       "url": "https://example.com/saturday-live-suite",
       "events": [
         "prescription.calculated"
       ],
       "active": true,
-      "created_at": 1794968927952,
-      "updated_at": 1794968927952,
+      "created_at": 1794976624943,
+      "updated_at": 1794976624943,
       "fail_count": 0
     }
   },
@@ -2293,19 +2865,19 @@
     "type": "WebhookDeliveryList",
     "body": {
       "deliveries": [],
-      "request_id": "req_5ee32899aa27",
+      "request_id": "req_b83745ba7553",
       "total": 0
     }
   },
   "organization": {
     "type": "Organization",
     "body": {
-      "id": "2e33e5fa-cfff-4259-a402-ee9d70dfbe56",
+      "id": "871f8ee8-d828-497b-8918-af8389916fd1",
       "partner_id": "partner_example",
-      "display_name": "sdk-node-4d6ec1b0 team",
+      "display_name": "sdk-node-c2e04239 team",
       "sport": "triathlon",
-      "created_at": 1794968928,
-      "updated_at": 1794968928,
+      "created_at": 1794976625,
+      "updated_at": 1794976625,
       "member_count": 0
     }
   },
@@ -2314,12 +2886,12 @@
     "body": {
       "organizations": [
         {
-          "id": "2e33e5fa-cfff-4259-a402-ee9d70dfbe56",
+          "id": "871f8ee8-d828-497b-8918-af8389916fd1",
           "partner_id": "partner_example",
-          "display_name": "sdk-node-4d6ec1b0 team",
+          "display_name": "sdk-node-c2e04239 team",
           "sport": "triathlon",
-          "created_at": 1794968928,
-          "updated_at": 1794968928,
+          "created_at": 1794976625,
+          "updated_at": 1794976625,
           "member_count": 0
         }
       ],
@@ -2327,17 +2899,17 @@
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_6003fa948558"
+      "request_id": "req_0588eea3fbc6"
     }
   },
   "organization_member": {
     "type": "OrganizationMember",
     "body": {
-      "id": "22e9b9c4-6ac2-4ee5-966b-b5758f04bbeb",
-      "email": "sdk-node-4d6ec1b0@example.com",
+      "id": "536f4ec6-073a-4161-ba06-12610dd79d4b",
+      "email": "sdk-node-c2e04239@example.com",
       "role": "member",
-      "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
-      "joined_at": 1794968929
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+      "joined_at": 1794976625
     }
   },
   "organization_members": {
@@ -2345,43 +2917,43 @@
     "body": {
       "members": [
         {
-          "id": "22e9b9c4-6ac2-4ee5-966b-b5758f04bbeb",
-          "email": "sdk-node-4d6ec1b0@example.com",
+          "id": "536f4ec6-073a-4161-ba06-12610dd79d4b",
+          "email": "sdk-node-c2e04239@example.com",
           "role": "member",
-          "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
-          "joined_at": 1794968929
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "joined_at": 1794976625
         }
       ],
-      "request_id": "req_79472d0c470a",
+      "request_id": "req_0b10d4aa7fd7",
       "total": 1
     }
   },
   "organization_offer": {
     "type": "OrganizationOffer",
     "body": {
-      "id": "2164f382-73ff-41ea-bb9a-3014a3949730",
-      "org_id": "2e33e5fa-cfff-4259-a402-ee9d70dfbe56",
+      "id": "b8b142d2-5c08-444b-a6fa-69b140007ab2",
+      "org_id": "871f8ee8-d828-497b-8918-af8389916fd1",
       "discount_percent": 10,
       "active": true,
-      "created_at": 1794968929,
+      "created_at": 1794976625,
       "stack_cap_percent": 30
     }
   },
   "organization_offer_get": {
     "type": "OrganizationOffer",
     "body": {
-      "id": "2164f382-73ff-41ea-bb9a-3014a3949730",
-      "org_id": "2e33e5fa-cfff-4259-a402-ee9d70dfbe56",
+      "id": "b8b142d2-5c08-444b-a6fa-69b140007ab2",
+      "org_id": "871f8ee8-d828-497b-8918-af8389916fd1",
       "discount_percent": 10,
       "active": true,
-      "created_at": 1794968929,
+      "created_at": 1794976625,
       "stack_cap_percent": 30
     }
   },
   "organization_subscriptions": {
     "type": "OrganizationSubscriptionListResponse",
     "body": {
-      "request_id": "req_63d7a31b8686",
+      "request_id": "req_7152674d689f",
       "subscriptions": [],
       "total": 0
     }
@@ -2389,12 +2961,12 @@
   "consent": {
     "type": "ConsentRecord",
     "body": {
-      "id": "cf098244-db9c-43bf-9bf7-a83551ff68a6",
-      "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "id": "1ba68708-5712-4039-a927-32dc9913f413",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "partner_id": "partner_example",
       "consent_type": "analytics",
       "granted": true,
-      "granted_at": 1794968929,
+      "granted_at": 1794976625,
       "ip_address": "192.0.2.1"
     }
   },
@@ -2403,29 +2975,29 @@
     "body": {
       "consent": [
         {
-          "id": "cf098244-db9c-43bf-9bf7-a83551ff68a6",
-          "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+          "id": "1ba68708-5712-4039-a927-32dc9913f413",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
           "partner_id": "partner_example",
           "consent_type": "analytics",
           "granted": true,
-          "granted_at": 1794968929,
+          "granted_at": 1794976625,
           "ip_address": "192.0.2.1"
         }
       ],
-      "request_id": "req_a72b3ac55954",
+      "request_id": "req_530f01a9a7a3",
       "total": 1
     }
   },
   "export": {
     "type": "AthleteDataExport",
     "body": {
-      "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+      "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
       "partner_id": "partner_example",
-      "exported_at": "2026-11-18T02:28:49.619155055Z",
+      "exported_at": "2026-11-18T04:37:05.906430941Z",
       "profile": {
-        "created_at": 1794968907,
-        "external_id": "sdk-node-4d6ec1b0-a",
-        "id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+        "created_at": 1794976586,
+        "external_id": "sdk-node-c2e04239-a",
+        "id": "a37d698f-2c22-438e-849d-c8099d523fcd",
         "name": "Live Suite",
         "partner_id": "partner_example",
         "profile_complete": true,
@@ -2440,24 +3012,24 @@
           "usual_carb_consumption": "range_60_80"
         },
         "sex": "female",
-        "trial_started_at": 1794968909153,
-        "updated_at": 1794968908,
+        "trial_started_at": 1794976587115,
+        "updated_at": 1794976586,
         "weight_kg": 62,
         "year_of_birth": 1990
       },
       "activities": [
         {
-          "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
-          "created_at": 1794968925,
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
+          "created_at": 1794976604,
           "duration_min": 45,
-          "external_id": "sdk-node-4d6ec1b0-i1",
-          "id": "e2bf2ea3-12b7-4757-9791-9befdbb50620",
+          "external_id": "sdk-node-c2e04239-i1",
+          "id": "12ff83ec-b0a9-453b-b8a8-71872aded9a9",
           "intensity_level": 5,
           "is_race_event": false,
           "meal_before_min": 120,
           "partner_id": "partner_example",
           "prescription": {
-            "calculated_at": 1794968925,
+            "calculated_at": 1794976604,
             "carb_g_per_hr": 20,
             "confidence": 1,
             "fluid_ml_per_hr": 330,
@@ -2468,19 +3040,19 @@
           },
           "thermal_stress_level": 4,
           "type": "run",
-          "updated_at": 1794968925
+          "updated_at": 1794976604
         }
       ],
       "consent": [
         {
-          "athlete_id": "bc1669d9-9db6-4dff-b655-d7dc3ed11fc6",
+          "athlete_id": "a37d698f-2c22-438e-849d-c8099d523fcd",
           "consent_type": "analytics",
           "granted": true,
-          "granted_at": 1794968929,
-          "id": "cf098244-db9c-43bf-9bf7-a83551ff68a6",
+          "granted_at": 1794976625,
+          "id": "1ba68708-5712-4039-a927-32dc9913f413",
           "ip_address": "192.0.2.1",
           "partner_id": "partner_example",
-          "revoked_at": 1794968929
+          "revoked_at": 1794976625
         }
       ]
     }
@@ -2488,7 +3060,7 @@
   "integration_status": {
     "type": "IntegrationStatusResponse",
     "body": {
-      "request_id": "req_ca6bb6ee92af",
+      "request_id": "req_0da410ef9091",
       "status": {
         "provider": "strava",
         "connected": false,

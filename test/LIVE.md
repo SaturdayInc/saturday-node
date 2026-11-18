@@ -9,7 +9,7 @@ npx jest --runInBand test/live.test.ts
 ```
 
 - The key must be a test key (`sk_test_`); the suite refuses a live key.
-- One run makes about 70 calls, of which about 20 are calculations, and creates 4 athletes, 2 activities, an organization, an API key and a webhook pointed at `https://example.com`. It erases the athletes and deletes the activity, key and webhook it created; the organization stays.
+- One run makes about 100 calls, of which about 35 are calculations, and creates 5 athletes (one of them with a simulated subscription, for the brick and triathlon block), 4 activities, an organization, an API key and a webhook pointed at `https://example.com`. It erases the athletes, with their activities, and deletes the key and webhook it created; the organization stays.
 - The catalog products it sizes are Maurten Gel 100 and Tailwind Endurance Fuel.
 - `athletes.erase` and `testing.simulateSubscription` need the test environment.
 

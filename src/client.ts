@@ -241,8 +241,10 @@ class NutritionResource {
   constructor(private client: Saturday) {}
 
   /**
-   * Calculate a prescription for one session. Send `athlete_id` to use a stored athlete; send
-   * `meal_before_min` and `is_race` for exact numbers.
+   * Calculate a prescription for one session. Send `athlete_id` to use a stored athlete, and
+   * every session input (`intensity_level`, `thermal_stress_level`, `meal_before_min`, `is_race`)
+   * for exact numbers. A brick or triathlon is one call with `legs`, each leg carrying its own
+   * effort and heat; the answer's `legs` gives each leg's share.
    */
   calculate(req: T.NutritionCalculateRequest): Promise<T.NutritionCalculateResponse> {
     return this.client.request('POST', '/v1/nutrition/calculate', req);
@@ -350,6 +352,7 @@ class AthletesResource {
 class ActivitiesResource {
   constructor(private client: Saturday) {}
 
+  /** Store a session: one sport, or a brick or triathlon with `legs`. */
   create(athleteId: string, activity: T.CreateActivityRequest): Promise<T.Activity> {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities`, activity);
   }
@@ -415,8 +418,12 @@ class OnboardingResource {
 class ReferenceResource {
   constructor(private client: Saturday) {}
 
-  activityTypes(): Promise<T.ActivityTypesResponse> {
-    return this.client.request('GET', '/v1/activity-types');
+  /**
+   * The single sports, and with a partner API key `linked_session_types`: `brick` and
+   * `triathlon` with the rules for their legs. `activityType` narrows both lists to the one type named.
+   */
+  activityTypes(params?: { activityType?: T.SessionType }): Promise<T.ActivityTypesResponse> {
+    return this.client.request('GET', withQuery('/v1/activity-types', { activity_type: params?.activityType }));
   }
 
   settingsSchema(): Promise<T.SettingsSchemaResponse> {

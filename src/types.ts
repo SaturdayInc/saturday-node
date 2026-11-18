@@ -20,7 +20,12 @@ export interface SaturdayConfig {
 
 // --- Core enums ---
 
+/** A single sport. Each leg of a brick or triathlon is one of these. */
 export type ActivityType = 'bike' | 'run' | 'swim' | 'row' | 'ski' | 'lift' | 'hike';
+/** A session made of 2 to 10 legs, each a single sport. */
+export type LinkedSessionType = 'brick' | 'triathlon';
+/** What a calculation or an activity can be: a single sport, or a brick or triathlon with legs. */
+export type SessionType = ActivityType | LinkedSessionType;
 export type Sex = 'male' | 'female' | 'intersex';
 export type SubscriptionTier = 'full' | 'teaser';
 export type CarbExperience = 'range_0_30' | 'range_40_60' | 'range_gt_70';
@@ -88,24 +93,26 @@ export interface Concerns {
 }
 
 /**
- * `POST /v1/nutrition/calculate`. With `athlete_id`, the athlete's stored profile is used and
- * any profile field you also send here overrides it for this call. Unknown field names close to
- * a real one (for example `type`, `weight_kg`, `is_race_event`) are refused with 400
- * `unsupported_field`.
+ * One leg of a brick or triathlon on a calculate request. All four fields are required.
+ * The legs together may be at most 2160 minutes.
  */
-export interface NutritionCalculateRequest {
+export interface CalculateLeg {
   activity_type: ActivityType;
-  /** 1 to 2160 minutes. */
+  /** 5 to 2160 minutes. */
   duration_min: number;
+  /** The leg's effort, 1 to 9 (lift and hike: 1 to 3; a higher value computes as 3). */
+  intensity_level: number;
+  /** The leg's heat and humidity, 1 (cold, dry) to 9 (hot, humid). */
+  thermal_stress_level: number;
+}
+
+/** The profile and session fields every calculate request may carry. */
+interface CalculateRequestFields {
   athlete_id?: string;
   athlete_weight_kg?: number;
-  /** Effort, 1 to 9 (lift and hike: 1 to 3). Odd levels are the app's bands; even levels fall between them. */
-  intensity_level?: number;
-  /** Heat and humidity, 1 (cold, dry) to 9 (hot, humid). */
-  thermal_stress_level?: number;
-  /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. */
+  /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. Left out, the answer is ranges until it is sent. */
   meal_before_min?: number;
-  /** A race plans differently from training. */
+  /** A race plans differently from training. Left out, the answer is ranges until it is sent. */
   is_race?: boolean;
   sex?: Sex;
   age?: number;
@@ -118,6 +125,40 @@ export interface NutritionCalculateRequest {
   carb_upper_limit_override?: number;
   concerns?: Concerns;
 }
+
+/** A calculation for one sport. */
+export interface SingleSessionCalculateRequest extends CalculateRequestFields {
+  activity_type: ActivityType;
+  /** 1 to 2160 minutes. */
+  duration_min: number;
+  /** Effort, 1 to 9 (lift and hike: 1 to 3). Odd levels are the app's bands; even levels fall between them. Left out, the answer is ranges until it is sent. */
+  intensity_level?: number;
+  /** Heat and humidity, 1 (cold, dry) to 9 (hot, humid). Left out, the answer is ranges until it is sent. */
+  thermal_stress_level?: number;
+  legs?: never;
+}
+
+/**
+ * A brick or triathlon: 2 to 10 legs, calculated as the Saturday app does, as one continuous
+ * effort. Its totals are larger than its legs calculated separately, so send it as one request
+ * with legs. Each leg carries its own effort and heat.
+ */
+export interface LinkedSessionCalculateRequest extends CalculateRequestFields {
+  activity_type: LinkedSessionType;
+  legs: CalculateLeg[];
+  /** The legs' total minutes. Leave it out, or send that total. */
+  duration_min?: number;
+  intensity_level?: never;
+  thermal_stress_level?: never;
+}
+
+/**
+ * `POST /v1/nutrition/calculate`, and each scenario of a batch. With `athlete_id`, the athlete's
+ * stored profile is used and any profile field you also send here overrides it for this call.
+ * A field the request does not take is refused with a `ValidationError` of code
+ * `unsupported_field`: `param` names it and `suggestion` the field it was probably meant to be.
+ */
+export type NutritionCalculateRequest = SingleSessionCalculateRequest | LinkedSessionCalculateRequest;
 
 /** Trial fields, present while the athlete's 30-day partner trial gives the full tier. */
 export interface TrialMetadata {
@@ -157,6 +198,23 @@ export interface NutritionCalculateResponse extends TrialMetadata {
   precision?: Precision;
   /** Teaser tier only. */
   subscription_cta?: SubscriptionCTA;
+  /** A brick or triathlon with exact numbers: each leg's share, in the order of the legs sent. Absent for a single sport and on answers with ranges. */
+  legs?: LegPrescription[];
+}
+
+/**
+ * One leg's share of a brick's or triathlon's prescription, as the Saturday app's leg cards show
+ * it. The legs' totals add up to the session's totals before the session's own rounding. Per hour
+ * is over the leg's minutes; the first leg of a fasted start adds the 20-minute pre-load.
+ */
+export interface LegPrescription {
+  duration_min: number;
+  total_carb_g: number;
+  total_sodium_mg: number;
+  total_fluid_ml: number;
+  carb_g_per_hr: number;
+  sodium_mg_per_hr: number;
+  fluid_ml_per_hr: number;
 }
 
 /** The subscribe prompt on any teaser answer. */
@@ -175,9 +233,16 @@ export interface Precision {
    * athlete's OAuth access token, in a fixed order. Absent when the profile is complete.
    */
   missing_fields?: MissingField[];
-  /** A sentence naming the critical missing fields. */
+  /**
+   * Names what is missing. With a partner API key: the athlete's profile answers (the onboarding
+   * link collects them) apart from the session inputs your request or activity left out, and
+   * where to send those.
+   */
   message?: string;
-  /** Where the athlete can answer the gaps. Absent when the profile is complete. */
+  /**
+   * Where the athlete can answer the gaps. With a partner API key, present only when profile
+   * answers are missing: a missing session input is yours to send.
+   */
   onboarding?: OnboardingInvite;
 }
 
@@ -208,16 +273,36 @@ export interface OnboardingInvite {
 }
 
 /**
- * Present on prep, product fit and product compare when the plan is not the athlete's exact
- * numbers: their profile is missing answers, so the plan uses the middle of their per-hour ranges
- * over the session (a fasted start adds its 20-minute pre-load).
+ * What a plan from ranges is missing:
+ * - `profile_incomplete`: the athlete's profile answers (`missing_profile_fields`).
+ * - `session_incomplete`: session inputs your request or the activity left out (`missing_session_inputs`).
+ * - `profile_and_session_incomplete`: both.
+ * - `stored_ranges`: an activity's stored ranges with nothing missing that can be named now (the
+ *   athlete has answered since): calculate the activity again.
+ */
+export type PlanBasisSource = 'profile_incomplete' | 'session_incomplete' | 'profile_and_session_incomplete' | 'stored_ranges';
+
+/** A session input a plan from ranges can be missing. */
+export type SessionInput = 'intensity_level' | 'thermal_stress_level' | 'meal_before_min' | 'is_race';
+
+/**
+ * Present on prep, product fit, product compare and bottle plans when the plan is not the
+ * athlete's exact numbers: the profile or the session is missing inputs, so the plan uses the
+ * middle of the per-hour ranges over the session (a fasted start adds its 20-minute pre-load).
+ * With every input in, it is absent and the plan uses the exact numbers.
  */
 export interface PlanBasis {
-  source: 'range_midpoint';
+  source: PlanBasisSource;
+  /** Names what is missing and where each goes. Show it with the plan. */
   message: string;
+  /** The athlete's profile answers the plan lacks, by the names `precision.missing_fields` uses. */
+  missing_profile_fields?: string[];
+  /** The session inputs the plan lacks: send them in the request (fit, compare), or set them on the activity (prep). */
+  missing_session_inputs?: SessionInput[];
   carb_range_g_per_hr: string;
   sodium_range_mg_per_hr: string;
   fluid_range_ml_per_hr: string;
+  /** Present only when profile answers are missing. */
   onboarding?: OnboardingInvite;
 }
 
@@ -295,14 +380,19 @@ export interface ProductRef {
   product_query?: string;
 }
 
-/** The session the product is sized for. Saturday computes the athlete's own prescription for it. */
+/**
+ * The session the product is sized for, a single sport. Saturday computes the athlete's
+ * prescription for it. Send all four session inputs: one left out computes at its everyday value
+ * (effort 5, heat 5, fed, training), and the plan is the middle of the athlete's ranges, with
+ * `plan_basis` naming the input.
+ */
 export interface ProductSession {
   athlete_id: string;
   activity_type: ActivityType;
   duration_min: number;
   intensity_level?: number;
   thermal_stress_level?: number;
-  /** Defaults to 120 (fed). Over 180 plans a fasted start. */
+  /** Over 180 plans a fasted start. */
   meal_before_min?: number;
   is_race?: boolean;
 }
@@ -608,13 +698,29 @@ export type FuelingProfile = FuelingProfileShared | FuelingProfileNotShared;
 
 // --- Activities ---
 
+/** One leg of a stored brick or triathlon. All four fields are required on a write. */
+export interface ActivityLeg {
+  type: ActivityType;
+  /** 5 to 2160 minutes. The legs together may be at most 2160. */
+  duration_min: number;
+  /** The leg's effort, 1 to 9 (lift and hike: 1 to 3; a higher value is stored as 3). */
+  intensity_level: number;
+  /** The leg's heat and humidity, 1 (cold, dry) to 9 (hot, humid). */
+  thermal_stress_level: number;
+}
+
 export interface Activity {
   id: string;
   athlete_id: string;
   partner_id: string;
-  type: ActivityType;
+  type: SessionType;
+  /** Minutes; for a brick or triathlon, its legs' total. */
   duration_min: number;
+  /** A brick's or triathlon's legs, in order. Absent for a single sport. */
+  legs?: ActivityLeg[];
+  /** Absent for a brick or triathlon, whose legs carry it. */
   intensity_level?: number;
+  /** Absent for a brick or triathlon, whose legs carry it. */
   thermal_stress_level?: number;
   is_race_event?: boolean;
   meal_before_min?: number;
@@ -630,22 +736,61 @@ export interface Activity {
   updated_at: number;
 }
 
-/**
- * `POST /v1/athletes/{athlete_id}/activities`. The fields are `type` and `is_race_event`;
- * `activity_type` and `is_race` are refused with 400 `unsupported_field`.
- */
-export interface CreateActivityRequest {
-  type: ActivityType;
-  duration_min: number;
-  intensity_level?: number;
-  thermal_stress_level?: number;
+/** The fields every activity write may carry. */
+interface ActivityFields {
+  /** Whether this is a race. Exact numbers need it. */
   is_race_event?: boolean;
-  /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. */
+  /** Minutes since the last carb-rich meal. Over 180 plans a fasted start. Exact numbers need it. */
   meal_before_min?: number;
   external_id?: string;
 }
 
-export type UpdateActivityRequest = Partial<CreateActivityRequest>;
+/** An activity of one sport. */
+export interface SingleActivityRequest extends ActivityFields {
+  type: ActivityType;
+  /** 1 to 2160 minutes. */
+  duration_min: number;
+  /** 1 to 9 (lift and hike: 1 to 3). Exact numbers need it. */
+  intensity_level?: number;
+  /** 1 (cold, dry) to 9 (hot, humid). Exact numbers need it. */
+  thermal_stress_level?: number;
+  legs?: never;
+}
+
+/** A brick or triathlon: 2 to 10 legs, each with its own effort and heat. */
+export interface LinkedActivityRequest extends ActivityFields {
+  type: LinkedSessionType;
+  legs: ActivityLeg[];
+  /** The legs' total minutes. Leave it out, or send that total. */
+  duration_min?: number;
+  intensity_level?: never;
+  thermal_stress_level?: never;
+}
+
+/**
+ * `POST /v1/athletes/{athlete_id}/activities`. The fields are `type` and `is_race_event`; any
+ * field the request does not take (`activity_type` and `is_race` included) is refused with a
+ * `ValidationError` of code `unsupported_field`.
+ */
+export type CreateActivityRequest = SingleActivityRequest | LinkedActivityRequest;
+
+/**
+ * `PATCH` an activity. `legs` replaces a brick's or triathlon's legs and sets `duration_min` to
+ * their total. Changing `type` to `brick` or `triathlon` needs `legs` in the same request unless
+ * the activity holds legs already, and drops its stored effort and heat; changing it to a single
+ * sport removes the legs. A brick or triathlon refuses `intensity_level`, `thermal_stress_level`
+ * and a `duration_min` other than its legs' total: change its legs instead.
+ */
+export interface UpdateActivityRequest {
+  type?: SessionType;
+  duration_min?: number;
+  legs?: ActivityLeg[];
+  intensity_level?: number;
+  thermal_stress_level?: number;
+  is_race_event?: boolean;
+  meal_before_min?: number;
+  external_id?: string;
+}
 
 /**
  * A stored prescription. Exact numbers when the profile is complete; when `profile_complete` is
@@ -666,6 +811,8 @@ export interface ActivityPrescription {
   fluid_range_ml_per_hr?: string;
   carriage_tactic_id?: string;
   activity_subtype?: string;
+  /** A brick or triathlon with exact numbers: each leg's share, in the order of the activity's legs. Absent for a single sport and on a prescription of ranges. */
+  legs?: LegPrescription[];
 }
 
 /** `activities.calculatePrescription`: full-tier numbers under `prescription`, teaser ranges at the top level. */
@@ -728,10 +875,11 @@ export interface BatchAthleteResponse extends BatchSummary {
   created: Athlete[];
 }
 
-export interface ImportActivityRequest extends CreateActivityRequest {
+/** One activity to import: the fields of `CreateActivityRequest`, and `calculate`. */
+export type ImportActivityRequest = CreateActivityRequest & {
   /** Calculate this activity's prescription even when the request-level `calculate` is false. */
   calculate?: boolean;
-}
+};
 
 export interface ImportPrescriptionItem {
   index: number;
@@ -754,9 +902,28 @@ export interface ActivityTypeInfo {
   description: string;
 }
 
+/** A session type made of legs, and the rules for its legs. */
+export interface LinkedSessionTypeInfo {
+  id: LinkedSessionType;
+  name: string;
+  description: string;
+  min_legs: number;
+  max_legs: number;
+  /** The sports a leg may be. */
+  leg_types: ActivityType[];
+  /** The fewest minutes one leg may have. */
+  min_leg_duration_min: number;
+  /** The most minutes the legs may add up to. */
+  max_duration_min: number;
+}
+
 export interface ActivityTypesResponse {
+  /** The single sports. */
   activity_types: ActivityTypeInfo[];
+  /** How many entries `activity_types` holds. */
   total: number;
+  /** `brick` and `triathlon`, with the rules for their legs. */
+  linked_session_types?: LinkedSessionTypeInfo[];
   request_id: string;
 }
 
@@ -917,8 +1084,8 @@ export interface ApiKeyInfo {
   scopes: string[];
   /** Unix milliseconds. */
   created_at: number;
-  /** Unix milliseconds; absent before first use. */
-  last_used_at?: number;
+  /** Unix milliseconds of the last authenticated call; 0 when never used. */
+  last_used_at: number;
   revoked: boolean;
 }
 

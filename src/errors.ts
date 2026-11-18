@@ -94,15 +94,28 @@ export class RateLimitError extends SaturdayError {
   }
 }
 
-/** 400 or 422: the request is invalid. `param` names the field. */
+/**
+ * 400 or 422: the request is invalid. `param` names the field, as a path into your body
+ * (`legs[1].duration_mins`). For code `unsupported_field` (a field the request does not take),
+ * `suggestion` is the field it was probably meant to be, when there is one.
+ */
 export class ValidationError extends SaturdayError {
   readonly param?: string;
+  /** For `unsupported_field`: the field name to send instead (`meal_before_min` for `meal_before_mins`). Absent when the API names none. */
+  readonly suggestion?: string;
 
   constructor(error: SaturdayErrorDetail, status = 400) {
     super(status, error);
     this.name = 'ValidationError';
     this.param = error.param;
+    this.suggestion = error.code === 'unsupported_field' ? suggestedField(error.message) : undefined;
   }
+}
+
+/** The field an `unsupported_field` message points to: `Did you mean "x"?` or `Send "x"`. */
+function suggestedField(message: string | undefined): string | undefined {
+  const match = /(?:Did you mean|Send) "([A-Za-z0-9_.[\]]+)"/.exec(message ?? '');
+  return match?.[1];
 }
 
 /** 404: no such resource for this key, or a route this key cannot see. */

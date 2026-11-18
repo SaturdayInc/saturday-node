@@ -88,6 +88,11 @@ describeLive('live API', () => {
   it('reference: activity types, settings schema, onboarding questions', async () => {
     const types = capture('activity_types', 'ActivityTypesResponse', await saturday.reference.activityTypes());
     expect(types.activity_types.map(t => t.id)).toEqual(expect.arrayContaining(['bike', 'run', 'swim']));
+    expect(types.linked_session_types?.map(t => t.id)).toEqual(['brick', 'triathlon']);
+    expect(types.linked_session_types?.[0]).toMatchObject({ min_legs: 2, max_legs: 10, min_leg_duration_min: 5, max_duration_min: 2160 });
+    const brickOnly = capture('activity_types_filtered', 'ActivityTypesResponse', await saturday.reference.activityTypes({ activityType: 'brick' }));
+    expect(brickOnly.activity_types).toEqual([]);
+    expect(brickOnly.linked_session_types?.map(t => t.id)).toEqual(['brick']);
     capture('settings_schema', 'SettingsSchemaResponse', await saturday.reference.settingsSchema());
     const questions = capture('onboarding_questions', 'OnboardingQuestionsResponse', await saturday.onboarding.questions());
     expect(questions.questions.length).toBeGreaterThan(0);
@@ -154,6 +159,23 @@ describeLive('live API', () => {
     expect(misnamed).toBeInstanceOf(ValidationError);
     expect((misnamed as ValidationError).code).toBe('unsupported_field');
     expect((misnamed as ValidationError).param).toBe('is_race_event');
+    expect((misnamed as ValidationError).suggestion).toBe('is_race');
+
+    const typo = await refusal(saturday.nutrition.calculate({
+      athlete_id: complete.id, activity_type: 'bike', duration_min: 60, ...session, meal_before_mins: 120,
+    } as never));
+    expect((typo as ValidationError).code).toBe('unsupported_field');
+    expect((typo as ValidationError).param).toBe('meal_before_mins');
+    expect((typo as ValidationError).suggestion).toBe('meal_before_min');
+
+    // A session input left out still computes, but the answer is ranges and the message says which input to send.
+    const noRace = await saturday.nutrition.calculate({
+      athlete_id: complete.id, activity_type: 'run', duration_min: 60, intensity_level: 5, thermal_stress_level: 5, meal_before_min: 120,
+    });
+    expect(noRace.precision?.profile_complete).toBe(false);
+    expect(noRace.precision?.missing_fields?.map(f => f.field)).toEqual(['is_race']);
+    expect(noRace.precision?.message).toContain('is_race');
+    expect(noRace.precision?.onboarding).toBeUndefined();
 
     const batch = capture('calculate_batch', 'BatchCalculateResponse', await saturday.nutrition.batchCalculate([
       { athlete_id: complete.id, activity_type: 'bike', duration_min: 90, ...session },
@@ -202,6 +224,125 @@ describeLive('live API', () => {
     expect(await refusal(saturday.activities.get(complete.id, activity.id))).toBeInstanceOf(NotFoundError);
   });
 
+  it('bricks and triathlons: one session with legs through calculate, batch, activities, PATCH, prep and import', async () => {
+    // A subscribed athlete, so this block's calculations do not run into the trial's daily allowance.
+    const athlete = await saturday.athletes.create({ external_id: `${run}-linked`, ...COMPLETE });
+    await saturday.testing.simulateSubscription(athlete.id);
+    const brickLegs = [
+      { activity_type: 'bike' as const, duration_min: 90, intensity_level: 6, thermal_stress_level: 6 },
+      { activity_type: 'run' as const, duration_min: 30, intensity_level: 7, thermal_stress_level: 6 },
+    ];
+    const brick = capture('calculate_brick', 'NutritionCalculateResponse', await saturday.nutrition.calculate({
+      athlete_id: athlete.id, activity_type: 'brick', legs: brickLegs, meal_before_min: 120, is_race: false,
+    }));
+    exact(brick);
+    expect(brick.legs?.map(l => l.duration_min)).toEqual([90, 30]);
+    // The legs share out the session's totals.
+    const legCarbs = brick.legs!.reduce((sum, leg) => sum + leg.total_carb_g, 0);
+    expect(Math.abs(legCarbs - brick.total_carb_g!)).toBeLessThanOrEqual(brick.legs!.length);
+
+    // Calculated separately, the legs come to less than the one continuous effort.
+    let separate = 0;
+    for (const leg of brickLegs) {
+      const single = await saturday.nutrition.calculate({ athlete_id: athlete.id, ...leg, meal_before_min: 120, is_race: false });
+      separate += single.total_carb_g ?? 0;
+    }
+    expect(brick.total_carb_g!).toBeGreaterThan(separate);
+
+    const triathlon = capture('calculate_triathlon', 'NutritionCalculateResponse', await saturday.nutrition.calculate({
+      athlete_id: athlete.id, activity_type: 'triathlon', duration_min: 150, is_race: true, meal_before_min: 240, legs: [
+        { activity_type: 'swim', duration_min: 30, intensity_level: 7, thermal_stress_level: 3 },
+        { activity_type: 'bike', duration_min: 80, intensity_level: 7, thermal_stress_level: 6 },
+        { activity_type: 'run', duration_min: 40, intensity_level: 7, thermal_stress_level: 7 },
+      ],
+    }));
+    exact(triathlon);
+    expect(triathlon.legs).toHaveLength(3);
+
+    const noLegs = await refusal(saturday.nutrition.calculate({ athlete_id: athlete.id, activity_type: 'brick', ...session } as never));
+    expect(noLegs).toBeInstanceOf(ValidationError);
+    expect((noLegs as ValidationError).param).toBe('legs');
+    const topLevelEffort = await refusal(saturday.nutrition.calculate({
+      athlete_id: athlete.id, activity_type: 'brick', legs: brickLegs, intensity_level: 5,
+    } as never));
+    expect((topLevelEffort as ValidationError).param).toBe('intensity_level');
+    const legTypo = await refusal(saturday.nutrition.calculate({
+      athlete_id: athlete.id, activity_type: 'brick', meal_before_min: 120, is_race: false,
+      legs: [brickLegs[0], { activity_type: 'run', duration_mins: 30, intensity_level: 7, thermal_stress_level: 6 }],
+    } as never));
+    expect((legTypo as ValidationError).code).toBe('unsupported_field');
+    expect((legTypo as ValidationError).param).toBe('legs[1].duration_mins');
+    expect((legTypo as ValidationError).suggestion).toBe('duration_min');
+
+    const batch = await saturday.nutrition.batchCalculate([
+      { athlete_id: athlete.id, activity_type: 'brick', legs: brickLegs, meal_before_min: 120, is_race: false },
+      { athlete_id: athlete.id, activity_type: 'bike', duration_min: 90, ...session },
+    ]);
+    expect(batch.succeeded).toBe(2);
+    expect(batch.results[0].total_carb_g).toBe(brick.total_carb_g);
+    expect(batch.results[0].legs).toEqual(brick.legs);
+
+    const activityLegs = brickLegs.map(({ activity_type, ...leg }) => ({ type: activity_type, ...leg }));
+    const stored = capture('activity_brick', 'Activity', await saturday.activities.create(athlete.id, {
+      type: 'brick', legs: activityLegs, meal_before_min: 120, is_race_event: false, external_id: `${run}-brick`,
+    }));
+    expect(stored.type).toBe('brick');
+    expect(stored.duration_min).toBe(120);
+    expect(stored.legs).toEqual(activityLegs);
+    expect(stored.intensity_level).toBeUndefined();
+
+    // Prep plans a linked activity that has not been calculated yet.
+    const prepFirst = await saturday.activities.prep(athlete.id, stored.id, { products: [{ product_query: 'maurten gel 100' }] });
+    expect(prepFirst.prescription.carb_g).toBe(brick.total_carb_g);
+
+    const calculated = capture('activity_calculate_brick', 'PrescriptionEnvelope',
+      await saturday.activities.calculatePrescription(athlete.id, stored.id));
+    expect(calculated.prescription?.total_carb_g).toBe(brick.total_carb_g);
+    expect(calculated.prescription?.legs).toEqual(brick.legs);
+    const read = capture('activity_prescription_brick', 'StoredPrescriptionResponse', await saturday.activities.getPrescription(athlete.id, stored.id));
+    expect(read.prescription.legs).toEqual(brick.legs);
+    const prep = capture('prep_brick', 'PrepResponse', await saturday.activities.prep(athlete.id, stored.id, {
+      products: [{ product_query: 'maurten gel 100', servings: 3 }, { product_query: 'tailwind endurance fuel' }],
+    }));
+    expect(prep.prescription.carb_g).toBe(brick.total_carb_g);
+    expect(prep.plan_basis).toBeUndefined();
+
+    // A brick's minutes, effort and heat live on its legs.
+    const minutes = await refusal(saturday.activities.update(athlete.id, stored.id, { duration_min: 150 }));
+    expect((minutes as ValidationError).param).toBe('duration_min');
+    const longer = await saturday.activities.update(athlete.id, stored.id, {
+      legs: [activityLegs[0], { ...activityLegs[1], duration_min: 45 }],
+    });
+    expect(longer.duration_min).toBe(135);
+    const recalculated = await saturday.activities.calculatePrescription(athlete.id, stored.id);
+    expect(recalculated.prescription!.total_carb_g!).toBeGreaterThan(brick.total_carb_g!);
+
+    // A single sport drops the legs; turning it back into a session with legs needs legs.
+    const single = await saturday.activities.update(athlete.id, stored.id, { type: 'run', duration_min: 60, intensity_level: 5, thermal_stress_level: 5 });
+    expect(single.type).toBe('run');
+    expect(single.legs).toBeUndefined();
+    const needsLegs = await refusal(saturday.activities.update(athlete.id, stored.id, { type: 'triathlon' }));
+    expect((needsLegs as ValidationError).param).toBe('legs');
+    const tri = await saturday.activities.update(athlete.id, stored.id, {
+      type: 'triathlon', legs: [
+        { type: 'swim', duration_min: 20, intensity_level: 6, thermal_stress_level: 3 },
+        { type: 'bike', duration_min: 40, intensity_level: 6, thermal_stress_level: 5 },
+        { type: 'run', duration_min: 20, intensity_level: 6, thermal_stress_level: 5 },
+      ],
+    });
+    expect(tri.type).toBe('triathlon');
+    expect(tri.duration_min).toBe(80);
+    expect(tri.intensity_level).toBeUndefined();
+    await saturday.activities.delete(athlete.id, stored.id);
+
+    const imported = capture('activity_import_brick', 'ActivityImportResponse', await saturday.activities.importActivities(athlete.id, [
+      { type: 'brick', legs: activityLegs, meal_before_min: 120, is_race_event: false, external_id: `${run}-i-brick` },
+    ], { calculate: true }));
+    expect(imported.imported[0].legs).toEqual(activityLegs);
+    expect(imported.prescriptions?.[0].result?.prescription?.legs).toEqual(brick.legs);
+    await saturday.athletes.erase(athlete.id);
+  });
+
   it('product fit and compare size for the athlete; a partial profile plans from the middle of its ranges', async () => {
     const fit = capture('product_fit', 'ProductFitResponse', await saturday.nutrition.productFit({
       athlete_id: complete.id, product_query: 'maurten gel 100', activity_type: 'run', duration_min: 90, ...session,
@@ -213,7 +354,23 @@ describeLive('live API', () => {
     const banded = capture('product_fit_plan_basis', 'ProductFitResponse', await saturday.nutrition.productFit({
       athlete_id: partial.id, product_query: 'tailwind endurance fuel', activity_type: 'bike', duration_min: 120, ...session,
     }));
-    expect(banded.plan_basis?.source).toBe('range_midpoint');
+    expect(banded.plan_basis?.source).toBe('profile_incomplete');
+    expect(banded.plan_basis?.missing_profile_fields?.length).toBeGreaterThan(0);
+    expect(banded.plan_basis?.missing_session_inputs).toBeUndefined();
+    expect(banded.plan_basis?.onboarding?.url).toMatch(/^https:\/\//);
+
+    const sessionGaps = capture('product_fit_session_inputs', 'ProductFitResponse', await saturday.nutrition.productFit({
+      athlete_id: complete.id, product_query: 'maurten gel 100', activity_type: 'run', duration_min: 90, intensity_level: 5, thermal_stress_level: 5,
+    }));
+    expect(sessionGaps.plan_basis?.source).toBe('session_incomplete');
+    expect(sessionGaps.plan_basis?.missing_session_inputs).toEqual(['meal_before_min', 'is_race']);
+    expect(sessionGaps.plan_basis?.onboarding).toBeUndefined();
+
+    const fitTypo = await refusal(saturday.nutrition.productFit({
+      athlete_id: complete.id, product_query: 'maurten gel 100', activity_type: 'run', duration_min: 90, ...session, is_rac: true,
+    } as never));
+    expect((fitTypo as ValidationError).code).toBe('unsupported_field');
+    expect((fitTypo as ValidationError).suggestion).toBe('is_race');
 
     const compare = capture('product_compare', 'ProductCompareResponse', await saturday.nutrition.compareProducts({
       athlete_id: complete.id, product_a: { product_query: 'maurten gel 100' }, product_b: { product_query: 'tailwind endurance fuel' },
@@ -237,7 +394,10 @@ describeLive('live API', () => {
   it('partner: account, usage, API keys', async () => {
     const account = capture('partner', 'PartnerAccount', await saturday.partner.get());
     expect(account.rate_limits.requests_per_day).toBeGreaterThan(0);
-    capture('usage', 'UsageResponse', await saturday.partner.usage());
+    const usage = capture('usage', 'UsageResponse', await saturday.partner.usage());
+    // Usage counts the routes you called, by path.
+    expect(Object.keys(usage.by_endpoint).length).toBeGreaterThan(0);
+    for (const endpoint of Object.keys(usage.by_endpoint)) expect(endpoint).toMatch(/^\/v1\//);
     capture('usage_daily', 'DailyUsageResponse', await saturday.partner.usageDaily());
     capture('api_keys', 'ApiKeyListResponse', await saturday.partner.listApiKeys());
     const created = capture('api_key_created', 'CreatedApiKey', await saturday.partner.createApiKey(`${run}-key`));

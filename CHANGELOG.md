@@ -14,10 +14,16 @@ Breaking changes:
 - `SaturdayError.retryAfter`, from `Retry-After` on any error that carries one. `DAILY_LIMIT_CODES` and the `RateLimitCode` type are exported.
 - `organizations.updateSubscription` takes `seats`, `status`, `start_date` and `end_date` (Unix seconds); the API refuses any other field.
 - 403 responses raise the new `PermissionError`.
+- `NutritionCalculateRequest` is a union of `SingleSessionCalculateRequest` and `LinkedSessionCalculateRequest`, and `CreateActivityRequest` of `SingleActivityRequest` and `LinkedActivityRequest`: a brick or triathlon carries `legs` and no top-level `intensity_level` or `thermal_stress_level`. `UpdateActivityRequest` is its own interface. `ImportActivityRequest` is `CreateActivityRequest & { calculate? }`.
+- `PlanBasis.source` is `PlanBasisSource` (`profile_incomplete`, `session_incomplete`, `profile_and_session_incomplete`, `stored_ranges`), with `missing_profile_fields` and `missing_session_inputs`. `ProductSession` documents no defaults: a session input left out plans from ranges.
+- `ApiKeyInfo.last_used_at` is always present: 0 for a key never used.
 
 Added:
 
-- `nutrition.productFit`, `nutrition.compareProducts` and `activities.prep`, with `PlanBasis` for plans made from the middle of an incomplete profile's ranges.
+- `nutrition.productFit`, `nutrition.compareProducts` and `activities.prep`, with `PlanBasis` for plans made from the middle of the ranges, naming what is missing.
+- Bricks and triathlons: `SessionType`, `LinkedSessionType`, `CalculateLeg` and `ActivityLeg` for `legs` on calculate, batch, activity create, import and update; `LegPrescription` for each leg's share under `legs` on `NutritionCalculateResponse` and `ActivityPrescription`; `Activity.legs`. `reference.activityTypes({ activityType })` filters, and `ActivityTypesResponse.linked_session_types` (`LinkedSessionTypeInfo`) carries the rules for legs.
+- `ValidationError.suggestion`: for code `unsupported_field`, the field the request was probably meant to send, read from the API's message. `param` is the field's path in your body (`legs[1].duration_mins`).
+- `Precision.message` and `Precision.onboarding` document what a partner key gets: the missing profile answers apart from the session inputs, and the onboarding link only for profile answers.
 - `nutrition.extract` (nutrition label reading), `infer.activityType`, `infer.brickTypes`, `reference.activityTypes`, `reference.settingsSchema`.
 - `athletes.erase` (`POST /v1/athletes/{id}/delete`), `athletes.listConsent`, `recordConsent`, `revokeConsent`.
 - `partner.get`, `usage`, `usageDaily`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `rotateApiKey`.
@@ -25,7 +31,7 @@ Added:
 - `SaturdayError.code`.
 - `AlertRulesDoc` gains `channel_config` (`ChannelConfig`: the email address and push devices alerts go to). A read always carries it, and `coach.setNotificationRules()` replaces it with the rest of the set: send back the one you read. Left out at the overall scope, the coach's email and push alerts turn off.
 - Request types document `meal_before_min` (over 180 is a fasted start), `is_race`, even effort levels and whole-number per-hour figures.
-- A live suite (`test/live.test.ts`) and a type check of its recorded responses.
+- A live suite (`test/live.test.ts`) and a type check of its recorded responses. The suite covers bricks and triathlons through calculate, batch, activity create, prep, update and import.
 
 Earlier unreleased changes:
 

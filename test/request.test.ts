@@ -1,5 +1,5 @@
 import { Saturday } from '../src/client';
-import { NotFoundError, PermissionError, RateLimitError } from '../src/errors';
+import { NotFoundError, PermissionError, RateLimitError, ValidationError } from '../src/errors';
 
 const originalFetch = global.fetch;
 
@@ -233,5 +233,30 @@ describe('429 codes', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     await jest.advanceTimersByTimeAsync(200);
     expect((await result).total).toBe(0);
+  });
+});
+
+describe('unsupported_field', () => {
+  const cases: [string, string, string | undefined][] = [
+    ['legs[1].duration_mins', '"legs[1].duration_mins" is not a field of this request, so its value would not be used. Did you mean "duration_min"? See https://docs.saturday.fit/guides/nutrition-calculation', 'duration_min'],
+    ['weight_kg', '"weight_kg" is not a field of this request, so its value would not be used. Send "athlete_weight_kg". See https://docs.saturday.fit/guides/nutrition-calculation', 'athlete_weight_kg'],
+    ['zzz', '"zzz" is not a field of this request, so its value would not be used. See https://docs.saturday.fit/guides/nutrition-calculation', undefined],
+  ];
+  it.each(cases)('%s names the field and the suggestion', async (param, message, suggestion) => {
+    global.fetch = jest.fn().mockResolvedValue(Response.json(
+      { error: { type: 'invalid_request', code: 'unsupported_field', param, message } }, { status: 400 }));
+    const client = new Saturday({ apiKey: 'cp_test_placeholder', maxRetries: 0 });
+    const error = await client.nutrition.calculate({ activity_type: 'bike', duration_min: 60 }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).param).toBe(param);
+    expect((error as ValidationError).suggestion).toBe(suggestion);
+  });
+
+  it('other validation errors carry no suggestion', async () => {
+    global.fetch = jest.fn().mockResolvedValue(Response.json(
+      { error: { type: 'invalid_request', code: 'invalid_value', param: 'legs', message: 'Send "legs" with 2 to 10 legs.' } }, { status: 400 }));
+    const client = new Saturday({ apiKey: 'cp_test_placeholder', maxRetries: 0 });
+    const error = await client.nutrition.calculate({ activity_type: 'brick', legs: [] }).catch((e: unknown) => e);
+    expect((error as ValidationError).suggestion).toBeUndefined();
   });
 });
