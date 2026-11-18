@@ -176,3 +176,62 @@ it('returns a 31-second Retry-After to the caller', async () => {
   expect((error as RateLimitError).retryAfter).toBe(31);
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+describe('429 codes', () => {
+  const tooMany = (code: string, headers: Record<string, string> = {}) => Response.json({
+    error: { type: 'rate_limit_error', code, message: code },
+  }, { status: 429, headers });
+
+  it.each([
+    'daily_call_limit_reached', 'intelligence_daily_limit_reached',
+    'athlete_free_daily_limit_reached', 'distinct_lookup_daily_limit_reached',
+  ])('%s is a daily limit: never retried, resetsAt is Retry-After from now', async code => {
+    const fetchMock = jest.fn().mockImplementation(async () => tooMany(code, { 'Retry-After': '20' }));
+    global.fetch = fetchMock;
+    const before = Date.now();
+    const error = await new Saturday({ apiKey: 'sk_test_fake' }).nutrition.calculate({ activity_type: 'run', duration_min: 60 })
+      .catch((e: unknown) => e) as RateLimitError;
+    expect(error.dailyLimit).toBe(true);
+    expect(error.retryable).toBe(false);
+    expect(error.resetsAt!.getTime()).toBeGreaterThanOrEqual(before + 20000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('an older daily ceiling (no Retry-After) resets at the next UTC midnight', () => {
+    const error = new RateLimitError({ type: 'rate_limit_error', code: 'rate_limit_exceeded', message: 'Daily call limit reached' },
+      undefined, new Date('2026-11-18T22:30:00Z'));
+    expect(error.dailyLimit).toBe(true);
+    expect(error.resetsAt!.toISOString()).toBe('2026-11-19T00:00:00.000Z');
+  });
+
+  it.each([
+    ['rate_limit_exceeded', '2', 2],
+    ['catalog_paced', '20', 2],
+    ['catalog_paced', '900', 1],
+    ['rate_limited', '5', 1],
+  ])('%s with Retry-After %s makes %i call(s)', async (code, wait, calls) => {
+    jest.useFakeTimers();
+    const fetchMock = jest.fn()
+      .mockResolvedValueOnce(tooMany(code, { 'Retry-After': wait }))
+      .mockResolvedValueOnce(Response.json({ activity_types: [], total: 0, request_id: 'req_1' }));
+    global.fetch = fetchMock;
+    const result = new Saturday({ apiKey: 'sk_test_fake' }).reference.activityTypes().catch((e: unknown) => e);
+    await jest.advanceTimersByTimeAsync(Number(wait) * 1000 + 10);
+    const value = await result;
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
+    if (calls === 1) expect((value as RateLimitError).retryAfter).toBe(Number(wait));
+  });
+
+  it('waits a 503 Retry-After before retrying', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest.fn()
+      .mockResolvedValueOnce(Response.json({ error: { type: 'api_error', code: 'service_unavailable', message: 'Try again' } }, { status: 503, headers: { 'Retry-After': '5' } }))
+      .mockResolvedValueOnce(Response.json({ activity_types: [], total: 0, request_id: 'req_1' }));
+    global.fetch = fetchMock;
+    const result = new Saturday({ apiKey: 'sk_test_fake' }).reference.activityTypes();
+    await jest.advanceTimersByTimeAsync(4900);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(200);
+    expect((await result).total).toBe(0);
+  });
+});

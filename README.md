@@ -193,7 +193,9 @@ try {
   await saturday.nutrition.calculate({ activity_type: 'run', duration_min: 60 });
 } catch (error) {
   if (error instanceof RateLimitError && error.dailyLimit) {
-    console.log('Daily limit reached; it resets at midnight UTC.');
+    console.log(`${error.code}: resets at ${error.resetsAt?.toISOString()}`);
+  } else if (error instanceof RateLimitError) {
+    console.log(`${error.code}: try again in ${error.retryAfter} s`);
   } else if (error instanceof ValidationError) {
     console.log(`Fix ${error.param}: ${error.message}`);
   } else {
@@ -202,7 +204,19 @@ try {
 }
 ```
 
-The client retries a 429 whose `Retry-After` is 30 seconds or less, after that many seconds, and a 5xx after 1 s, 2 s and 4 s, up to `maxRetries` times. A 5xx on a `POST` that creates or changes a record (an athlete, an activity, an import, a webhook) is not retried, since the server may have done the write; the calculation, product, inference, prep and export `POST`s are. A longer `Retry-After` comes back to you as a `RateLimitError` with `retryAfter` in seconds: after a calculation sweep, or when product answers are paced once a key has received a large share of the catalog in a day. A 429 without `Retry-After` is a daily ceiling: `dailyLimit` is true and nothing succeeds before midnight UTC. `saturday.partner.get()` shows your limits and `saturday.partner.usage()` what you have used.
+A `RateLimitError`'s `code` says which limit was hit:
+
+| `code` | What it means | What the client does |
+|--------|---------------|----------------------|
+| `rate_limit_exceeded` | Short-term throttle | Waits `retryAfter` seconds and retries |
+| `catalog_paced` | New products are paced after a large share of the catalog in 24 hours; products already answered keep working | Retries a wait of 30 seconds or less; returns a longer one to you |
+| `rate_limited` | Calculations blocked after an unusual request pattern, for `retryAfter` seconds | Returns it to you |
+| `daily_call_limit_reached` | Your daily call ceiling | Returns it to you, with `dailyLimit` true and `resetsAt` (UTC midnight) |
+| `intelligence_daily_limit_reached` | Your daily ceiling on calculations, products, inference, knowledge and AI; your athletes, activities and other data keep working | Same |
+| `athlete_free_daily_limit_reached` | Your daily budget of calculations sent without an `athlete_id` | Same |
+| `distinct_lookup_daily_limit_reached` | Your daily budget of distinct product lookups; repeat lookups keep working | Same |
+
+A 5xx is retried after its `Retry-After` (usually 5 seconds) or after 1 s, 2 s and 4 s, up to `maxRetries` times, except on a `POST` that creates or changes a record (an athlete, an activity, an import, a webhook), since the server may have done the write; the calculation, product, inference, prep and export `POST`s are retried. The client never sleeps longer than 30 seconds inside one call. `saturday.partner.get()` shows your limits and `saturday.partner.usage()` what you have used.
 
 ## Configuration
 

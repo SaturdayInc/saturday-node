@@ -10,13 +10,16 @@ export class SaturdayError extends Error {
   readonly error: SaturdayErrorDetail;
   /** Quote this when you contact Saturday about a request. */
   readonly requestId?: string;
+  /** Seconds to wait, from the `Retry-After` header, when the response carried one (429s, and 503s). */
+  readonly retryAfter?: number;
 
-  constructor(status: number, error: SaturdayErrorDetail) {
+  constructor(status: number, error: SaturdayErrorDetail, retryAfter?: number) {
     super(error.message);
     this.name = 'SaturdayError';
     this.status = status;
     this.error = error;
     this.requestId = error.request_id;
+    this.retryAfter = retryAfter;
   }
 
   /** The machine-readable code, such as `unsupported_field` or `athlete_not_found`. */
@@ -41,22 +44,53 @@ export class PermissionError extends SaturdayError {
   }
 }
 
+/** The 429 codes that reset at UTC midnight. Nothing succeeds before then. */
+export const DAILY_LIMIT_CODES = [
+  'daily_call_limit_reached',
+  'intelligence_daily_limit_reached',
+  'athlete_free_daily_limit_reached',
+  'distinct_lookup_daily_limit_reached',
+] as const;
+export type DailyLimitCode = typeof DAILY_LIMIT_CODES[number];
+
+/** The codes a 429 carries. */
+export type RateLimitCode = 'rate_limit_exceeded' | 'catalog_paced' | 'rate_limited' | DailyLimitCode;
+
+/** The longest wait the client sleeps through inside one call, in seconds. */
+export const MAX_RETRY_WAIT_SECONDS = 30;
+
 /**
- * 429. A rate limit or pacing carries `retryAfter` in seconds; the client waits out one of 30
- * seconds or less itself. A daily ceiling has no `retryAfter` (`dailyLimit` is true) and resets
- * at midnight UTC.
+ * 429. Read `code`:
+ * - `rate_limit_exceeded`: a short-term throttle. The client waits `retryAfter` and retries.
+ * - `catalog_paced`: new products are paced; `retryAfter` is the seconds until they resume. The
+ *   client retries a wait of 30 seconds or less; a longer one comes back to you.
+ * - `rate_limited`: an unusual request pattern; calculations are blocked for `retryAfter` seconds.
+ * - `daily_call_limit_reached`, `intelligence_daily_limit_reached`,
+ *   `athlete_free_daily_limit_reached`, `distinct_lookup_daily_limit_reached`: a daily ceiling.
+ *   `dailyLimit` is true and `resetsAt` is the UTC midnight it resets at. Never retried.
  */
 export class RateLimitError extends SaturdayError {
-  /** Seconds to wait, from the `Retry-After` header. Absent for a daily ceiling. */
-  readonly retryAfter?: number;
-  /** True for a daily ceiling: retrying before midnight UTC cannot succeed. */
+  /** True for a daily ceiling: nothing succeeds before `resetsAt`. */
   readonly dailyLimit: boolean;
+  /** When a daily ceiling resets (UTC midnight). Absent for the other 429s. */
+  readonly resetsAt?: Date;
 
-  constructor(error: SaturdayErrorDetail, retryAfter?: number) {
-    super(429, error);
+  constructor(error: SaturdayErrorDetail, retryAfter?: number, now: Date = new Date()) {
+    super(429, error, retryAfter);
     this.name = 'RateLimitError';
-    this.retryAfter = retryAfter;
-    this.dailyLimit = retryAfter === undefined;
+    // An API that predates the daily codes marks a daily ceiling by sending no Retry-After.
+    this.dailyLimit = (DAILY_LIMIT_CODES as readonly string[]).includes(error.code) || retryAfter === undefined;
+    if (this.dailyLimit) {
+      this.resetsAt = retryAfter !== undefined
+        ? new Date(now.getTime() + retryAfter * 1000)
+        : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    }
+  }
+
+  /** Whether the client retries this itself: a throttle or a short pacing wait, never a daily ceiling or a block. */
+  get retryable(): boolean {
+    if (this.dailyLimit || this.code === 'rate_limited' || this.retryAfter === undefined) return false;
+    return this.retryAfter <= MAX_RETRY_WAIT_SECONDS;
   }
 }
 

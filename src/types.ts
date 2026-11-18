@@ -11,7 +11,7 @@ export interface SaturdayConfig {
   /** Per-attempt timeout including the response body read, in milliseconds. Defaults to 30000. */
   timeout?: number;
 
-  /** Maximum retries for rate-limited (429 with `Retry-After`) and 5xx responses. Defaults to 3; 0 disables retries. */
+  /** Maximum retries for throttled or briefly paced 429s and for 5xx responses. Defaults to 3; 0 disables retries. */
   maxRetries?: number;
 
   /** OAuth2 access token for athlete-delegated access. Sent in place of `apiKey` when set. */
@@ -1152,9 +1152,11 @@ export interface CreateOrganizationSubscriptionRequest {
   end_date: number;
 }
 
+/** Only these four fields; any other is refused with 400 `unsupported_field`. Dates in Unix seconds. */
 export interface UpdateOrganizationSubscriptionRequest {
   seats?: number;
   status?: 'active' | 'expired' | 'cancelled';
+  start_date?: number;
   end_date?: number;
 }
 

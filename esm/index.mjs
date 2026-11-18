@@ -11,5 +11,7 @@ export const {
   RateLimitError,
   ValidationError,
   NotFoundError,
+  DAILY_LIMIT_CODES,
+  MAX_RETRY_WAIT_SECONDS,
 } = cjs;
 export default cjs.Saturday;

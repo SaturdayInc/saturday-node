@@ -31,13 +31,12 @@ import {
   RateLimitError,
   ValidationError,
   NotFoundError,
+  MAX_RETRY_WAIT_SECONDS,
 } from './errors';
 
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_MAX_RETRIES = 3;
-// The longest Retry-After a 429 is waited out for. A longer one is a block that lasts minutes.
-const MAX_RETRY_AFTER_S = 30;
 
 /**
  * A 5xx is retried only where a repeat cannot make a second record: every GET, PUT, PATCH and
@@ -147,9 +146,10 @@ export class Saturday {
   }
 
   /**
-   * Send an authenticated request. A 429 whose `Retry-After` is 30 seconds or less is retried after
-   * that wait; a 5xx is retried after 1, 2 and 4 seconds, except on a POST that creates or changes a
-   * record. Up to `maxRetries` times. Any other 429 and every other 4xx throw at once.
+   * Send an authenticated request, retrying up to `maxRetries` times where a retry can succeed:
+   * a 429 throttle or short pacing wait (see `RateLimitError.retryable`), and a 5xx after its
+   * `Retry-After` or 1, 2 and 4 seconds, except on a POST that creates or changes a record. Daily
+   * ceilings, blocks, waits over 30 seconds and every other 4xx throw at once.
    */
   async request<R>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<R> {
     const url = `${this.config.baseUrl}${path}`;
@@ -186,10 +186,11 @@ export class Saturday {
         lastError = error;
 
         if (error instanceof RateLimitError) {
-          if (error.dailyLimit || error.retryAfter! > MAX_RETRY_AFTER_S) throw error;
+          if (!error.retryable) throw error;
           retryDelayMs = error.retryAfter! * 1000;
         } else if (response.status >= 500 && retrySafeOnServerError(method, path)) {
-          retryDelayMs = Math.pow(2, attempt) * 1000;
+          if (error.retryAfter !== undefined && error.retryAfter > MAX_RETRY_WAIT_SECONDS) throw error;
+          retryDelayMs = (error.retryAfter ?? Math.pow(2, attempt)) * 1000;
         } else {
           throw error;
         }
@@ -213,6 +214,9 @@ export class Saturday {
   }
 
   private mapError(status: number, detail: any, headers: Headers): SaturdayError {
+    const header = headers.get('Retry-After');
+    const parsed = header === null ? NaN : Number(header);
+    const retryAfter = Number.isFinite(parsed) ? Math.max(0, parsed) : undefined;
     switch (status) {
       case 400:
       case 422:
@@ -223,13 +227,10 @@ export class Saturday {
         return new PermissionError(detail);
       case 404:
         return new NotFoundError(detail);
-      case 429: {
-        const header = headers.get('Retry-After');
-        const seconds = header === null ? undefined : parseInt(header, 10);
-        return new RateLimitError(detail, Number.isFinite(seconds) ? seconds : undefined);
-      }
+      case 429:
+        return new RateLimitError(detail, retryAfter);
       default:
-        return new SaturdayError(status, detail);
+        return new SaturdayError(status, detail, retryAfter);
     }
   }
 }
