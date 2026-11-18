@@ -8,7 +8,7 @@ export interface SaturdayConfig {
   /** Base URL override. Defaults to https://api.saturday.fit */
   baseUrl?: string;
 
-  /** Per-attempt timeout including response body reads, in milliseconds. Defaults to 30000 for JSON requests; an unconfigured AI stream deadline is 60000. */
+  /** Per-attempt timeout including response body reads, in milliseconds. Defaults to 30000. */
   timeout?: number;
 
   /** Maximum retry attempts for transient failures. Defaults to 3. */
@@ -25,7 +25,6 @@ export type Sex = 'male' | 'female' | 'intersex';
 export type SubscriptionTier = 'full' | 'teaser';
 export type CarbExperience = 'range_0_30' | 'range_40_60' | 'range_gt_70';
 export type UsualCarbConsumption = 'range_lt_60' | 'range_60_80' | 'range_80_100' | 'range_gt_100';
-export type GearType = 'bottle' | 'flask' | 'softflask' | 'bladder' | 'jersey_pocket';
 /**
  * Event names a partner webhook can register. Registration rejects the whole request on one
  * unknown name. `subscription.updated` and `partner.rate_limit_approaching` are accepted but
@@ -161,7 +160,7 @@ export interface NutritionCalculateResponse extends TrialMetadata {
   subscription_cta?: SubscriptionCTA;
 }
 
-/** The upsell attached to any teaser-tier response, prescriptions and products alike. */
+/** The upsell attached to any teaser-tier response. */
 export interface SubscriptionCTA {
   message: string;
   subscribe_url: string;
@@ -544,108 +543,6 @@ export interface ActivityImportResponse extends BatchSummary {
   prescriptions?: ImportPrescriptionItem[];
 }
 
-// --- Products ---
-
-/** Which shape a product response carries. `teaser` means the athlete's
- *  subscription did not open the catalog: product fields are empty and the
- *  taxonomy plus a subscribe CTA come back instead. */
-export type ProductTier = 'full' | 'teaser';
-
-/** Summary-level product, returned by search and the curated listing. */
-export interface ProductSummary {
-  id: string;
-  name?: string;
-  product_name?: string;
-  brand?: string;
-  product_type?: string;
-  image_url?: string;
-  /** Per-response watermark identifying the partner this copy was served to. */
-  _fingerprint?: string;
-}
-
-/** Full product record, returned by the barcode lookup. */
-export interface Product extends ProductSummary {
-  display_name?: string;
-  barcode?: string;
-  flavor?: string;
-  serving_size?: number;
-  serving_unit?: string;
-  carb_gram?: number;
-  sodium_mg?: number;
-  fluid_ml?: number;
-  calories?: number;
-  sugar_g?: number;
-  fat_g?: number;
-  protein_g?: number;
-  fiber_g?: number;
-  caffeine_mg?: number;
-  potassium_mg?: number;
-  magnesium_mg?: number;
-  gf_ratio?: number;
-  ingredients?: string;
-  allergens?: string;
-  keywords?: string;
-  verified?: boolean;
-  source?: string;
-  editorial_review?: string;
-}
-
-export interface ProductCategory {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface ProductLookupResponse {
-  tier: ProductTier;
-  product: Product | null;
-  /** Teaser tier only. */
-  categories?: ProductCategory[];
-  cta?: SubscriptionCTA;
-  request_id: string;
-}
-
-export interface ProductSearchResponse {
-  tier: ProductTier;
-  products: ProductSummary[];
-  total: number;
-  /** Teaser tier only. */
-  categories?: ProductCategory[];
-  cta?: SubscriptionCTA;
-  request_id: string;
-}
-
-export interface CuratedProductsResponse {
-  tier: ProductTier;
-  products: ProductSummary[];
-  has_more: boolean;
-  next_cursor?: string;
-  /** Teaser tier only. */
-  categories?: ProductCategory[];
-  cta?: SubscriptionCTA;
-  request_id: string;
-}
-
-// --- AI-to-AI conversations ---
-
-export interface AIConversation {
-  id: string;
-  athlete_id: string;
-  partner_id: string;
-  message_count: number;
-  summary?: string;
-  model_used: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AIMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
-  tools_called?: string[];
-}
-
 // --- Webhooks ---
 
 export interface Webhook {
@@ -749,17 +646,6 @@ export interface Organization {
   created_at: number;
   /** Epoch seconds. */
   updated_at: number;
-}
-
-// --- Gear ---
-
-export interface GearItem {
-  id: string;
-  name: string;
-  type: GearType;
-  capacity_ml: number;
-  is_default: boolean;
-  created_at: string;
 }
 
 // --- Pagination ---

@@ -5,7 +5,6 @@ import cjs from '../dist/index.js';
 
 export const {
   Saturday,
-  AIStreamError,
   SaturdayError,
   AuthenticationError,
   RateLimitError,

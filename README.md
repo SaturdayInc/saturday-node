@@ -44,8 +44,8 @@ Teaser-tier responses and incomplete profiles return ranges rather than exact nu
 ## Features
 
 - TypeScript types for requests, responses, and errors
-- Automatic retry for JSON operations, up to 3 times. A `429` is retried after the server's `Retry-After` when that is 30 s or less; a `429` with no `Retry-After` (a daily limit) or a longer one (a block that lasts minutes) throws `RateLimitError` at once. A `5xx` is retried with 1 s, 2 s, and 4 s backoff, except on a `POST` that creates or changes a record, so a retry cannot make a second athlete. AI stream writes are never replayed
-- Typed errors: `AuthenticationError`, `RateLimitError`, `ValidationError`, `NotFoundError`, `AIStreamError`
+- Automatic retry for JSON operations, up to 3 times. A `429` is retried after the server's `Retry-After` when that is 30 s or less; a `429` with no `Retry-After` (a daily limit) or a longer one (a block that lasts minutes) throws `RateLimitError` at once. A `5xx` is retried with 1 s, 2 s, and 4 s backoff, except on a `POST` that creates or changes a record, so a retry cannot make a second athlete.
+- Typed errors: `AuthenticationError`, `RateLimitError`, `ValidationError`, `NotFoundError`
 - API key and OAuth2 Bearer token authentication
 - `SafetyMetadata` type with `not_instructions` on every prescription
 
@@ -85,16 +85,13 @@ Partner keys carry the `sk_live_` or `sk_test_` prefix; coach keys carry `cp_liv
 | `saturday.nutrition` | Calculate prescriptions, batch calculate |
 | `saturday.athletes` | Athlete CRUD, settings, the athlete's shared Saturday app answers, batch create, GDPR data export |
 | `saturday.activities` | Activity CRUD, prescription calculation, import, feedback |
-| `saturday.products` | Product search, barcode lookup, curated list, categories |
-| `saturday.ai` | AI event streams, plus JSON conversation metadata, history, listing, and deletion; see AI writes below |
 | `saturday.webhooks` | Webhook registration and management |
 | `saturday.organizations` | Team and organization management with members |
-| `saturday.gear` | Athlete gear inventory |
 | `saturday.knowledge` | Sports nutrition knowledge base search |
 | `saturday.onboarding` | The versioned onboarding question schema, for collecting an athlete's profile in your UI |
 | `saturday.coach` | Roster fueling reads, the coach's alert and report configuration, coach webhooks, and read-only billing (`seatState`, `ledger`, `tierStatus`, `connectSummary`, `connectEarnings`, `connectTransactions`, `connectArrangements`; the key must carry `billing:read`), with a coach key |
 
-Nutrition, products, gear, AI conversations and knowledge sit behind [feature gates](https://docs.saturday.fit/guides/feature-gates) that Saturday opens per partner. Until a gate is open for your key, its routes answer `404` (`NotFoundError`) or `403` with code `feature_alpha`; ask api@saturday.fit to open one.
+Nutrition and knowledge sit behind [feature gates](https://docs.saturday.fit/guides/feature-gates) that Saturday opens per partner. Until a gate is open for your key, its routes answer `404` (`NotFoundError`) or `403` with code `feature_alpha`; ask api@saturday.fit to open one.
 
 ## Finding an athlete by your own id
 
@@ -181,41 +178,6 @@ function onSharingEvent(event: ProfileSharingChangedEvent | FuelingProfileUpdate
 ```
 
 `value` is the app answer, `null` when the athlete has not answered it in the app. `calculations_use` says where the value Saturday's calculations use comes from: `partner` (yours), `saturday_app`, or `default`. Full guide: [Reading an athlete's fueling profile](https://docs.saturday.fit/guides/fueling-profile).
-
-## AI writes
-
-Use `ai.createConversationStream(athleteId, message)` and `ai.sendMessageStream(conversationId, message)`. They return async generators of `{ event, data, rawData, id? }`, preserving unknown event names and JSON fields. `id` is present only when the server sent an SSE `id:` line for that event; the server sends none today. The metadata/history read methods still return JSON.
-
-Compatibility change: the legacy `ai.createConversation()` and `ai.sendMessage()` signatures are retained but now reject locally with `AIStreamError` code `streaming_required`, before any HTTP request. They cannot return their old metadata/message promises from the actual SSE wire response. Migrate to the explicit stream methods; no timestamps or metadata are invented.
-
-```typescript
-import Saturday, { AIStreamError } from '@saturdayinc/sdk';
-
-const client = new Saturday({ apiKey: 'sk_live_...' });
-const controller = new AbortController();
-try {
-  for await (const event of client.ai.createConversationStream(
-    'YOUR_ATHLETE_ID', 'Help me review my fueling plan',
-    { signal: controller.signal, timeout: 60000 },
-  )) {
-    // Keep safety_warning, error, tool/action and unknown events, not only text.
-    console.log(event.event, event.data);
-  }
-} catch (error) {
-  if (error instanceof AIStreamError) console.error(error.error.code, error.event);
-  throw error; // No automatic retry: the server may have accepted the write.
-}
-```
-
-The `message_start` event supplies `data.conversation_id`. Current names include `text_delta`, `safety_warning`, `error`, `tool_call`, `tool_result`, `action`, `replay` and `message_end`. `data` is `unknown`: narrow it before accessing fields. `rawData` retains the original SSE data text. `message_end` is not a success verdict: server error events are yielded, then iteration raises `stream_error` after the response finishes. Warnings, including generation-halted safety warnings, must remain visible even if no exception is raised.
-
-Each stream POST is attempted exactly once, including HTTP 429/5xx, connection errors, parse failures, cancellation and premature EOF. `maxRetries` does not apply. Malformed JSON/UTF-8 raises `malformed_stream`; missing final framing or `message_end` raises `incomplete_stream`. Preserve received events as partial output, not a complete answer. These writes have no idempotency key; inspect conversation state before deciding whether to submit another message.
-
-Redirects are refused with `AIStreamError` code `redirect`, so the SDK never forwards the POST to another URL. Connection failures use `connection_error`; HTTP failures retain the usual typed Saturday errors and parsed server details.
-
-Persist the received events if you need an exact record. Stored conversation history is not a guaranteed replay of streamed assistant output.
-
-The timeout is a total deadline in milliseconds, covering headers and the entire body. It defaults to the client `timeout` when one is configured, else 60 s: a turn with tool calls can run up to the API's 60 s request cap. An `AbortSignal` cancels a pending read. Breaking a `for await` loop closes the response and releases its reader. Always finish or close an iterator; abandoning it without either leaves cleanup to the deadline. Cancellation cannot undo inference the server has accepted. No reconnect is triggered by an SSE `retry` or `replay` field/event.
 
 ## Documentation
 

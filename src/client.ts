@@ -15,19 +15,12 @@ import type {
   CreateActivityRequest,
   AthleteSettings,
   FuelingProfile,
-  ProductCategory,
-  ProductLookupResponse,
-  ProductSearchResponse,
-  CuratedProductsResponse,
-  AIConversation,
-  AIMessage,
   Webhook,
   WebhookCreateResponse,
   WebhookListResponse,
   WebhookTestResponse,
   WebhookDeliveryList,
   Organization,
-  GearItem,
   AthleteListResponse,
   ActivityListResponse,
   CoachWindow,
@@ -61,13 +54,9 @@ import {
   ValidationError,
   NotFoundError,
 } from './errors';
-import { AIStreamError, streamAI } from './ai-stream';
-import type { AIStreamEvent, AIStreamOptions } from './ai-stream';
 
 const DEFAULT_BASE_URL = 'https://api.saturday.fit';
 const DEFAULT_TIMEOUT = 30000;
-// AI turns run up to the API's 60 s request cap, so an unconfigured stream deadline is longer than the JSON default.
-const DEFAULT_STREAM_TIMEOUT = 60000;
 const DEFAULT_MAX_RETRIES = 3;
 // The longest Retry-After a 429 is waited out for. A longer one is a block that lasts minutes.
 const MAX_RETRY_AFTER_SECONDS = 30;
@@ -98,7 +87,6 @@ const SDK_VERSION = '0.8.0';
  */
 export class Saturday {
   private readonly config: Required<Omit<SaturdayConfig, 'bearerToken'>> & { bearerToken?: string };
-  private readonly streamTimeout: number;
 
   /** Nutrition intelligence endpoints — the crown jewel. */
   readonly nutrition: NutritionResource;
@@ -109,20 +97,11 @@ export class Saturday {
   /** Activity management and prescription calculation. */
   readonly activities: ActivitiesResource;
 
-  /** Product database search and lookup. */
-  readonly products: ProductsResource;
-
-  /** AI-to-AI conversations with Saturday's assistant (feature-gated: ai_to_ai_conversations). */
-  readonly ai: AIResource;
-
   /** Webhook event subscriptions. */
   readonly webhooks: WebhooksResource;
 
   /** Organization and team management. */
   readonly organizations: OrganizationsResource;
-
-  /** Gear inventory management (feature-gated: gear). */
-  readonly gear: GearResource;
 
   /** Knowledge base search. */
   readonly knowledge: KnowledgeResource;
@@ -145,16 +124,12 @@ export class Saturday {
       maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       bearerToken: config.bearerToken,
     };
-    this.streamTimeout = config.timeout || DEFAULT_STREAM_TIMEOUT;
 
     this.nutrition = new NutritionResource(this);
     this.athletes = new AthletesResource(this);
     this.activities = new ActivitiesResource(this);
-    this.products = new ProductsResource(this);
-    this.ai = new AIResource(this);
     this.webhooks = new WebhooksResource(this);
     this.organizations = new OrganizationsResource(this);
-    this.gear = new GearResource(this);
     this.knowledge = new KnowledgeResource(this);
     this.onboarding = new OnboardingResource(this);
     this.coach = new CoachResource(this);
@@ -258,15 +233,6 @@ export class Saturday {
     });
   }
 
-  /** @internal AI writes have no automatic retry, even on 429 or 5xx. */
-  streamRequest(path: string, body: unknown, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
-    return streamAI(`${this.config.baseUrl}${path}`, {
-      'Content-Type': 'application/json',
-      'User-Agent': `saturday-node/${SDK_VERSION}`,
-      'X-SDK-Version': SDK_VERSION,
-      Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
-    }, body, this.streamTimeout, options, (status, detail, headers) => this.mapError(status, detail, headers));
-  }
 
   private mapError(status: number, detail: any, headers: Headers): SaturdayError {
     switch (status) {
@@ -425,79 +391,6 @@ class ActivitiesResource {
   }
 }
 
-class ProductsResource {
-  constructor(private client: Saturday) {}
-
-  async getByBarcode(barcode: string, athleteId: string): Promise<ProductLookupResponse> {
-    const qs = new URLSearchParams({ athlete_id: athleteId });
-    return this.client.request('GET', `/v1/products/${barcode}?${qs}`);
-  }
-
-  async search(query: string, athleteId: string): Promise<ProductSearchResponse> {
-    const qs = new URLSearchParams({ q: query, athlete_id: athleteId });
-    return this.client.request('GET', `/v1/products/search?${qs}`);
-  }
-
-  /** Pass `next_cursor` from the previous response to advance (10 per page). */
-  async listCurated(athleteId: string, cursor?: string): Promise<CuratedProductsResponse> {
-    const qs = new URLSearchParams({ athlete_id: athleteId });
-    if (cursor) qs.set('cursor', cursor);
-    return this.client.request('GET', `/v1/products/curated?${qs}`);
-  }
-
-  /** The taxonomy is the free tier: every athlete gets the same answer. */
-  async listCategories(athleteId: string): Promise<{ categories: ProductCategory[] }> {
-    const qs = new URLSearchParams({ athlete_id: athleteId });
-    return this.client.request('GET', `/v1/products/categories?${qs}`);
-  }
-}
-
-class AIResource {
-  constructor(private client: Saturday) {}
-
-  /** @deprecated Use createConversationStream. This method fails locally without sending an AI request. */
-  async createConversation(athleteId: string, initialMessage?: string): Promise<AIConversation> {
-    throw new AIStreamError('streaming_required', 'Use ai.createConversationStream(athleteId, message) and consume every event. No request was sent.');
-  }
-
-  /** @deprecated Use sendMessageStream. This method fails locally without sending an AI request. */
-  async sendMessage(convId: string, message: string): Promise<AIMessage> {
-    throw new AIStreamError('streaming_required', 'Use ai.sendMessageStream(convId, message) and consume every event. No request was sent.');
-  }
-
-  /** Start a conversation and receive the existing SSE event stream, without retries. */
-  createConversationStream(athleteId: string, message: string, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
-    return this.client.streamRequest('/v1/ai/conversations', { athlete_id: athleteId, message }, options);
-  }
-
-  /** Send one message and receive all events, including warnings and server errors. */
-  sendMessageStream(convId: string, message: string, options: AIStreamOptions = {}): AsyncGenerator<AIStreamEvent> {
-    return this.client.streamRequest(`/v1/ai/conversations/${encodeURIComponent(convId)}/messages`, { message }, options);
-  }
-
-  /** Get stored JSON history. The limit argument is retained for compatibility but ignored by the server. */
-  async getMessages(convId: string, params?: { limit?: number }): Promise<{ messages: AIMessage[] }> {
-    const qs = params?.limit ? `?limit=${params.limit}` : '';
-    return this.client.request('GET', `/v1/ai/conversations/${convId}/messages${qs}`);
-  }
-
-  /** Get conversation metadata. */
-  async getConversation(convId: string): Promise<AIConversation> {
-    return this.client.request('GET', `/v1/ai/conversations/${convId}`);
-  }
-
-  /** Delete a conversation. */
-  async deleteConversation(convId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/ai/conversations/${convId}`);
-  }
-
-  /** List up to 50 conversations. The limit argument is retained for compatibility but ignored by the server. */
-  async listConversations(athleteId: string, params?: { limit?: number }): Promise<{ conversations: AIConversation[] }> {
-    const qs = params?.limit ? `?limit=${params.limit}` : '';
-    return this.client.request('GET', `/v1/athletes/${athleteId}/ai/conversations${qs}`);
-  }
-}
-
 class WebhooksResource {
   constructor(private client: Saturday) {}
 
@@ -562,26 +455,6 @@ class OrganizationsResource {
 
   async removeMember(orgId: string, memberId: string): Promise<void> {
     return this.client.request('DELETE', `/v1/organizations/${orgId}/members/${memberId}`);
-  }
-}
-
-class GearResource {
-  constructor(private client: Saturday) {}
-
-  async list(athleteId: string): Promise<{ gear: GearItem[] }> {
-    return this.client.request('GET', `/v1/athletes/${athleteId}/gear`);
-  }
-
-  async create(athleteId: string, gear: { name: string; type: string; capacity_ml: number; is_default?: boolean }): Promise<GearItem> {
-    return this.client.request('POST', `/v1/athletes/${athleteId}/gear`, gear);
-  }
-
-  async update(athleteId: string, gearId: string, updates: Partial<GearItem>): Promise<GearItem> {
-    return this.client.request('PATCH', `/v1/athletes/${athleteId}/gear/${gearId}`, updates);
-  }
-
-  async delete(athleteId: string, gearId: string): Promise<void> {
-    return this.client.request('DELETE', `/v1/athletes/${athleteId}/gear/${gearId}`);
   }
 }
 
