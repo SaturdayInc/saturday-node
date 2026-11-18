@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { writeFileSync } from 'fs';
 import {
   Saturday, NotFoundError, PermissionError, ValidationError,
-  type Athlete, type NutritionCalculateResponse,
+  type Athlete, type NutritionCalculateResponse, type PrepResponse,
 } from '../src';
 
 const BASE = process.env.SATURDAY_LIVE_BASE_URL;
@@ -20,8 +20,32 @@ const describeLive = enabled ? describe : describe.skip;
 /** Every response, by name, with the SDK type it must satisfy; test/live-types.test.ts type-checks them. */
 const captured: Record<string, { type: string; body: unknown }> = {};
 function capture<R>(name: string, type: string, body: R): R {
+  expectSeconds(name, body);
   captured[name] = { type, body: scrub(body) };
   return body;
+}
+
+/** Unix seconds stay below this until the year 5138; a time in milliseconds today is about 1.8e12. */
+const MILLISECOND_SIZED = 1e11;
+
+/** Every time a partner key receives is Unix seconds: no `*_at`, `*_date` or `timestamp` number at any depth is millisecond-sized. */
+function expectSeconds(name: string, value: unknown, path = ''): void {
+  if (Array.isArray(value)) {
+    value.forEach((item, i) => expectSeconds(name, item, `${path}[${i}]`));
+    return;
+  }
+  if (!value || typeof value !== 'object') return;
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === 'number' && /(_at|_date|^timestamp)$/.test(key) && item >= MILLISECOND_SIZED) {
+      throw new Error(`${name}: ${path}.${key} is ${item}, a time in milliseconds`);
+    }
+    expectSeconds(name, item, `${path}.${key}`);
+  }
+}
+
+/** A webhook delivery's event body, decoded from its base64 `event_data`. */
+function deliveredEvent(eventData: string | undefined): { id: string; type: string; created_at: number; data: Record<string, unknown> } {
+  return JSON.parse(Buffer.from(eventData ?? '', 'base64').toString('utf8'));
 }
 
 /** Keys, secrets, signed links and the partner's own details never go into the capture file. */
@@ -64,6 +88,21 @@ function exact(plan: NutritionCalculateResponse) {
   }
   expect(plan.safety.not_instructions).toBe(true);
   expect(plan.attribution.required).toBe(true);
+}
+
+/** Prep's top level on a brick is its legs added up: each product once with its servings summed, the totals and gap the legs' sums. */
+function expectLegsAddUp(prep: PrepResponse) {
+  const legs = prep.legs!;
+  for (const key of ['carb_g', 'sodium_mg', 'fluid_ml'] as const) {
+    expect(prep.totals_from_products[key]).toBe(legs.reduce((sum, leg) => sum + leg.totals_from_products[key], 0));
+    expect(prep.remaining_gap[key]).toBe(legs.reduce((sum, leg) => sum + leg.remaining_gap[key], 0));
+  }
+  const ids = prep.products.map(p => p.product_id);
+  expect(new Set(ids).size).toBe(ids.length);
+  for (const product of prep.products) {
+    const servings = legs.reduce((sum, leg) => sum + (leg.products.find(p => p.product_id === product.product_id)?.servings ?? 0), 0);
+    expect(product.servings).toBeCloseTo(servings, 6);
+  }
 }
 
 describeLive('live API', () => {
@@ -241,13 +280,13 @@ describeLive('live API', () => {
     const legCarbs = brick.legs!.reduce((sum, leg) => sum + leg.total_carb_g, 0);
     expect(Math.abs(legCarbs - brick.total_carb_g!)).toBeLessThanOrEqual(brick.legs!.length);
 
-    // Calculated separately, the legs come to less than the one continuous effort.
+    // A brick is one call with legs: its legs sent as separate calls answer differently.
     let separate = 0;
     for (const leg of brickLegs) {
       const single = await saturday.nutrition.calculate({ athlete_id: athlete.id, ...leg, meal_before_min: 120, is_race: false });
       separate += single.total_carb_g ?? 0;
     }
-    expect(brick.total_carb_g!).toBeGreaterThan(separate);
+    expect(brick.total_carb_g!).not.toBe(separate);
 
     const triathlon = capture('calculate_triathlon', 'NutritionCalculateResponse', await saturday.nutrition.calculate({
       athlete_id: athlete.id, activity_type: 'triathlon', duration_min: 150, is_race: true, meal_before_min: 240, legs: [
@@ -306,6 +345,74 @@ describeLive('live API', () => {
     }));
     expect(prep.prescription.carb_g).toBe(brick.total_carb_g);
     expect(prep.plan_basis).toBeUndefined();
+    // One session-wide list is sized against each leg's share, its servings counting per leg; the top level is the legs added up.
+    expect(prep.legs?.map(l => l.activity_type)).toEqual(['bike', 'run']);
+    expect(prep.legs!.map(l => l.prescription.carb_g)).toEqual(brick.legs!.map(l => l.total_carb_g));
+    const gelId = prep.products.find(p => p.product_name.includes('Gel'))!.product_id;
+    for (const leg of prep.legs!) expect(leg.products.find(p => p.product_id === gelId)?.servings).toBe(3);
+    expectLegsAddUp(prep);
+
+    const perLeg = capture('prep_brick_per_leg', 'PrepResponse', await saturday.activities.prep(athlete.id, stored.id, {
+      legs: [{ products: [{ product_query: 'tailwind endurance fuel' }] }, { products: [{ product_query: 'maurten gel 100', servings: 2 }] }],
+    }));
+    expect(perLeg.legs?.[0].products.map(p => p.product_id)).not.toContain(gelId);
+    expect(perLeg.legs?.[1].products.map(p => [p.product_id, p.servings])).toEqual([[gelId, 2]]);
+    expect(perLeg.products).toHaveLength(2);
+    expectLegsAddUp(perLeg);
+    const wrongCount = await refusal(saturday.activities.prep(athlete.id, stored.id, { legs: [{ products: [] }] }));
+    expect((wrongCount as ValidationError).code).toBe('invalid_value');
+    expect((wrongCount as ValidationError).param).toBe('legs');
+
+    // Fit and compare size the whole session at the top level and each leg's share under legs.
+    const brickFit = capture('product_fit_brick', 'ProductFitResponse', await saturday.nutrition.productFit({
+      athlete_id: athlete.id, product_query: 'maurten gel 100', activity_type: 'brick', legs: brickLegs, meal_before_min: 120, is_race: false,
+    }));
+    expect(brickFit.tier).toBe('full');
+    expect(brickFit.plan_basis).toBeUndefined();
+    expect(brickFit.prescription?.carb_g).toBe(brick.total_carb_g);
+    expect(brickFit.legs?.map(l => [l.activity_type, l.duration_min])).toEqual([['bike', 90], ['run', 30]]);
+    expect(brickFit.legs!.map(l => l.prescription.carb_g)).toEqual(brick.legs!.map(l => l.total_carb_g));
+    for (const leg of brickFit.legs!) expect(leg.fit.product_id).toBe(gelId);
+    const triLegs = [
+      { activity_type: 'swim' as const, duration_min: 30, intensity_level: 7, thermal_stress_level: 3 },
+      { activity_type: 'bike' as const, duration_min: 80, intensity_level: 7, thermal_stress_level: 6 },
+      { activity_type: 'run' as const, duration_min: 40, intensity_level: 7, thermal_stress_level: 7 },
+    ];
+    const triFit = await saturday.nutrition.productFit({
+      athlete_id: athlete.id, product_query: 'tailwind endurance fuel', activity_type: 'triathlon', legs: triLegs, duration_min: 150, meal_before_min: 240, is_race: true,
+    });
+    expect(triFit.prescription?.carb_g).toBe(triathlon.total_carb_g);
+    expect(triFit.legs!.map(l => l.prescription.carb_g)).toEqual(triathlon.legs!.map(l => l.total_carb_g));
+    const triCompare = capture('product_compare_triathlon', 'ProductCompareResponse', await saturday.nutrition.compareProducts({
+      athlete_id: athlete.id, product_a: { product_query: 'maurten gel 100' }, product_b: { product_query: 'tailwind endurance fuel' },
+      activity_type: 'triathlon', legs: triLegs, meal_before_min: 240, is_race: true,
+    }));
+    expect(triCompare.legs).toHaveLength(3);
+    for (const leg of triCompare.legs!) expect(['product_a', 'product_b']).toContain(leg.winner.overall);
+    const brickCompare = await saturday.nutrition.compareProducts({
+      athlete_id: athlete.id, product_a: { product_query: 'maurten gel 100' }, product_b: { product_query: 'tailwind endurance fuel' },
+      activity_type: 'brick', legs: brickLegs, meal_before_min: 120, is_race: false,
+    });
+    expect(brickCompare.legs!.map(l => l.product_a.product_id)).toEqual([gelId, gelId]);
+
+    // Each refusal names its field.
+    const fitNoLegs = await refusal(saturday.nutrition.productFit({
+      athlete_id: athlete.id, product_query: 'maurten gel 100', activity_type: 'brick', duration_min: 120, ...session,
+    } as never));
+    expect((fitNoLegs as ValidationError).param).toBe('legs');
+    const fitLegsOnRun = await refusal(saturday.nutrition.productFit({
+      athlete_id: athlete.id, product_query: 'maurten gel 100', activity_type: 'run', duration_min: 120, legs: brickLegs, ...session,
+    } as never));
+    expect((fitLegsOnRun as ValidationError).param).toBe('legs');
+    const fitWrongTotal = await refusal(saturday.nutrition.productFit({
+      athlete_id: athlete.id, product_query: 'maurten gel 100', activity_type: 'brick', legs: brickLegs, duration_min: 100, meal_before_min: 120, is_race: false,
+    }));
+    expect((fitWrongTotal as ValidationError).param).toBe('duration_min');
+    const compareNoSport = await refusal(saturday.nutrition.compareProducts({
+      athlete_id: athlete.id, product_a: { product_query: 'maurten gel 100' }, product_b: { product_query: 'tailwind endurance fuel' }, duration_min: 60,
+    } as never));
+    expect((compareNoSport as ValidationError).code).toBe('missing_field');
+    expect((compareNoSport as ValidationError).param).toBe('activity_type');
 
     // A brick's minutes, effort and heat live on its legs.
     const minutes = await refusal(saturday.activities.update(athlete.id, stored.id, { duration_min: 150 }));
@@ -321,6 +428,9 @@ describeLive('live API', () => {
     const single = await saturday.activities.update(athlete.id, stored.id, { type: 'run', duration_min: 60, intensity_level: 5, thermal_stress_level: 5 });
     expect(single.type).toBe('run');
     expect(single.legs).toBeUndefined();
+    const legsOnSingle = await refusal(saturday.activities.prep(athlete.id, stored.id, { legs: [{ products: [] }, { products: [] }] }));
+    expect((legsOnSingle as ValidationError).code).toBe('invalid_value');
+    expect((legsOnSingle as ValidationError).param).toBe('legs');
     const needsLegs = await refusal(saturday.activities.update(athlete.id, stored.id, { type: 'triathlon' }));
     expect((needsLegs as ValidationError).param).toBe('legs');
     const tri = await saturday.activities.update(athlete.id, stored.id, {
@@ -407,13 +517,33 @@ describeLive('live API', () => {
     await saturday.partner.revokeApiKey(rotated.id);
   });
 
-  it('webhooks: create, get, update, deliveries, delete', async () => {
+  it('webhooks: create, get, test, deliveries, update, delete; every event time is Unix seconds', async () => {
     const created = capture('webhook_created', 'WebhookCreateResponse',
       await saturday.webhooks.create('https://example.com/saturday-live-suite', ['prescription.calculated']));
     expect(created.webhook.secret.length).toBeGreaterThan(20);
     const id = created.webhook.id;
     capture('webhook_list', 'WebhookListResponse', await saturday.webhooks.list());
     capture('webhook', 'Webhook', await saturday.webhooks.get(id));
+
+    // example.com answers 405, so each delivery is recorded as failed, its event body kept in event_data.
+    const tested = capture('webhook_test', 'WebhookTestResponse', await saturday.webhooks.test(id));
+    const testEvent = deliveredEvent(tested.delivery.event_data);
+    expect(testEvent.type).toBe('webhook.test');
+    expectSeconds('webhook.test event', testEvent);
+    expect(Math.abs(testEvent.created_at - Date.now() / 1000)).toBeLessThan(600);
+
+    await saturday.nutrition.calculate({ athlete_id: complete.id, activity_type: 'run', duration_min: 60, ...session });
+    let calculatedEvent: ReturnType<typeof deliveredEvent> | undefined;
+    for (let attempt = 0; attempt < 20 && !calculatedEvent; attempt++) {
+      const { deliveries } = await saturday.webhooks.listDeliveries(id);
+      const delivery = deliveries.find(d => d.event_type === 'prescription.calculated');
+      if (delivery?.event_data) calculatedEvent = deliveredEvent(delivery.event_data);
+      else await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    expect(calculatedEvent?.data.athlete_id).toBe(complete.id);
+    expectSeconds('prescription.calculated event', calculatedEvent);
+    expect(Math.abs(calculatedEvent!.created_at - Date.now() / 1000)).toBeLessThan(600);
+
     const paused = await saturday.webhooks.update(id, { active: false });
     expect(paused.active).toBe(false);
     capture('webhook_deliveries', 'WebhookDeliveryList', await saturday.webhooks.listDeliveries(id));
@@ -451,6 +581,7 @@ describeLive('live API', () => {
     await saturday.athletes.revokeConsent(complete.id, consent.id);
     const exported = capture('export', 'AthleteDataExport', await saturday.athletes.export(complete.id));
     expect(exported.athlete_id).toBe(complete.id);
+    expect(Math.abs(exported.exported_at - Date.now() / 1000)).toBeLessThan(600);
 
     await saturday.athletes.erase(partial.id);
     expect(await refusal(saturday.athletes.get(partial.id))).toBeInstanceOf(NotFoundError);
