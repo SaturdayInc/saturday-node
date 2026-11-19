@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "backend_sha": "66538f7d5f608418e34895defb740e442dd8691a",
+    "backend_sha": "aae11b6dd0d6814810d8b337f8e9cbee27b2a310",
     "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling, and the profile-sharing types in pkg/api, pkg/partner and pkg/webhook; synthetic values, no API calls"
   },
   "activity": {
@@ -23,12 +23,6 @@
     "updated_at": 1700000000
   },
   "activity_banded": {
-    "total_carb_g": 0,
-    "total_sodium_mg": 0,
-    "total_fluid_ml": 0,
-    "carb_g_per_hr": 0,
-    "sodium_mg_per_hr": 0,
-    "fluid_ml_per_hr": 0,
     "calculated_at": 1700000000,
     "profile_complete": false,
     "carb_range_g_per_hr": "50-70",
@@ -60,7 +54,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -73,12 +67,6 @@
   "activity_full_banded": {
     "tier": "full",
     "prescription": {
-      "total_carb_g": 0,
-      "total_sodium_mg": 0,
-      "total_fluid_ml": 0,
-      "carb_g_per_hr": 0,
-      "sodium_mg_per_hr": 0,
-      "fluid_ml_per_hr": 0,
       "calculated_at": 1700000000,
       "profile_complete": false,
       "carb_range_g_per_hr": "50-70",
@@ -90,7 +78,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -128,7 +116,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -182,7 +170,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -293,7 +281,7 @@
           "max_safe_sodium_mg_per_hr": 3000,
           "confidence_score": 0,
           "requires_human_review": false,
-          "warnings": null,
+          "warnings": [],
           "not_instructions": true
         },
         "attribution": {
@@ -313,7 +301,7 @@
           "max_safe_sodium_mg_per_hr": 3000,
           "confidence_score": 0,
           "requires_human_review": false,
-          "warnings": null,
+          "warnings": [],
           "not_instructions": true
         },
         "attribution": {
@@ -788,12 +776,6 @@
         "result": {
           "tier": "full",
           "prescription": {
-            "total_carb_g": 0,
-            "total_sodium_mg": 0,
-            "total_fluid_ml": 0,
-            "carb_g_per_hr": 0,
-            "sodium_mg_per_hr": 0,
-            "fluid_ml_per_hr": 0,
             "calculated_at": 1700000000,
             "profile_complete": false,
             "carb_range_g_per_hr": "50-70",
@@ -805,7 +787,7 @@
             "max_safe_sodium_mg_per_hr": 3000,
             "confidence_score": 0,
             "requires_human_review": false,
-            "warnings": null,
+            "warnings": [],
             "not_instructions": true
           },
           "attribution": {
@@ -937,7 +919,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -975,7 +957,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -1011,7 +993,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -1031,7 +1013,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -1081,7 +1063,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -1101,7 +1083,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     },
     "attribution": {
@@ -1136,12 +1118,6 @@
   },
   "stored_banded": {
     "prescription": {
-      "total_carb_g": 0,
-      "total_sodium_mg": 0,
-      "total_fluid_ml": 0,
-      "carb_g_per_hr": 0,
-      "sodium_mg_per_hr": 0,
-      "fluid_ml_per_hr": 0,
       "calculated_at": 1700000000,
       "profile_complete": false,
       "carb_range_g_per_hr": "50-70",
@@ -1153,7 +1129,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     }
   },
@@ -1172,7 +1148,7 @@
       "max_safe_sodium_mg_per_hr": 3000,
       "confidence_score": 0,
       "requires_human_review": false,
-      "warnings": null,
+      "warnings": [],
       "not_instructions": true
     }
   },
