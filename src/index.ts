@@ -18,7 +18,7 @@
 
 export { Saturday as default } from './client';
 export { Saturday } from './client';
-export { SaturdayError, AuthenticationError, PermissionError, RateLimitError, ValidationError, NotFoundError, DAILY_LIMIT_CODES, MAX_RETRY_WAIT_SECONDS } from './errors';
+export { SaturdayError, AuthenticationError, PermissionError, RateLimitError, ValidationError, NotFoundError, ConflictError, DAILY_LIMIT_CODES, MAX_RETRY_WAIT_SECONDS } from './errors';
 export type { DailyLimitCode, RateLimitCode } from './errors';
 export type {
   SaturdayConfig,
@@ -118,6 +118,7 @@ export type {
   InferBrickRequest,
   InferBrickResponse,
   DiscoveryResponse,
+  DiscoveryKeyInfo,
   ErrorCatalogEntry,
   ErrorCatalogResponse,
   HealthResponse,
@@ -161,9 +162,12 @@ export type {
   ConsentListResponse,
   AthleteDataExport,
   IntegrationProvider,
+  SyncProvider,
   IntegrationSyncRequest,
+  IntegrationSyncResult,
   IntegrationSyncResponse,
   IntegrationStatusResponse,
+  IntegrationDisconnectResponse,
   SimulateSubscriptionResponse,
   KnowledgeSearchRequest,
   PaginationMeta,

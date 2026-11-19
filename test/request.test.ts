@@ -1,5 +1,5 @@
 import { Saturday } from '../src/client';
-import { NotFoundError, PermissionError, RateLimitError, ValidationError } from '../src/errors';
+import { ConflictError, NotFoundError, PermissionError, RateLimitError, ValidationError } from '../src/errors';
 
 const originalFetch = global.fetch;
 
@@ -259,4 +259,63 @@ describe('unsupported_field', () => {
     const error = await client.nutrition.calculate({ activity_type: 'brick', legs: [] }).catch((e: unknown) => e);
     expect((error as ValidationError).suggestion).toBeUndefined();
   });
+});
+
+it('a create whose external_id another athlete holds throws ConflictError naming that athlete', async () => {
+  global.fetch = jest.fn().mockResolvedValue(Response.json({
+    error: {
+      type: 'invalid_request', code: 'athlete_exists', athlete_id: 'ath_1', request_id: 'req_1',
+      message: 'An athlete with external_id "user-42" already exists: ath_1. Nothing was created.',
+    },
+  }, { status: 409 }));
+  const client = new Saturday({ apiKey: 'sk_test_fake' });
+
+  const error = await client.athletes.create({ external_id: 'user-42' }).catch((value: unknown) => value);
+  expect(error).toBeInstanceOf(ConflictError);
+  expect((error as ConflictError).code).toBe('athlete_exists');
+  expect((error as ConflictError).athleteId).toBe('ath_1');
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+});
+
+it('the sandbox day of simulated subscribers is a daily ceiling, never retried', async () => {
+  const now = Date.now();
+  const fetchMock = jest.fn().mockResolvedValue(Response.json({
+    error: { type: 'rate_limit_error', code: 'simulated_subscriber_daily_limit_reached', message: 'This key has marked 10 athletes as subscribed today.' },
+  }, { status: 429, headers: { 'Retry-After': '3600' } }));
+  global.fetch = fetchMock;
+  const client = new Saturday({ apiKey: 'sk_test_fake' });
+
+  const error = await client.testing.simulateSubscription('ath_1').catch((value: unknown) => value) as RateLimitError;
+  expect(error).toBeInstanceOf(RateLimitError);
+  expect(error.dailyLimit).toBe(true);
+  expect(error.retryable).toBe(false);
+  expect(Math.abs(error.resetsAt!.getTime() - (now + 3600_000))).toBeLessThan(5000);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it('integrations.sync posts to the intervals.icu route and sends sync_types when left out', async () => {
+  const body = { result: { provider: 'intervals_icu', status: 'completed', activities_found: 1, activities_synced: 1, activities_skipped: 0 }, request_id: 'req_1' };
+  const fetchMock = jest.fn().mockResolvedValue(Response.json(body));
+  global.fetch = fetchMock;
+  const client = new Saturday({ apiKey: 'sk_test_fake' });
+
+  const synced = await client.integrations.sync('intervals_icu', { athlete_id: 'ath_1', access_token: 'tok', date_range: { start: '2026-11-01', end: '2026-11-07' } });
+  expect(synced.result.activities_synced).toBe(1);
+  expect(fetchMock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/integrations/intervals_icu/sync');
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    athlete_id: 'ath_1', access_token: 'tok', date_range: { start: '2026-11-01', end: '2026-11-07' }, sync_types: ['activities'],
+  });
+});
+
+it('a POST erase answered 503 provider_erasure_incomplete is returned, not retried', async () => {
+  const fetchMock = jest.fn().mockResolvedValue(Response.json({
+    error: { type: 'api_error', code: 'provider_erasure_incomplete', message: 'A provider connection you supplied for this athlete could not be revoked yet, so nothing was deleted. Retry the request.' },
+  }, { status: 503 }));
+  global.fetch = fetchMock;
+  const client = new Saturday({ apiKey: 'sk_test_fake' });
+
+  const error = await client.athletes.erase('ath_1').catch((value: unknown) => value) as { status: number; code: string };
+  expect(error.status).toBe(503);
+  expect(error.code).toBe('provider_erasure_incomplete');
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
