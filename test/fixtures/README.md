@@ -1,14 +1,7 @@
 # Contract fixtures
 
-`contracts.json` is generated from fuel-backend's Go JSON types and its real stored-prescription, list and settings handlers, using synthetic data and in-memory services. It makes no API, Firestore, inference, auth, or trial calls. The backend commit is recorded in `_meta`.
+`contracts.json` holds sample API responses that fuel-backend builds (`pkg/sdkcontracts`) from its Go response types and its real stored-prescription, list and settings handlers, with synthetic data and in-memory services. It makes no API, Firestore, inference, auth, or trial calls. `_meta.backend_sha` is the backend commit that last changed the samples.
 
-Regenerate from a checked-out backend module, with Go 1.26+:
+The backend fails a test when its copy of the samples no longer matches what its types and handlers produce. Once the regenerated samples are on the backend's main, `scripts/sdk-contracts-sync.sh --pr` in fuel-backend opens a pull request here carrying them, and the test run on that pull request shows whether the SDK types still match. Fix the types on that branch when it fails.
 
-```bash
-cd /path/to/fuel-backend
-go run /path/to/saturday-node/test/fixtures/generate.go \
-  -backend-sha "$(git rev-parse HEAD)" \
-  -out /path/to/saturday-node/test/fixtures/contracts.json
-```
-
-Review generated differences before accepting them. `test/contracts.test.ts` checks these payloads against public TypeScript declarations and exercises resource methods with mocked HTTP. This is local source-contract evidence, not a live deployed-API smoke test.
+`test/contracts.test.ts` checks these payloads against public TypeScript declarations and exercises resource methods with mocked HTTP. This is local source-contract evidence, not a live deployed-API smoke test.
