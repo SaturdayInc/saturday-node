@@ -2,8 +2,9 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Saturday } from '../src';
 
-// Routes no partner key reaches. The SDK neither calls nor names them.
-const hiddenPaths = ['/v1/products', '/v1/ai/', '/ai/conversations', '/gear'];
+// Routes no partner key reaches: closed to partners, retired (the key purchase) or called with a
+// signed-in Saturday account rather than a key (saturday.fit/api). The SDK neither calls nor names them.
+const hiddenPaths = ['/v1/products', '/v1/ai/', '/ai/conversations', '/gear', '/v1/signup', '/v1/account/'];
 
 it('calls no route that is closed to partners', () => {
   for (const file of ['client.ts', 'types.ts', 'index.ts']) {

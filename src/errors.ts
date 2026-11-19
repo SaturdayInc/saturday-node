@@ -36,7 +36,12 @@ export class AuthenticationError extends SaturdayError {
   }
 }
 
-/** 403: the key cannot use this feature or resource (for example `feature_alpha`). */
+/**
+ * 403: the key cannot use this feature or resource. Read `code`: `feature_alpha` (a feature not yet
+ * open to your key), `plan_inactive` (the paid Saturday plan this key comes with has ended; the key
+ * works again, with its athletes, once the plan is active), `resource_limit_exceeded` (the key's
+ * athletes are at their limit; write to api@saturday.fit to raise it).
+ */
 export class PermissionError extends SaturdayError {
   constructor(error: SaturdayErrorDetail) {
     super(403, error);
@@ -44,12 +49,17 @@ export class PermissionError extends SaturdayError {
   }
 }
 
-/** The 429 codes that reset at UTC midnight. Nothing succeeds before then. */
+/**
+ * The 429 codes that reset at UTC midnight. Nothing they refuse succeeds before then.
+ * `simulated_subscriber_daily_limit_reached` is the test environment's: the key has marked its
+ * day's allowance of athletes with `testing.simulateSubscription`.
+ */
 export const DAILY_LIMIT_CODES = [
   'daily_call_limit_reached',
   'intelligence_daily_limit_reached',
   'athlete_free_daily_limit_reached',
   'distinct_lookup_daily_limit_reached',
+  'simulated_subscriber_daily_limit_reached',
 ] as const;
 export type DailyLimitCode = typeof DAILY_LIMIT_CODES[number];
 
@@ -66,8 +76,9 @@ export const MAX_RETRY_WAIT_SECONDS = 30;
  *   client retries a wait of 30 seconds or less; a longer one comes back to you.
  * - `rate_limited`: an unusual request pattern; calculations are blocked for `retryAfter` seconds.
  * - `daily_call_limit_reached`, `intelligence_daily_limit_reached`,
- *   `athlete_free_daily_limit_reached`, `distinct_lookup_daily_limit_reached`: a daily ceiling.
- *   `dailyLimit` is true and `resetsAt` is the UTC midnight it resets at. Never retried.
+ *   `athlete_free_daily_limit_reached`, `distinct_lookup_daily_limit_reached`, and on the test
+ *   environment `simulated_subscriber_daily_limit_reached`: a daily ceiling. `dailyLimit` is true
+ *   and `resetsAt` is the UTC midnight it resets at. Never retried.
  */
 export class RateLimitError extends SaturdayError {
   /** True for a daily ceiling: nothing succeeds before `resetsAt`. */
@@ -123,5 +134,21 @@ export class NotFoundError extends SaturdayError {
   constructor(error: SaturdayErrorDetail) {
     super(404, error);
     this.name = 'NotFoundError';
+  }
+}
+
+/**
+ * 409: the request conflicts with a record you hold. For `athlete_exists`, another of your
+ * athletes holds the `external_id` you sent: nothing was created or changed, and `athleteId` names
+ * that athlete.
+ */
+export class ConflictError extends SaturdayError {
+  /** For `athlete_exists`: the athlete that holds the `external_id`. */
+  readonly athleteId?: string;
+
+  constructor(error: SaturdayErrorDetail) {
+    super(409, error);
+    this.name = 'ConflictError';
+    this.athleteId = error.athlete_id;
   }
 }

@@ -31,6 +31,7 @@ import {
   RateLimitError,
   ValidationError,
   NotFoundError,
+  ConflictError,
   MAX_RETRY_WAIT_SECONDS,
 } from './errors';
 
@@ -106,9 +107,9 @@ export class Saturday {
   readonly webhooks: WebhooksResource;
   /** Organizations, members, offers and seat subscriptions. */
   readonly organizations: OrganizationsResource;
-  /** Activity sync from a provider such as Strava. */
+  /** intervals.icu activity sync, and the status and end of the connections you supplied. */
   readonly integrations: IntegrationsResource;
-  /** Test project only: simulate an athlete's Saturday subscription. */
+  /** Test environment only: simulate an athlete's Saturday subscription. */
   readonly testing: TestingResource;
   /** Discovery, the error catalog and health. */
   readonly meta: MetaResource;
@@ -227,6 +228,8 @@ export class Saturday {
         return new PermissionError(detail);
       case 404:
         return new NotFoundError(detail);
+      case 409:
+        return new ConflictError(detail);
       case 429:
         return new RateLimitError(detail, retryAfter);
       default:
@@ -258,12 +261,14 @@ class NutritionResource {
   /**
    * Size one catalog product against the athlete's prescription for a session. A brick or
    * triathlon carries `legs`, and its exact answer sizes the product for each leg under `legs`.
+   * For an athlete on the trial, each call spends one of the athlete's trial calls, as calculate
+   * does; past today's calls the plan is from ranges, with `plan_basis.source` `trial_allowance`.
    */
   productFit(req: T.ProductFitRequest): Promise<T.ProductFitResponse> {
     return this.client.request('POST', '/v1/nutrition/products/fit', req);
   }
 
-  /** Size two catalog products against the athlete's prescription and name the better fit; per leg too for a brick or triathlon. */
+  /** Size two catalog products against the athlete's prescription and name the better fit; per leg too for a brick or triathlon. Spends one trial call, as `productFit` does. */
   compareProducts(req: T.ProductCompareRequest): Promise<T.ProductCompareResponse> {
     return this.client.request('POST', '/v1/nutrition/products/compare', req);
   }
@@ -277,6 +282,10 @@ class NutritionResource {
 class AthletesResource {
   constructor(private client: Saturday) {}
 
+  /**
+   * Create an athlete. An `external_id` another of your athletes holds creates nothing and throws a
+   * `ConflictError` (`athlete_exists`) whose `athleteId` names that athlete, so a retried create is safe.
+   */
   create(athlete: T.CreateAthleteRequest): Promise<T.Athlete> {
     return this.client.request('POST', '/v1/athletes', athlete);
   }
@@ -293,14 +302,17 @@ class AthletesResource {
     }));
   }
 
-  /** Update the fields you send. Settings sent here replace the stored settings. */
+  /**
+   * Update the fields you send. Settings sent here replace the stored settings. An `external_id`
+   * another of your athletes holds changes nothing and throws a `ConflictError` (`athlete_exists`).
+   */
   update(athleteId: string, updates: Partial<T.CreateAthleteRequest>): Promise<T.Athlete> {
     return this.client.request('PATCH', `/v1/athletes/${seg(athleteId)}`, updates);
   }
 
   /**
    * Delete the athlete and everything stored under them in your account (activities,
-   * prescriptions, consent records). For a data-subject erasure request use `erase`.
+   * prescriptions, consent records). For a right-to-erasure request use `erase`.
    */
   delete(athleteId: string): Promise<void> {
     return this.client.request('DELETE', `/v1/athletes/${seg(athleteId)}`);
@@ -320,7 +332,11 @@ class AthletesResource {
     return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/fueling-profile`);
   }
 
-  /** Create up to 100 athletes in one call. */
+  /**
+   * Create up to 100 athletes in one call. An item whose `external_id` one of your athletes holds,
+   * an earlier item of the same batch included, fails with `athlete_exists` and that athlete's id
+   * in `errors[].athlete_id`.
+   */
   batchCreate(athletes: T.CreateAthleteRequest[]): Promise<T.BatchAthleteResponse> {
     return this.client.request('POST', '/v1/athletes/batch', { athletes });
   }
@@ -331,9 +347,13 @@ class AthletesResource {
   }
 
   /**
-   * Erase the athlete for a right-to-erasure request: everything `delete` removes, plus ending the
-   * athlete's connected-provider grants and erasing the data those providers sent, with an audit
-   * record of the deletion.
+   * Erase everything Saturday holds for you about the athlete, for a right-to-erasure request. Each
+   * provider connection you supplied for the athlete with `integrations.sync` is revoked at the
+   * provider first; then the athlete and everything stored under them are deleted (activities,
+   * those synced through your connections included, prescriptions, feedback, consent records,
+   * usage logs) with the athlete's link to a Saturday account. A linked athlete's own Saturday
+   * account is not changed. A `SaturdayError` with status 503 and code `provider_erasure_incomplete`
+   * means a connection could not be revoked yet and nothing was deleted: call `erase` again.
    */
   erase(athleteId: string): Promise<void> {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/delete`);
@@ -369,6 +389,10 @@ class ActivitiesResource {
     return this.client.request('GET', withQuery(`/v1/athletes/${seg(athleteId)}/activities`, { ...params }));
   }
 
+  /**
+   * Update the fields you send. A change to the session (`type`, `legs`, `duration_min`, effort,
+   * heat, `is_race_event`, `meal_before_min`) removes the stored prescription: calculate again.
+   */
   update(athleteId: string, activityId: string, updates: T.UpdateActivityRequest): Promise<T.Activity> {
     return this.client.request('PATCH', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}`, updates);
   }
@@ -382,7 +406,11 @@ class ActivitiesResource {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/calculate`);
   }
 
-  /** The stored prescription. 404 `prescription_not_found` until the activity has been calculated. */
+  /**
+   * The prescription calculated for the activity's session as it stands. 404
+   * `prescription_not_found` until the activity has been calculated, and again after an `update`
+   * that changes the session, until it is calculated again.
+   */
   getPrescription(athleteId: string, activityId: string): Promise<T.StoredPrescriptionResponse> {
     return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/prescription`);
   }
@@ -390,7 +418,7 @@ class ActivitiesResource {
   /**
    * Size catalog products against the activity's prescription and show the gap left. A brick or
    * triathlon with exact numbers is prepped leg by leg under `legs`: send `products` to size one
-   * list against each leg, or `legs` for a list per leg.
+   * list against each leg, or `legs` for a list per leg, never both.
    */
   prep(athleteId: string, activityId: string, req: T.PrepRequest = {}): Promise<T.PrepResponse> {
     return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/activities/${seg(activityId)}/prep`, req);
@@ -455,7 +483,7 @@ class InferResource {
 class PartnerResource {
   constructor(private client: Saturday) {}
 
-  /** Your account and its limits. */
+  /** Your account and its limits, the trial's length and bounds included (`rate_limits`). */
   get(): Promise<T.PartnerAccount> {
     return this.client.request('GET', '/v1/partner');
   }
@@ -602,25 +630,42 @@ class OrganizationsResource {
 class IntegrationsResource {
   constructor(private client: Saturday) {}
 
-  /** Pull the athlete's activities from the provider into Saturday. */
-  sync(provider: T.IntegrationProvider, req: T.IntegrationSyncRequest): Promise<T.IntegrationSyncResponse> {
-    return this.client.request('POST', `/v1/integrations/${seg(provider)}/sync`, req);
+  /**
+   * Fetch the activities of the intervals.icu user an access token belongs to (the last 7 days, or
+   * `date_range`) and store each as an activity of your athlete. Send an OAuth access token your
+   * intervals.icu app obtained from that user; the calls count against your app's intervals.icu
+   * limit. `intervals_icu` is the only provider: Strava and TrainingPeaks tokens are refused with a
+   * `ValidationError` (`invalid_provider`).
+   */
+  sync(provider: T.SyncProvider, req: T.IntegrationSyncRequest): Promise<T.IntegrationSyncResponse> {
+    return this.client.request('POST', `/v1/integrations/${seg(provider)}/sync`, { ...req, sync_types: req.sync_types ?? ['activities'] });
   }
 
   status(provider: T.IntegrationProvider, athleteId: string): Promise<T.IntegrationStatusResponse> {
     return this.client.request('GET', withQuery(`/v1/integrations/${seg(provider)}/status`, { athlete_id: athleteId }));
   }
 
-  disconnect(provider: T.IntegrationProvider, athleteId: string): Promise<unknown> {
+  /**
+   * End the connection you supplied for the athlete with `sync`: it is revoked at the provider and
+   * its tokens are removed. Activities already synced stay. A linked athlete's own connection to the
+   * provider in their Saturday account is not changed.
+   */
+  disconnect(provider: T.IntegrationProvider, athleteId: string): Promise<T.IntegrationDisconnectResponse> {
     return this.client.request('POST', `/v1/integrations/${seg(provider)}/disconnect`, { athlete_id: athleteId });
   }
 }
 
-/** Test project only (`sk_test_` keys). In production these routes answer 404. */
+/** Test environment only (`sk_test_` keys). In production these routes answer 404. */
 class TestingResource {
   constructor(private client: Saturday) {}
 
-  /** Give the athlete a simulated Saturday subscription (`active: true`) or take it away. */
+  /**
+   * Give the athlete a simulated Saturday subscription (`active: true`) or take it away. A key marks
+   * at most 10 athletes a UTC day (marking one already marked today again is free); past that it
+   * throws a `RateLimitError` with code `simulated_subscriber_daily_limit_reached` and `resetsAt`.
+   * Each simulated subscriber gets up to 100 exact answers over 3 distinct profiles; past either,
+   * answers are ranges with `simulated_limit_reached`. These are the API's defaults.
+   */
   simulateSubscription(athleteId: string, active = true): Promise<T.SimulateSubscriptionResponse> {
     return this.client.request('POST', `/v1/test/athletes/${seg(athleteId)}/simulate-subscription`, { active });
   }
@@ -629,7 +674,7 @@ class TestingResource {
 class MetaResource {
   constructor(private client: Saturday) {}
 
-  /** The routes and features this key can see. */
+  /** The routes and features this key can see, and how a key is had (`get_a_key`). */
   discovery(): Promise<T.DiscoveryResponse> {
     return this.client.request('GET', '/v1/');
   }

@@ -159,15 +159,39 @@ export interface LinkedSessionCalculateRequest extends CalculateRequestFields {
  */
 export type NutritionCalculateRequest = SingleSessionCalculateRequest | LinkedSessionCalculateRequest;
 
-/** Trial fields, present while the athlete's 30-day partner trial gives the full tier. */
+/**
+ * Trial and sandbox fields on a calculation. The trial's length is `rate_limits.trial_days` on
+ * `partner.get()`.
+ */
 export interface TrialMetadata {
   /** `trial` while a partner trial gives this athlete the full tier. */
   tier_source?: string;
   /** When the trial ends, Unix seconds. */
   trial_ends_at?: number;
   trial_calls_remaining_today?: number;
+  /** The athlete's trial has used today's calls, so these numbers are ranges; `trial_cap_note` says so in words you can show the athlete. */
   trial_cap_reached?: boolean;
   trial_cap_note?: string;
+  /**
+   * Your key has started its new trials for the UTC day (`rate_limits.trial_starts_per_day`), so
+   * this athlete's trial starts on a later day and these numbers are ranges.
+   */
+  trial_start_deferred?: boolean;
+  /**
+   * The athlete's trial already covers its allowance of distinct profiles
+   * (`rate_limits.trial_profiles_per_athlete`), so this new one is answered in ranges. Earlier
+   * profiles stay exact.
+   */
+  trial_profile_limit_reached?: boolean;
+  /** With `trial_start_deferred` or `trial_profile_limit_reached`, why these numbers are ranges, in words you can show the athlete. */
+  trial_note?: string;
+  /**
+   * Test environment only: the athlete's simulated subscription has given its allowance of exact
+   * answers or distinct profiles, so these numbers are ranges.
+   */
+  simulated_limit_reached?: boolean;
+  /** With `simulated_limit_reached`, which allowance was reached. */
+  simulation_note?: string;
 }
 
 /**
@@ -289,27 +313,34 @@ export interface OnboardingInvite {
 }
 
 /**
- * What a plan from ranges is missing:
- * - `profile_incomplete`: the athlete's profile answers (`missing_profile_fields`).
+ * Why a plan is from ranges:
+ * - `profile_incomplete`: the athlete's profile answers are missing (`missing_profile_fields`).
  * - `session_incomplete`: session inputs your request or the activity left out (`missing_session_inputs`).
  * - `profile_and_session_incomplete`: both.
  * - `stored_ranges`: an activity's stored ranges with nothing missing that can be named now (the
  *   athlete has answered since): calculate the activity again.
+ * - `trial_allowance`: the athlete's trial has used today's calls, or this profile is past the
+ *   trial's allowance of profiles. `message` says which, in words you can show the athlete.
+ * - `simulation_allowance` (test environment only): the athlete's simulated subscription has
+ *   given its allowance of exact answers or profiles.
  */
-export type PlanBasisSource = 'profile_incomplete' | 'session_incomplete' | 'profile_and_session_incomplete' | 'stored_ranges';
+export type PlanBasisSource =
+  | 'profile_incomplete' | 'session_incomplete' | 'profile_and_session_incomplete' | 'stored_ranges'
+  | 'trial_allowance' | 'simulation_allowance';
 
 /** A session input a plan from ranges can be missing. */
 export type SessionInput = 'intensity_level' | 'thermal_stress_level' | 'meal_before_min' | 'is_race';
 
 /**
- * Present on prep, product fit, product compare and bottle plans when the plan is not the
- * athlete's exact numbers: the profile or the session is missing inputs, so the plan uses the
- * middle of the per-hour ranges for the session. With every input in, it is absent and the plan
- * uses the exact numbers.
+ * Present on prep, product fit and product compare when the plan is not the athlete's exact
+ * numbers: the profile or the session is missing inputs, or a trial or simulated subscription is
+ * past its allowance (`source`), so the plan uses the middle of the per-hour ranges for the
+ * session. With every input in and the athlete's access open, it is absent and the plan uses the
+ * exact numbers.
  */
 export interface PlanBasis {
   source: PlanBasisSource;
-  /** Names what is missing and where each goes. Show it with the plan. */
+  /** Names what is missing and where each goes, or which allowance was reached. Show it with the plan. */
   message: string;
   /** The athlete's profile answers the plan lacks, by the names `precision.missing_fields` uses. */
   missing_profile_fields?: string[];
@@ -513,6 +544,10 @@ export interface ProductFitResponse {
   categories?: ProductCategory[];
   cta?: SubscriptionCTA;
   request_id?: string;
+  /** Teaser tier only: your key has started its new trials for the UTC day, so this athlete's trial starts on a later day. */
+  trial_start_deferred?: boolean;
+  /** With `trial_start_deferred`, why, in words you can show the athlete. */
+  trial_note?: string;
 }
 
 export type ProductChoice = 'product_a' | 'product_b';
@@ -550,6 +585,10 @@ export interface ProductCompareResponse {
   categories?: ProductCategory[];
   cta?: SubscriptionCTA;
   request_id?: string;
+  /** Teaser tier only: your key has started its new trials for the UTC day, so this athlete's trial starts on a later day. */
+  trial_start_deferred?: boolean;
+  /** With `trial_start_deferred`, why, in words you can show the athlete. */
+  trial_note?: string;
 }
 
 /** One product for prep. Without `servings`, Saturday sizes it to what the plan still needs, in list order. */
@@ -566,8 +605,8 @@ export interface PrepLegInput {
 /**
  * `POST /v1/athletes/{athlete_id}/activities/{activity_id}/prep`. On a brick or triathlon with
  * exact numbers, `products` is sized against each leg (its `servings` counting per leg); send
- * `legs` instead for a product list per leg. Send one or the other: with `legs`, `products` is not
- * read.
+ * `legs` instead for a product list per leg. Send one or the other: both together are refused
+ * with a `ValidationError` (`invalid_value` on `products`).
  */
 export interface PrepRequest {
   products?: PrepProductInput[];
@@ -709,6 +748,12 @@ export interface Athlete {
 
 /** At least one of `name`, `email` or `external_id` is required. */
 export interface CreateAthleteRequest {
+  /**
+   * Your platform's identifier for this athlete, unique within your partner account. A create or
+   * update with an `external_id` another of your athletes holds changes nothing and throws a
+   * `ConflictError` (409 `athlete_exists`) whose `athleteId` names that athlete, so a retried
+   * create is safe.
+   */
   external_id?: string;
   name?: string;
   email?: string;
@@ -746,9 +791,8 @@ export interface ListAthletesParams {
   limit?: number;
   cursor?: string;
   /**
-   * Only the athletes you created with this `external_id`, newest first, in one page. The API
-   * does not deduplicate `external_id`, so look an athlete up this way before creating one when a
-   * create may have been interrupted.
+   * Only the athletes you created with this `external_id`, newest first, in one page. Athletes
+   * created before `external_id` became unique may share one.
    */
   externalId?: string;
   /** Only athletes whose stored profile is (or is not) complete. */
@@ -900,6 +944,11 @@ export type CreateActivityRequest = SingleActivityRequest | LinkedActivityReques
  * the activity holds legs already, and drops its stored effort and heat; changing it to a single
  * sport removes the legs. A brick or triathlon refuses `intensity_level`, `thermal_stress_level`
  * and a `duration_min` other than its legs' total: change its legs instead.
+ *
+ * A change to `type`, `legs`, `duration_min`, `intensity_level`, `thermal_stress_level`,
+ * `is_race_event` or `meal_before_min` removes the activity's stored prescription:
+ * `getPrescription` answers 404 `prescription_not_found` until you calculate the activity again.
+ * A field sent at its stored value changes nothing, and `external_id` alone keeps the prescription.
  */
 export interface UpdateActivityRequest {
   type?: SessionType;
@@ -974,6 +1023,8 @@ export interface BatchError {
   index: number;
   code: string;
   message: string;
+  /** For `athlete_exists`: the athlete that holds the item's `external_id`. */
+  athlete_id?: string;
 }
 
 export interface BatchSummary {
@@ -1111,13 +1162,39 @@ export interface InferBrickResponse {
   request_id: string;
 }
 
-/** `GET /v1/`: the routes and features this key can see. */
+/** `GET /v1/`: the routes and features this key can see, and how a key is had. */
 export interface DiscoveryResponse {
   name: string;
   version: string;
+  /** Resource names to paths. A feature short of general availability carries its stage in its name (`"nutrition (alpha)"`); a hidden feature is absent. */
   links: Record<string, string>;
+  get_a_key: DiscoveryKeyInfo;
   request_id: string;
-  [key: string]: unknown;
+}
+
+/**
+ * How a key is had, in plain text values: a key comes with any paid Saturday plan and is made by
+ * the signed-in account at saturday.fit/api; it covers `athletes_per_key` athletes until Saturday
+ * raises it.
+ */
+export interface DiscoveryKeyInfo {
+  how: string;
+  /** `https://saturday.fit/api`. */
+  page: string;
+  /** The account routes that page calls. They take a signed-in Saturday account, not an API key, so the SDK does not call them. */
+  account_routes?: string;
+  athletes_per_key: number;
+  /** How to ask for more athletes. */
+  more_athletes: string;
+  trial?: string;
+  limits?: string;
+  platforms?: string;
+  /** `api@saturday.fit`. */
+  contact: string;
+  docs?: string;
+  quickstart?: string;
+  llms_txt?: string;
+  who_is_this?: string;
 }
 
 export interface ErrorCatalogEntry {
@@ -1148,7 +1225,7 @@ export interface PartnerAccount {
   name: string;
   contact_email: string;
   status: 'active' | 'suspended';
-  /** `partner` for a platform partner, `individual` for a self-serve key. */
+  /** `partner` for a platform partner, `individual` for a key that comes with a Saturday account's paid plan. */
   plan: 'partner' | 'individual';
   rate_limits: {
     requests_per_second: number;
@@ -1158,6 +1235,12 @@ export interface PartnerAccount {
     requests_per_day: number | null;
     /** Calculation calls a day (nutrition, prep, product fit and compare, inference); `null` when none applies. */
     ip_requests_per_day: number | null;
+    /** New athlete trials this key may start per UTC day; an athlete past it gets ranges with `trial_start_deferred`. `null` when the key has no such bound. */
+    trial_starts_per_day: number | null;
+    /** Distinct profiles one trial athlete's exact numbers cover over the trial; a further one gets ranges with `trial_profile_limit_reached`. `null` when the key has no such bound. */
+    trial_profiles_per_athlete: number | null;
+    /** Days an athlete's trial lasts from its first exact answer. */
+    trial_days: number;
   };
   /** Unix seconds. */
   created_at: number;
@@ -1513,37 +1596,63 @@ export interface AthleteDataExport {
 
 // --- Integrations ---
 
-export type IntegrationProvider = 'strava' | string;
+/** The providers `integrations.status` and `integrations.disconnect` take. */
+export type IntegrationProvider = 'intervals_icu' | 'strava' | 'training_peaks';
+
+/**
+ * The provider `integrations.sync` takes. Strava and TrainingPeaks tokens are refused with a
+ * `ValidationError` (`invalid_provider`); send TrainingPeaks workouts with
+ * `activities.importActivities` once the athlete agrees to share them.
+ */
+export type SyncProvider = 'intervals_icu';
 
 export interface IntegrationSyncRequest {
+  /** Your athlete the activities are stored under. */
   athlete_id: string;
-  /** The athlete's access token at the provider. */
+  /** The intervals.icu OAuth access token of the user whose activities to fetch, obtained by your intervals.icu app. */
   access_token: string;
-  refresh_token?: string;
-  sync_types?: string[];
-  date_range?: { from?: string; to?: string };
+  /** `['activities']`, which the client sends when you leave it out. */
+  sync_types?: ['activities'];
+  /** Both dates (`YYYY-MM-DD`) or neither; without them, the last 7 days. */
+  date_range?: { start: string; end: string };
+}
+
+/** What a sync did. */
+export interface IntegrationSyncResult {
+  provider: SyncProvider;
+  /** `partial` when some activities could not be stored, `failed` when none could or intervals.icu refused the token; `errors` says why. */
+  status: 'completed' | 'partial' | 'failed';
+  activities_found: number;
+  activities_synced: number;
+  /** Found but not stored: the activity's type names no sport the API supports. */
+  activities_skipped: number;
+  /** Whether the athlete's prescriptions for these activities are exact (`full`) or ranges (`teaser`). */
+  prescription_tier?: SubscriptionTier;
+  errors?: string[];
 }
 
 export interface IntegrationSyncResponse {
-  provider: string;
-  status: 'completed' | 'partial' | 'failed' | 'not_configured';
-  activities_found: number;
-  activities_synced: number;
-  activities_skipped: number;
-  prescription_tier?: SubscriptionTier;
-  errors?: string[];
-  request_id?: string;
+  result: IntegrationSyncResult;
+  request_id: string;
 }
 
 export interface IntegrationStatusResponse {
   status: {
-    provider: string;
+    provider: IntegrationProvider;
     connected: boolean;
     /** Unix seconds. */
     last_sync_at?: number;
     sync_count: number;
     errors?: string[];
   };
+  request_id: string;
+}
+
+/** `integrations.disconnect`: the connection you supplied is ended. */
+export interface IntegrationDisconnectResponse {
+  /** For example `Successfully disconnected intervals_icu`. */
+  message: string;
+  provider: IntegrationProvider;
   request_id: string;
 }
 
@@ -1594,6 +1703,8 @@ export interface SaturdayErrorDetail {
   param?: string;
   documentation_url?: string;
   request_id?: string;
+  /** For `athlete_exists` (409): the athlete that holds the `external_id` you sent. */
+  athlete_id?: string;
 }
 
 // --- Coach API (Module 5 · /v1/coach/*) ---

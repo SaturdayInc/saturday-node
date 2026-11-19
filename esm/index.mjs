@@ -11,6 +11,7 @@ export const {
   RateLimitError,
   ValidationError,
   NotFoundError,
+  ConflictError,
   DAILY_LIMIT_CODES,
   MAX_RETRY_WAIT_SECONDS,
 } = cjs;
