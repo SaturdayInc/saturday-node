@@ -14,7 +14,7 @@
         "page": "https://saturday.fit/api",
         "platforms": "Building Saturday into a platform for many athletes? Write to api@saturday.fit about a partnership.",
         "quickstart": "https://docs.saturday.fit/quickstart",
-        "trial": "Each athlete gets 30 days of exact numbers; after that, exact numbers come with the athlete's Saturday subscription.",
+        "trial": "Each athlete gets 14 days of exact numbers, up to 42 answers in all; after that, exact numbers come with the athlete's Saturday subscription.",
         "who_is_this": "Builders whose athletes live in their own system. Coaching athletes who use the Saturday app? The coach portal is your lane, and its API keys come with every paid coach plan: https://coach.saturday.fit"
       },
       "links": {
@@ -29,7 +29,7 @@
         "settings_schema": "/v1/settings/schema"
       },
       "name": "Saturday API",
-      "request_id": "req_2cdd7d02a130",
+      "request_id": "req_cf70d4a780f4",
       "version": "1.0.0"
     }
   },
@@ -518,6 +518,14 @@
           "documentation_url": "https://docs.saturday.fit/guides/webhooks"
         },
         {
+          "code": "integration_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The athlete never connected this provider, so there is nothing to disconnect.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/integrations"
+        },
+        {
           "code": "key_not_found",
           "type": "resource_not_found",
           "http_status": 404,
@@ -686,15 +694,15 @@
           "documentation_url": "https://docs.saturday.fit/error-handling"
         }
       ],
-      "request_id": "req_9e4e5c0d865c",
-      "total": 81
+      "request_id": "req_a888e7f51e71",
+      "total": 82
     }
   },
   "health": {
     "type": "HealthResponse",
     "body": {
       "status": "ok",
-      "timestamp": "2026-11-19T17:02:17Z",
+      "timestamp": "2026-11-19T22:03:31Z",
       "version": "1.0.0"
     }
   },
@@ -776,7 +784,7 @@
           "max_duration_min": 2160
         }
       ],
-      "request_id": "req_3d4257b57e6b",
+      "request_id": "req_71049da7a011",
       "total": 7
     }
   },
@@ -804,14 +812,14 @@
           "max_duration_min": 2160
         }
       ],
-      "request_id": "req_f9332594a1b9",
+      "request_id": "req_1bef7ba9e246",
       "total": 0
     }
   },
   "settings_schema": {
     "type": "SettingsSchemaResponse",
     "body": {
-      "request_id": "req_1f3b1f587951",
+      "request_id": "req_b09679178169",
       "settings": [
         {
           "field": "sweat_level",
@@ -1210,16 +1218,16 @@
           ]
         }
       ],
-      "request_id": "req_74b4009537d7",
+      "request_id": "req_dfe4fcfc3e1d",
       "schema_version": "2026-06-12.1"
     }
   },
   "athlete": {
     "type": "Athlete",
     "body": {
-      "id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
-      "external_id": "sdk-node-717d343f-a",
+      "external_id": "sdk-node-6987f285-a",
       "sex": "female",
       "year_of_birth": 1990,
       "weight_kg": 62,
@@ -1233,17 +1241,17 @@
         "performance": true,
         "concerns_answered": true
       },
-      "created_at": 1795107738,
-      "updated_at": 1795107738,
+      "created_at": 1795125812,
+      "updated_at": 1795125812,
       "profile_complete": true
     }
   },
   "athlete_get": {
     "type": "Athlete",
     "body": {
-      "id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
-      "external_id": "sdk-node-717d343f-a",
+      "external_id": "sdk-node-6987f285-a",
       "sex": "female",
       "year_of_birth": 1990,
       "weight_kg": 62,
@@ -1257,8 +1265,8 @@
         "performance": true,
         "concerns_answered": true
       },
-      "created_at": 1795107738,
-      "updated_at": 1795107738,
+      "created_at": 1795125812,
+      "updated_at": 1795125812,
       "subscription_status": "teaser",
       "profile_sharing": "not_linked",
       "profile_complete": true
@@ -1269,9 +1277,9 @@
     "body": {
       "athletes": [
         {
-          "id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+          "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
-          "external_id": "sdk-node-717d343f-a",
+          "external_id": "sdk-node-6987f285-a",
           "sex": "female",
           "year_of_birth": 1990,
           "weight_kg": 62,
@@ -1285,8 +1293,8 @@
             "performance": true,
             "concerns_answered": true
           },
-          "created_at": 1795107738,
-          "updated_at": 1795107738,
+          "created_at": 1795125812,
+          "updated_at": 1795125812,
           "profile_complete": true
         }
       ],
@@ -1294,7 +1302,7 @@
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_48aa45837580"
+      "request_id": "req_3245f978ed3f"
     }
   },
   "settings": {
@@ -1314,7 +1322,7 @@
     "type": "FuelingProfile",
     "body": {
       "object": "fueling_profile",
-      "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "sharing": "not_linked",
       "message": "This athlete has not connected a Saturday account, so there are no Saturday app answers to share."
     }
@@ -1324,12 +1332,12 @@
     "body": {
       "created": [
         {
-          "id": "e0f2b593-ea2d-4e8b-890d-06aa8077b92b",
+          "id": "229721c6-dfef-43e8-a20f-ab0f08245dee",
           "partner_id": "partner_example",
-          "external_id": "sdk-node-717d343f-c",
+          "external_id": "sdk-node-6987f285-c",
           "settings": {},
-          "created_at": 1795107742,
-          "updated_at": 1795107742,
+          "created_at": 1795125816,
+          "updated_at": 1795125816,
           "profile_complete": false
         }
       ],
@@ -1342,14 +1350,14 @@
         {
           "index": 2,
           "code": "athlete_exists",
-          "message": "An athlete with external_id \"sdk-node-717d343f-a\" already exists: 98c9c6e3-32d8-46cb-8ca6-fec2ade88214. Nothing was created.",
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214"
+          "message": "An athlete with external_id \"sdk-node-6987f285-a\" already exists: bd09be88-867b-4d3a-832c-3fd840b60dc0. Nothing was created.",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0"
         }
       ],
       "total": 3,
       "succeeded": 1,
       "failed": 2,
-      "request_id": "req_55205f1c5814"
+      "request_id": "req_be0a257937ff"
     }
   },
   "calculate_exact": {
@@ -1380,7 +1388,7 @@
         "profile_complete": true
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797699743,
+      "trial_ends_at": 1796335417,
       "trial_calls_remaining_today": 14
     }
   },
@@ -1517,7 +1525,7 @@
         }
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797699750,
+      "trial_ends_at": 1796335424,
       "trial_calls_remaining_today": 14
     }
   },
@@ -1751,7 +1759,7 @@
             "profile_complete": true
           },
           "tier_source": "trial",
-          "trial_ends_at": 1797699743,
+          "trial_ends_at": 1796335417,
           "trial_calls_remaining_today": 10
         }
       ],
@@ -1765,16 +1773,16 @@
       "total": 2,
       "succeeded": 1,
       "failed": 1,
-      "estimated_ms": 1951,
-      "elapsed_ms": 1619,
-      "request_id": "req_be677e049d38"
+      "estimated_ms": 1968,
+      "elapsed_ms": 1456,
+      "request_id": "req_338f27428655"
     }
   },
   "activity": {
     "type": "Activity",
     "body": {
-      "id": "2ba84ba6-5ce5-4824-ab85-0f5586634e88",
-      "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "id": "efc908c9-3256-4ac5-bbde-220be3912e3d",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
       "type": "bike",
       "duration_min": 150,
@@ -1782,16 +1790,16 @@
       "thermal_stress_level": 6,
       "is_race_event": false,
       "meal_before_min": 120,
-      "external_id": "sdk-node-717d343f-w1",
-      "created_at": 1795107758,
-      "updated_at": 1795107758
+      "external_id": "sdk-node-6987f285-w1",
+      "created_at": 1795125833,
+      "updated_at": 1795125833
     }
   },
   "activity_get": {
     "type": "Activity",
     "body": {
-      "id": "2ba84ba6-5ce5-4824-ab85-0f5586634e88",
-      "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "id": "efc908c9-3256-4ac5-bbde-220be3912e3d",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
       "type": "bike",
       "duration_min": 150,
@@ -1799,9 +1807,9 @@
       "thermal_stress_level": 6,
       "is_race_event": false,
       "meal_before_min": 120,
-      "external_id": "sdk-node-717d343f-w1",
-      "created_at": 1795107758,
-      "updated_at": 1795107758
+      "external_id": "sdk-node-6987f285-w1",
+      "created_at": 1795125833,
+      "updated_at": 1795125833
     }
   },
   "activity_list": {
@@ -1809,8 +1817,8 @@
     "body": {
       "activities": [
         {
-          "id": "2ba84ba6-5ce5-4824-ab85-0f5586634e88",
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+          "id": "efc908c9-3256-4ac5-bbde-220be3912e3d",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
           "type": "bike",
           "duration_min": 150,
@@ -1818,16 +1826,16 @@
           "thermal_stress_level": 6,
           "is_race_event": false,
           "meal_before_min": 120,
-          "external_id": "sdk-node-717d343f-w1",
-          "created_at": 1795107758,
-          "updated_at": 1795107758
+          "external_id": "sdk-node-6987f285-w1",
+          "created_at": 1795125833,
+          "updated_at": 1795125833
         }
       ],
       "pagination": {
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_6eaf59ec124c"
+      "request_id": "req_3219af83d970"
     }
   },
   "activity_calculate": {
@@ -1841,7 +1849,7 @@
         "carb_g_per_hr": 71,
         "sodium_mg_per_hr": 830,
         "fluid_ml_per_hr": 790,
-        "calculated_at": 1795107759
+        "calculated_at": 1795125834
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1861,7 +1869,7 @@
         "profile_complete": true
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797699743,
+      "trial_ends_at": 1796335417,
       "trial_calls_remaining_today": 9
     }
   },
@@ -1875,7 +1883,7 @@
         "carb_g_per_hr": 71,
         "sodium_mg_per_hr": 830,
         "fluid_ml_per_hr": 790,
-        "calculated_at": 1795107759
+        "calculated_at": 1795125834
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1944,7 +1952,7 @@
     "body": {
       "rating": 4,
       "notes": "live suite",
-      "created_at": 1795107762
+      "created_at": 1795125837
     }
   },
   "activity_import": {
@@ -1952,8 +1960,8 @@
     "body": {
       "imported": [
         {
-          "id": "2d6d8a58-1cd4-4654-b41f-e024e3832b7a",
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+          "id": "6a768e65-9710-44ab-a258-5203965afc74",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
           "type": "run",
           "duration_min": 45,
@@ -1961,7 +1969,7 @@
           "thermal_stress_level": 4,
           "is_race_event": false,
           "meal_before_min": 120,
-          "external_id": "sdk-node-717d343f-i1",
+          "external_id": "sdk-node-6987f285-i1",
           "prescription": {
             "total_carb_g": 15,
             "total_sodium_mg": 0,
@@ -1969,20 +1977,20 @@
             "carb_g_per_hr": 20,
             "sodium_mg_per_hr": 0,
             "fluid_ml_per_hr": 330,
-            "calculated_at": 1795107765
+            "calculated_at": 1795125842
           },
-          "created_at": 1795107765,
-          "updated_at": 1795107765
+          "created_at": 1795125842,
+          "updated_at": 1795125842
         }
       ],
       "total": 1,
       "succeeded": 1,
       "failed": 0,
-      "request_id": "req_aec564f880a0",
+      "request_id": "req_11bfd9f17151",
       "prescriptions": [
         {
           "index": 0,
-          "activity_id": "2d6d8a58-1cd4-4654-b41f-e024e3832b7a",
+          "activity_id": "6a768e65-9710-44ab-a258-5203965afc74",
           "result": {
             "tier": "full",
             "prescription": {
@@ -1992,7 +2000,7 @@
               "carb_g_per_hr": 20,
               "sodium_mg_per_hr": 0,
               "fluid_ml_per_hr": 330,
-              "calculated_at": 1795107765
+              "calculated_at": 1795125842
             },
             "safety": {
               "max_safe_fluid_ml_per_hr": 1500,
@@ -2012,7 +2020,7 @@
               "profile_complete": true
             },
             "tier_source": "trial",
-            "trial_ends_at": 1797699743,
+            "trial_ends_at": 1796335417,
             "trial_calls_remaining_today": 7
           }
         }
@@ -2129,8 +2137,8 @@
   "activity_brick": {
     "type": "Activity",
     "body": {
-      "id": "34a81740-6fbe-467e-9dad-642b4bc0f910",
-      "athlete_id": "10cfbe46-d2a5-41a5-ab19-97a668afa4c6",
+      "id": "ed258dc6-5976-4014-942e-48f77299cfd0",
+      "athlete_id": "e21e4cc8-1677-4d5d-9e9b-32e7a02fec8f",
       "partner_id": "partner_example",
       "type": "brick",
       "duration_min": 120,
@@ -2150,9 +2158,9 @@
         }
       ],
       "meal_before_min": 120,
-      "external_id": "sdk-node-717d343f-brick",
-      "created_at": 1795107781,
-      "updated_at": 1795107781
+      "external_id": "sdk-node-6987f285-brick",
+      "created_at": 1795125859,
+      "updated_at": 1795125859
     }
   },
   "activity_calculate_brick": {
@@ -2166,7 +2174,7 @@
         "carb_g_per_hr": 70,
         "sodium_mg_per_hr": 550,
         "fluid_ml_per_hr": 700,
-        "calculated_at": 1795107782,
+        "calculated_at": 1795125859,
         "legs": [
           {
             "duration_min": 90,
@@ -2217,7 +2225,7 @@
         "carb_g_per_hr": 70,
         "sodium_mg_per_hr": 550,
         "fluid_ml_per_hr": 700,
-        "calculated_at": 1795107782,
+        "calculated_at": 1795125859,
         "legs": [
           {
             "duration_min": 90,
@@ -2949,8 +2957,8 @@
     "body": {
       "imported": [
         {
-          "id": "cc9c1e8d-1581-4b47-907a-541d3bc74866",
-          "athlete_id": "10cfbe46-d2a5-41a5-ab19-97a668afa4c6",
+          "id": "496e1acd-413a-42f6-b05c-955dc3c27a2f",
+          "athlete_id": "e21e4cc8-1677-4d5d-9e9b-32e7a02fec8f",
           "partner_id": "partner_example",
           "type": "brick",
           "duration_min": 120,
@@ -2970,7 +2978,7 @@
             }
           ],
           "meal_before_min": 120,
-          "external_id": "sdk-node-717d343f-i-brick",
+          "external_id": "sdk-node-6987f285-i-brick",
           "prescription": {
             "total_carb_g": 140,
             "total_sodium_mg": 1100,
@@ -2978,7 +2986,7 @@
             "carb_g_per_hr": 70,
             "sodium_mg_per_hr": 550,
             "fluid_ml_per_hr": 700,
-            "calculated_at": 1795107790,
+            "calculated_at": 1795125869,
             "legs": [
               {
                 "duration_min": 90,
@@ -3000,18 +3008,18 @@
               }
             ]
           },
-          "created_at": 1795107789,
-          "updated_at": 1795107789
+          "created_at": 1795125869,
+          "updated_at": 1795125869
         }
       ],
       "total": 1,
       "succeeded": 1,
       "failed": 0,
-      "request_id": "req_df1f6a908ef1",
+      "request_id": "req_1913f411a75b",
       "prescriptions": [
         {
           "index": 0,
-          "activity_id": "cc9c1e8d-1581-4b47-907a-541d3bc74866",
+          "activity_id": "496e1acd-413a-42f6-b05c-955dc3c27a2f",
           "result": {
             "tier": "full",
             "prescription": {
@@ -3021,7 +3029,7 @@
               "carb_g_per_hr": 70,
               "sodium_mg_per_hr": 550,
               "fluid_ml_per_hr": 700,
-              "calculated_at": 1795107790,
+              "calculated_at": 1795125869,
               "legs": [
                 {
                   "duration_min": 90,
@@ -3321,8 +3329,8 @@
   "simulate_subscription": {
     "type": "SimulateSubscriptionResponse",
     "body": {
-      "athlete_id": "8f56c2fa-9d35-45fe-800d-8d3a729d7e9b",
-      "request_id": "req_7646be070674",
+      "athlete_id": "07067441-a9c0-4ed8-873f-ff4a1dca98ec",
+      "request_id": "req_721e884a2df3",
       "simulated_active": true
     }
   },
@@ -3330,21 +3338,22 @@
     "type": "PartnerAccount",
     "body": {
       "id": "partner_example",
-      "name": "SDK live suite",
+      "name": "SDK live suite (Claude, throwaway)",
       "contact_email": "partner@example.com",
       "status": "active",
       "plan": "partner",
       "rate_limits": {
-        "requests_per_second": 50,
-        "burst_size": 100,
-        "requests_per_minute": 3000,
-        "requests_per_day": 10000,
-        "ip_requests_per_day": 5000,
+        "requests_per_second": 10,
+        "burst_size": 20,
+        "requests_per_minute": 600,
+        "requests_per_day": 2000,
+        "ip_requests_per_day": 275,
         "trial_starts_per_day": 50,
         "trial_profiles_per_athlete": 3,
-        "trial_days": 30
+        "trial_days": 14,
+        "trial_answers": 42
       },
-      "created_at": 1795107724
+      "created_at": 1795125699
     }
   },
   "usage": {
@@ -3412,7 +3421,7 @@
         "from": "2026-10-20",
         "to": "2026-11-19"
       },
-      "request_id": "req_b6a6e250b0ec",
+      "request_id": "req_c8b087a9a40e",
       "total_calls": 74
     }
   },
@@ -3458,7 +3467,7 @@
         "from": "2026-11-12",
         "to": "2026-11-19"
       },
-      "request_id": "req_c7494c555c66"
+      "request_id": "req_220237a7a8f4"
     }
   },
   "api_keys": {
@@ -3466,31 +3475,31 @@
     "body": {
       "api_keys": [
         {
-          "id": "184270db1e1e5f2f19c806ddf7e482c094ca10a5455c8dd8959b316ae432cbda",
-          "name": "sdk-live",
+          "id": "a1b073768c30bb052a9361d0aa5e95271676a0dade28d764a004a4b4ed0e20fe",
+          "name": "partner_sdklive_1119b-test-key",
           "environment": "test",
           "scopes": [
             "*"
           ],
-          "created_at": 1795107724,
-          "last_used_at": 1795107793,
+          "created_at": 1795125700,
+          "last_used_at": 1795125874,
           "revoked": false
         }
       ],
-      "request_id": "req_dba31ae2e23b",
+      "request_id": "req_12e7c6e36513",
       "total": 1
     }
   },
   "api_key_created": {
     "type": "CreatedApiKey",
     "body": {
-      "created_at": 1795107793,
+      "created_at": 1795125874,
       "environment": "test",
-      "id": "3e681ff13df1fb62f181fd405a14bc73fd148bf119c5a842a8b04e8d861a232c",
+      "id": "d63d68a41fbd8009b6578b244b19b614e2849a6c7246d8dd47ac49c2dbfe1305",
       "key": "sk_test_example",
       "message": "Store this key securely — it will not be shown again.",
-      "name": "sdk-node-717d343f-key",
-      "request_id": "req_592e91f435ba",
+      "name": "sdk-node-6987f285-key",
+      "request_id": "req_6c37b7437ec6",
       "scopes": [
         "*"
       ]
@@ -3500,12 +3509,12 @@
     "type": "RotatedApiKey",
     "body": {
       "environment": "test",
-      "id": "4b18be4d729a78e3a2bc1b1940ccacac3f60f9cd832c70f66b51cb5bed679515",
+      "id": "595f6017fde0113b467fcebd24d924c4c07c40bf1cf5602d6a2f0aaabb3b231b",
       "key": "sk_test_example",
       "message": "Store this key securely — it will not be shown again. The old key has been revoked.",
-      "name": "sdk-node-717d343f-key",
-      "request_id": "req_f9407c87f045",
-      "rotated_from": "3e681ff13df1fb62f181fd405a14bc73fd148bf119c5a842a8b04e8d861a232c",
+      "name": "sdk-node-6987f285-key",
+      "request_id": "req_b1ac35346633",
+      "rotated_from": "d63d68a41fbd8009b6578b244b19b614e2849a6c7246d8dd47ac49c2dbfe1305",
       "scopes": [
         "*"
       ]
@@ -3515,17 +3524,17 @@
     "type": "WebhookCreateResponse",
     "body": {
       "message": "Store the secret securely — it will not be shown again. Use it to verify webhook signatures.",
-      "request_id": "req_9cce60e2edda",
+      "request_id": "req_4de3a16c72cb",
       "webhook": {
-        "id": "3da8493d-5394-49a7-b13a-d34a11811d3d",
+        "id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
         "partner_id": "partner_example",
         "url": "https://example.com/saturday-live-suite",
         "events": [
           "prescription.calculated"
         ],
         "active": true,
-        "created_at": 1795107793,
-        "updated_at": 1795107793,
+        "created_at": 1795125875,
+        "updated_at": 1795125875,
         "fail_count": 0,
         "secret": "whsec_example"
       }
@@ -3534,19 +3543,19 @@
   "webhook_list": {
     "type": "WebhookListResponse",
     "body": {
-      "request_id": "req_332415d0cd04",
+      "request_id": "req_a99e627414db",
       "total": 1,
       "webhooks": [
         {
-          "id": "3da8493d-5394-49a7-b13a-d34a11811d3d",
+          "id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
           "partner_id": "partner_example",
           "url": "https://example.com/saturday-live-suite",
           "events": [
             "prescription.calculated"
           ],
           "active": true,
-          "created_at": 1795107793,
-          "updated_at": 1795107793,
+          "created_at": 1795125875,
+          "updated_at": 1795125875,
           "fail_count": 0
         }
       ]
@@ -3555,15 +3564,15 @@
   "webhook": {
     "type": "Webhook",
     "body": {
-      "id": "3da8493d-5394-49a7-b13a-d34a11811d3d",
+      "id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
       "partner_id": "partner_example",
       "url": "https://example.com/saturday-live-suite",
       "events": [
         "prescription.calculated"
       ],
       "active": true,
-      "created_at": 1795107793,
-      "updated_at": 1795107793,
+      "created_at": 1795125875,
+      "updated_at": 1795125875,
       "fail_count": 0
     }
   },
@@ -3571,20 +3580,20 @@
     "type": "WebhookTestResponse",
     "body": {
       "delivery": {
-        "id": "4e338f81-fd2e-4f2b-8c74-7a4d2569b242",
-        "webhook_id": "3da8493d-5394-49a7-b13a-d34a11811d3d",
-        "event_id": "cb42bcd9-ea07-43ae-9a5f-1532e8cc034b",
+        "id": "2eabd974-3b08-49dc-ab00-83c63a332fd8",
+        "webhook_id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
+        "event_id": "4009f198-badf-4e1f-9e56-13281866f4a8",
         "event_type": "webhook.test",
-        "event_data": "eyJpZCI6ImNiNDJiY2Q5LWVhMDctNDNhZS05YTVmLTE1MzJlOGNjMDM0YiIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NTEwNzc5NH0=",
+        "event_data": "eyJpZCI6IjQwMDlmMTk4LWJhZGYtNGUxZi05ZTU2LTEzMjgxODY2ZjRhOCIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NTEyNTg3Nn0=",
         "url": "https://example.com/saturday-live-suite",
         "status_code": 405,
         "response_body": "<!doctype html><html lang=\"en\"><head><title>Example Domain</title><link rel=\"icon\" href=\"data:,\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div></body></html>",
         "attempts": 1,
         "status": "failed",
-        "created_at": 1795107795,
+        "created_at": 1795125876,
         "partner_id": "partner_example"
       },
-      "request_id": "req_e31a3aa218f3"
+      "request_id": "req_fb6b865b5866"
     }
   },
   "webhook_deliveries": {
@@ -3592,48 +3601,48 @@
     "body": {
       "deliveries": [
         {
-          "id": "009d8249-ede2-48c4-8c07-ff6bd4528393",
-          "webhook_id": "3da8493d-5394-49a7-b13a-d34a11811d3d",
-          "event_id": "6bffb139-395a-459d-a045-89de7b77fc77",
+          "id": "9d345795-e0c9-4f4e-9b2a-4d0e6522cd2d",
+          "webhook_id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
+          "event_id": "23c9fd24-f183-4925-b3f1-abd1444b8862",
           "event_type": "prescription.calculated",
-          "event_data": "eyJpZCI6IjZiZmZiMTM5LTM5NWEtNDU5ZC1hMDQ1LTg5ZGU3Yjc3ZmM3NyIsInR5cGUiOiJwcmVzY3JpcHRpb24uY2FsY3VsYXRlZCIsImRhdGEiOnsiYXRobGV0ZV9pZCI6Ijk4YzljNmUzLTMyZDgtNDZjYi04Y2E2LWZlYzJhZGU4ODIxNCIsImF0dHJpYnV0aW9uIjp7ImxpbmsiOiJodHRwczovL3NhdHVyZGF5LmZpdCIsImxvZ29fdXJsIjoiaHR0cHM6Ly9zYXR1cmRheS5maXQvbG9nby5wbmciLCJyZXF1aXJlZCI6dHJ1ZSwidGV4dCI6IlBvd2VyZWQgYnkgU2F0dXJkYXkifSwiY2FyYl9nX3Blcl9ociI6MzAsImZsdWlkX21sX3Blcl9ociI6NDAwLCJwcmVjaXNpb24iOnsicHJvZmlsZV9jb21wbGV0ZSI6dHJ1ZX0sInNhZmV0eSI6eyJjb25maWRlbmNlX3Njb3JlIjoxLCJtYXhfc2FmZV9mbHVpZF9tbF9wZXJfaHIiOjE1MDAsIm1heF9zYWZlX3NvZGl1bV9tZ19wZXJfaHIiOjMwMDAsIm5vdF9pbnN0cnVjdGlvbnMiOnRydWUsInJlcXVpcmVzX2h1bWFuX3JldmlldyI6ZmFsc2UsIndhcm5pbmdzIjpbXX0sInNvZGl1bV9tZ19wZXJfaHIiOjMwMCwidGllciI6ImZ1bGwiLCJ0aWVyX3NvdXJjZSI6InRyaWFsIiwidG90YWxfY2FyYl9nIjozMCwidG90YWxfZmx1aWRfbWwiOjQwMCwidG90YWxfc29kaXVtX21nIjozMDAsInRyaWFsX2NhbGxzX3JlbWFpbmluZ190b2RheSI6MiwidHJpYWxfZW5kc19hdCI6MTc5NzY5OTc0M30sImNyZWF0ZWRfYXQiOjE3OTUxMDc3OTV9",
+          "event_data": "eyJpZCI6IjIzYzlmZDI0LWYxODMtNDkyNS1iM2YxLWFiZDE0NDRiODg2MiIsInR5cGUiOiJwcmVzY3JpcHRpb24uY2FsY3VsYXRlZCIsImRhdGEiOnsiYXRobGV0ZV9pZCI6ImJkMDliZTg4LTg2N2ItNGQzYS04MzJjLTNmZDg0MGI2MGRjMCIsImF0dHJpYnV0aW9uIjp7ImxpbmsiOiJodHRwczovL3NhdHVyZGF5LmZpdCIsImxvZ29fdXJsIjoiaHR0cHM6Ly9zYXR1cmRheS5maXQvbG9nby5wbmciLCJyZXF1aXJlZCI6dHJ1ZSwidGV4dCI6IlBvd2VyZWQgYnkgU2F0dXJkYXkifSwiY2FyYl9nX3Blcl9ociI6MzAsImZsdWlkX21sX3Blcl9ociI6NDAwLCJwcmVjaXNpb24iOnsicHJvZmlsZV9jb21wbGV0ZSI6dHJ1ZX0sInNhZmV0eSI6eyJjb25maWRlbmNlX3Njb3JlIjoxLCJtYXhfc2FmZV9mbHVpZF9tbF9wZXJfaHIiOjE1MDAsIm1heF9zYWZlX3NvZGl1bV9tZ19wZXJfaHIiOjMwMDAsIm5vdF9pbnN0cnVjdGlvbnMiOnRydWUsInJlcXVpcmVzX2h1bWFuX3JldmlldyI6ZmFsc2UsIndhcm5pbmdzIjpbXX0sInNvZGl1bV9tZ19wZXJfaHIiOjMwMCwidGllciI6ImZ1bGwiLCJ0aWVyX3NvdXJjZSI6InRyaWFsIiwidG90YWxfY2FyYl9nIjozMCwidG90YWxfZmx1aWRfbWwiOjQwMCwidG90YWxfc29kaXVtX21nIjozMDAsInRyaWFsX2NhbGxzX3JlbWFpbmluZ190b2RheSI6MiwidHJpYWxfZW5kc19hdCI6MTc5NjMzNTQxN30sImNyZWF0ZWRfYXQiOjE3OTUxMjU4NzZ9",
           "url": "https://example.com/saturday-live-suite",
           "status_code": 405,
           "response_body": "<!doctype html><html lang=\"en\"><head><title>Example Domain</title><link rel=\"icon\" href=\"data:,\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div></body></html>",
           "attempts": 1,
-          "next_retry_at": 1795107855,
+          "next_retry_at": 1795125936,
           "status": "failed",
-          "created_at": 1795107795,
+          "created_at": 1795125876,
           "partner_id": "partner_example"
         },
         {
-          "id": "4e338f81-fd2e-4f2b-8c74-7a4d2569b242",
-          "webhook_id": "3da8493d-5394-49a7-b13a-d34a11811d3d",
-          "event_id": "cb42bcd9-ea07-43ae-9a5f-1532e8cc034b",
+          "id": "2eabd974-3b08-49dc-ab00-83c63a332fd8",
+          "webhook_id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
+          "event_id": "4009f198-badf-4e1f-9e56-13281866f4a8",
           "event_type": "webhook.test",
-          "event_data": "eyJpZCI6ImNiNDJiY2Q5LWVhMDctNDNhZS05YTVmLTE1MzJlOGNjMDM0YiIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NTEwNzc5NH0=",
+          "event_data": "eyJpZCI6IjQwMDlmMTk4LWJhZGYtNGUxZi05ZTU2LTEzMjgxODY2ZjRhOCIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NTEyNTg3Nn0=",
           "url": "https://example.com/saturday-live-suite",
           "status_code": 405,
           "response_body": "<!doctype html><html lang=\"en\"><head><title>Example Domain</title><link rel=\"icon\" href=\"data:,\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div></body></html>",
           "attempts": 1,
           "status": "failed",
-          "created_at": 1795107795,
+          "created_at": 1795125876,
           "partner_id": "partner_example"
         }
       ],
-      "request_id": "req_45bfe2c1d22a",
+      "request_id": "req_33a2b4d4e278",
       "total": 2
     }
   },
   "organization": {
     "type": "Organization",
     "body": {
-      "id": "b732a0db-7e23-4de1-9544-dcb995b15ebd",
+      "id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
       "partner_id": "partner_example",
-      "display_name": "sdk-node-717d343f team",
+      "display_name": "sdk-node-6987f285 team",
       "sport": "triathlon",
-      "created_at": 1795107797,
-      "updated_at": 1795107797,
+      "created_at": 1795125879,
+      "updated_at": 1795125879,
       "member_count": 0
     }
   },
@@ -3642,12 +3651,12 @@
     "body": {
       "organizations": [
         {
-          "id": "b732a0db-7e23-4de1-9544-dcb995b15ebd",
+          "id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
           "partner_id": "partner_example",
-          "display_name": "sdk-node-717d343f team",
+          "display_name": "sdk-node-6987f285 team",
           "sport": "triathlon",
-          "created_at": 1795107797,
-          "updated_at": 1795107797,
+          "created_at": 1795125879,
+          "updated_at": 1795125879,
           "member_count": 0
         }
       ],
@@ -3655,17 +3664,17 @@
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_599cc00ae830"
+      "request_id": "req_8a9b8f16fbeb"
     }
   },
   "organization_member": {
     "type": "OrganizationMember",
     "body": {
-      "id": "44f9eeef-e641-478a-8046-d81cc8c8b50f",
-      "email": "sdk-node-717d343f@example.com",
+      "id": "d2cab873-491d-4199-b5b0-d95ab925a85c",
+      "email": "sdk-node-6987f285@example.com",
       "role": "member",
-      "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
-      "joined_at": 1795107798
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
+      "joined_at": 1795125879
     }
   },
   "organization_members": {
@@ -3673,43 +3682,43 @@
     "body": {
       "members": [
         {
-          "id": "44f9eeef-e641-478a-8046-d81cc8c8b50f",
-          "email": "sdk-node-717d343f@example.com",
+          "id": "d2cab873-491d-4199-b5b0-d95ab925a85c",
+          "email": "sdk-node-6987f285@example.com",
           "role": "member",
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
-          "joined_at": 1795107798
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
+          "joined_at": 1795125879
         }
       ],
-      "request_id": "req_45d9351993be",
+      "request_id": "req_a2eaabfb631a",
       "total": 1
     }
   },
   "organization_offer": {
     "type": "OrganizationOffer",
     "body": {
-      "id": "c218c11d-8dc4-4a58-87fd-9e27b42e00c2",
-      "org_id": "b732a0db-7e23-4de1-9544-dcb995b15ebd",
+      "id": "d1c4d39e-4272-45f6-9156-1b0a41bd1a73",
+      "org_id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
       "discount_percent": 10,
       "active": true,
-      "created_at": 1795107798,
+      "created_at": 1795125880,
       "stack_cap_percent": 30
     }
   },
   "organization_offer_get": {
     "type": "OrganizationOffer",
     "body": {
-      "id": "c218c11d-8dc4-4a58-87fd-9e27b42e00c2",
-      "org_id": "b732a0db-7e23-4de1-9544-dcb995b15ebd",
+      "id": "d1c4d39e-4272-45f6-9156-1b0a41bd1a73",
+      "org_id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
       "discount_percent": 10,
       "active": true,
-      "created_at": 1795107798,
+      "created_at": 1795125880,
       "stack_cap_percent": 30
     }
   },
   "organization_subscriptions": {
     "type": "OrganizationSubscriptionListResponse",
     "body": {
-      "request_id": "req_e86c4e4a6d42",
+      "request_id": "req_5772409f1218",
       "subscriptions": [],
       "total": 0
     }
@@ -3717,12 +3726,12 @@
   "consent": {
     "type": "ConsentRecord",
     "body": {
-      "id": "71781149-a87d-4101-b94a-fec572d518b7",
-      "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "id": "9271203b-62b4-4219-923a-88d692e80990",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
       "consent_type": "analytics",
       "granted": true,
-      "granted_at": 1795107798,
+      "granted_at": 1795125881,
       "ip_address": "192.0.2.1"
     }
   },
@@ -3731,29 +3740,29 @@
     "body": {
       "consent": [
         {
-          "id": "71781149-a87d-4101-b94a-fec572d518b7",
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+          "id": "9271203b-62b4-4219-923a-88d692e80990",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
           "consent_type": "analytics",
           "granted": true,
-          "granted_at": 1795107798,
+          "granted_at": 1795125881,
           "ip_address": "192.0.2.1"
         }
       ],
-      "request_id": "req_749cb90f70b6",
+      "request_id": "req_03e83206f23b",
       "total": 1
     }
   },
   "export": {
     "type": "AthleteDataExport",
     "body": {
-      "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
-      "exported_at": 1795107799,
+      "exported_at": 1795125881,
       "profile": {
-        "created_at": 1795107738,
-        "external_id": "sdk-node-717d343f-a",
-        "id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+        "created_at": 1795125812,
+        "external_id": "sdk-node-6987f285-a",
+        "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
         "name": "Live Suite",
         "partner_id": "partner_example",
         "profile_complete": true,
@@ -3768,27 +3777,28 @@
           "usual_carb_consumption": "range_60_80"
         },
         "sex": "female",
+        "trial_answers": 13,
         "trial_profiles": [
           "1251fa8cb67d"
         ],
-        "trial_started_at": 1795107743,
-        "updated_at": 1795107742,
+        "trial_started_at": 1795125817,
+        "updated_at": 1795125816,
         "weight_kg": 62,
         "year_of_birth": 1990
       },
       "activities": [
         {
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
-          "created_at": 1795107765,
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
+          "created_at": 1795125842,
           "duration_min": 45,
-          "external_id": "sdk-node-717d343f-i1",
-          "id": "2d6d8a58-1cd4-4654-b41f-e024e3832b7a",
+          "external_id": "sdk-node-6987f285-i1",
+          "id": "6a768e65-9710-44ab-a258-5203965afc74",
           "intensity_level": 5,
           "is_race_event": false,
           "meal_before_min": 120,
           "partner_id": "partner_example",
           "prescription": {
-            "calculated_at": 1795107765,
+            "calculated_at": 1795125842,
             "carb_g_per_hr": 20,
             "confidence": 1,
             "fluid_ml_per_hr": 330,
@@ -3799,19 +3809,19 @@
           },
           "thermal_stress_level": 4,
           "type": "run",
-          "updated_at": 1795107766
+          "updated_at": 1795125842
         }
       ],
       "consent": [
         {
-          "athlete_id": "98c9c6e3-32d8-46cb-8ca6-fec2ade88214",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "consent_type": "analytics",
           "granted": true,
-          "granted_at": 1795107798,
-          "id": "71781149-a87d-4101-b94a-fec572d518b7",
+          "granted_at": 1795125881,
+          "id": "9271203b-62b4-4219-923a-88d692e80990",
           "ip_address": "192.0.2.1",
           "partner_id": "partner_example",
-          "revoked_at": 1795107799
+          "revoked_at": 1795125881
         }
       ]
     }
@@ -3819,7 +3829,7 @@
   "integration_status": {
     "type": "IntegrationStatusResponse",
     "body": {
-      "request_id": "req_fe6d45f4a85d",
+      "request_id": "req_5884bc57bada",
       "status": {
         "provider": "intervals_icu",
         "connected": false,

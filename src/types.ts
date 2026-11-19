@@ -160,8 +160,8 @@ export interface LinkedSessionCalculateRequest extends CalculateRequestFields {
 export type NutritionCalculateRequest = SingleSessionCalculateRequest | LinkedSessionCalculateRequest;
 
 /**
- * Trial and sandbox fields on a calculation. The trial's length is `rate_limits.trial_days` on
- * `partner.get()`.
+ * Trial and sandbox fields on a calculation. `partner.get()` gives the trial's length in
+ * `rate_limits.trial_days` and the exact answers it gives in all in `rate_limits.trial_answers`.
  */
 export interface TrialMetadata {
   /** `trial` while a partner trial gives this athlete the full tier. */
@@ -183,7 +183,12 @@ export interface TrialMetadata {
    * profiles stay exact.
    */
   trial_profile_limit_reached?: boolean;
-  /** With `trial_start_deferred` or `trial_profile_limit_reached`, why these numbers are ranges, in words you can show the athlete. */
+  /**
+   * The athlete's trial has given all its exact answers (`rate_limits.trial_answers`), so these
+   * numbers are ranges until the athlete subscribes.
+   */
+  trial_answers_used_up?: boolean;
+  /** With `trial_start_deferred`, `trial_profile_limit_reached` or `trial_answers_used_up`, why these numbers are ranges, in words you can show the athlete. */
   trial_note?: string;
   /**
    * Test environment only: the athlete's simulated subscription has given its allowance of exact
@@ -319,8 +324,9 @@ export interface OnboardingInvite {
  * - `profile_and_session_incomplete`: both.
  * - `stored_ranges`: an activity's stored ranges with nothing missing that can be named now (the
  *   athlete has answered since): calculate the activity again.
- * - `trial_allowance`: the athlete's trial has used today's calls, or this profile is past the
- *   trial's allowance of profiles. `message` says which, in words you can show the athlete.
+ * - `trial_allowance`: the athlete's trial has used today's calls or given all its exact
+ *   answers, or this profile is past the trial's allowance of profiles. `message` says which, in
+ *   words you can show the athlete.
  * - `simulation_allowance` (test environment only): the athlete's simulated subscription has
  *   given its allowance of exact answers or profiles.
  */
@@ -1241,6 +1247,8 @@ export interface PartnerAccount {
     trial_profiles_per_athlete: number | null;
     /** Days an athlete's trial lasts from its first exact answer. */
     trial_days: number;
+    /** Exact answers one athlete's trial gives in all, however the days fall; the next answer gets ranges with `trial_answers_used_up`. `null` when the key has no such bound. */
+    trial_answers: number | null;
   };
   /** Unix seconds. */
   created_at: number;

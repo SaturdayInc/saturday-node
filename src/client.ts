@@ -648,7 +648,8 @@ class IntegrationsResource {
   /**
    * End the connection you supplied for the athlete with `sync`: it is revoked at the provider and
    * its tokens are removed. Activities already synced stay. A linked athlete's own connection to the
-   * provider in their Saturday account is not changed.
+   * provider in their Saturday account is not changed. A provider the athlete never connected
+   * throws `NotFoundError` (code `integration_not_found`), and nothing reaches the provider.
    */
   disconnect(provider: T.IntegrationProvider, athleteId: string): Promise<T.IntegrationDisconnectResponse> {
     return this.client.request('POST', `/v1/integrations/${seg(provider)}/disconnect`, { athlete_id: athleteId });
