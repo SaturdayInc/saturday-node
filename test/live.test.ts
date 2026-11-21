@@ -4,7 +4,7 @@
 import { randomUUID } from 'crypto';
 import { writeFileSync } from 'fs';
 import {
-  Saturday, NotFoundError, PermissionError, ValidationError,
+  Saturday, ConflictError, NotFoundError, PermissionError, ValidationError,
   type Athlete, type NutritionCalculateResponse, type PrepResponse,
 } from '../src';
 
@@ -119,8 +119,15 @@ describeLive('live API', () => {
   it('meta: discovery, error catalog, health', async () => {
     const discovery = capture('discovery', 'DiscoveryResponse', await saturday.meta.discovery());
     expect(discovery.links.athletes).toBe('/v1/athletes');
+    // A key comes with a paid Saturday plan: the API names the page and no price.
+    expect(discovery.get_a_key.page).toBe('https://saturday.fit/api');
+    expect(discovery.get_a_key.athletes_per_key).toBeGreaterThan(0);
+    expect(JSON.stringify(discovery)).not.toMatch(/\$\d/);
     const catalog = capture('errors', 'ErrorCatalogResponse', await saturday.meta.errors());
-    expect(catalog.errors.map(e => e.code)).toContain('unsupported_field');
+    expect(catalog.errors.map(e => e.code)).toEqual(expect.arrayContaining([
+      'unsupported_field', 'athlete_exists', 'plan_inactive', 'simulated_subscriber_daily_limit_reached', 'provider_erasure_incomplete',
+    ]));
+    expect(catalog.errors.map(e => e.code)).not.toContain('payment_error');
     capture('health', 'HealthResponse', await saturday.meta.health());
   });
 
@@ -146,6 +153,15 @@ describeLive('live API', () => {
     capture('athlete_get', 'Athlete', await saturday.athletes.get(complete.id));
     const found = capture('athlete_list', 'AthleteListResponse', await saturday.athletes.list({ externalId: `${run}-a` }));
     expect(found.athletes.map(a => a.id)).toEqual([complete.id]);
+
+    // One athlete per external_id: a retried create, and a PATCH onto a taken id, change nothing and name the holder.
+    const again = await refusal(saturday.athletes.create({ external_id: `${run}-a`, ...COMPLETE }));
+    expect(again).toBeInstanceOf(ConflictError);
+    expect((again as ConflictError).code).toBe('athlete_exists');
+    expect((again as ConflictError).athleteId).toBe(complete.id);
+    const taken = await refusal(saturday.athletes.update(partial.id, { external_id: `${run}-a` }));
+    expect((taken as ConflictError).athleteId).toBe(complete.id);
+    expect((await saturday.athletes.list({ externalId: `${run}-a` })).athletes.map(a => a.id)).toEqual([complete.id]);
     const renamed = await saturday.athletes.update(complete.id, { name: 'Live Suite' });
     expect(renamed.name).toBe('Live Suite');
 
@@ -157,9 +173,10 @@ describeLive('live API', () => {
     expect(fueling.sharing).toBe('not_linked');
 
     const batch = capture('athletes_batch', 'BatchAthleteResponse',
-      await saturday.athletes.batchCreate([{ external_id: `${run}-c` }, { sex: 'female' }]));
+      await saturday.athletes.batchCreate([{ external_id: `${run}-c` }, { sex: 'female' }, { external_id: `${run}-a` }]));
     expect(batch.succeeded).toBe(1);
     expect(batch.errors?.[0].index).toBe(1);
+    expect(batch.errors?.[1]).toMatchObject({ index: 2, code: 'athlete_exists', athlete_id: complete.id });
     await saturday.athletes.erase(batch.created[0].id);
   });
 
@@ -253,6 +270,18 @@ describeLive('live API', () => {
     expect(prep.products.map(p => p.servings)[0]).toBe(2);
 
     capture('feedback', 'ActivityFeedback', await saturday.activities.submitFeedback(complete.id, activity.id, { rating: 4, notes: 'live suite' }));
+
+    // A field sent at its stored value keeps the prescription; a change to the session removes it until the next calculate.
+    await saturday.activities.update(complete.id, activity.id, { intensity_level: 6, external_id: `${run}-w1b` });
+    expect((await saturday.activities.getPrescription(complete.id, activity.id)).prescription.total_carb_g).toBe(stored.prescription.total_carb_g);
+    const harder = await saturday.activities.update(complete.id, activity.id, { intensity_level: 8 });
+    expect(harder.prescription).toBeUndefined();
+    const outdated = await refusal(saturday.activities.getPrescription(complete.id, activity.id));
+    expect(outdated).toBeInstanceOf(NotFoundError);
+    expect((outdated as NotFoundError).code).toBe('prescription_not_found');
+    const fresh = await saturday.activities.calculatePrescription(complete.id, activity.id);
+    expect(fresh.prescription?.total_carb_g).toBeGreaterThan(0);
+    expect((await saturday.activities.getPrescription(complete.id, activity.id)).prescription.total_carb_g).toBe(fresh.prescription!.total_carb_g);
 
     const imported = capture('activity_import', 'ActivityImportResponse', await saturday.activities.importActivities(complete.id, [
       { type: 'run', duration_min: 45, intensity_level: 5, thermal_stress_level: 4, meal_before_min: 120, is_race_event: false, external_id: `${run}-i1` },
@@ -362,6 +391,11 @@ describeLive('live API', () => {
     const wrongCount = await refusal(saturday.activities.prep(athlete.id, stored.id, { legs: [{ products: [] }] }));
     expect((wrongCount as ValidationError).code).toBe('invalid_value');
     expect((wrongCount as ValidationError).param).toBe('legs');
+    const both = await refusal(saturday.activities.prep(athlete.id, stored.id, {
+      products: [{ product_query: 'maurten gel 100' }], legs: [{ products: [] }, { products: [] }],
+    }));
+    expect((both as ValidationError).code).toBe('invalid_value');
+    expect((both as ValidationError).param).toBe('products');
 
     // Fit and compare size the whole session at the top level and each leg's share under legs.
     const brickFit = capture('product_fit_brick', 'ProductFitResponse', await saturday.nutrition.productFit({
@@ -421,6 +455,7 @@ describeLive('live API', () => {
       legs: [activityLegs[0], { ...activityLegs[1], duration_min: 45 }],
     });
     expect(longer.duration_min).toBe(135);
+    expect(await refusal(saturday.activities.getPrescription(athlete.id, stored.id))).toBeInstanceOf(NotFoundError);
     const recalculated = await saturday.activities.calculatePrescription(athlete.id, stored.id);
     expect(recalculated.prescription!.total_carb_g!).toBeGreaterThan(brick.total_carb_g!);
 
@@ -504,6 +539,8 @@ describeLive('live API', () => {
   it('partner: account, usage, API keys', async () => {
     const account = capture('partner', 'PartnerAccount', await saturday.partner.get());
     expect(account.rate_limits.requests_per_day).toBeGreaterThan(0);
+    expect(account.rate_limits.trial_days).toBeGreaterThan(0);
+    expect(account.rate_limits.trial_starts_per_day === null || account.rate_limits.trial_starts_per_day > 0).toBe(true);
     const usage = capture('usage', 'UsageResponse', await saturday.partner.usage());
     // Usage counts the routes you called, by path.
     expect(Object.keys(usage.by_endpoint).length).toBeGreaterThan(0);
@@ -588,9 +625,15 @@ describeLive('live API', () => {
     await saturday.athletes.delete(complete.id);
   });
 
-  it('integrations: status', async () => {
+  it('integrations: sync takes intervals.icu tokens only; status', async () => {
     const athlete = await saturday.athletes.create({ external_id: `${run}-d` });
-    capture('integration_status', 'IntegrationStatusResponse', await saturday.integrations.status('strava', athlete.id));
+    for (const provider of ['strava', 'training_peaks']) {
+      const refused = await refusal(saturday.integrations.sync(provider as never, { athlete_id: athlete.id, access_token: 'not-a-token' }));
+      expect(refused).toBeInstanceOf(ValidationError);
+      expect((refused as ValidationError).code).toBe('invalid_provider');
+    }
+    const status = capture('integration_status', 'IntegrationStatusResponse', await saturday.integrations.status('intervals_icu', athlete.id));
+    expect(status.status.connected).toBe(false);
     await saturday.athletes.erase(athlete.id);
   });
 

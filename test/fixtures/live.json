@@ -2,6 +2,21 @@
   "discovery": {
     "type": "DiscoveryResponse",
     "body": {
+      "get_a_key": {
+        "account_routes": "GET and POST /v1/account/api-key with the signed-in account's Firebase ID token (what saturday.fit/api calls)",
+        "athletes_per_key": 10,
+        "contact": "api@saturday.fit",
+        "docs": "https://docs.saturday.fit",
+        "how": "A key comes with any paid Saturday plan, member or coach. Sign in at saturday.fit/api to make yours.",
+        "limits": "2 requests a second, 200 calls a day",
+        "llms_txt": "https://saturday.fit/llms.txt",
+        "more_athletes": "To cover more than 10 athletes, write to api@saturday.fit about what you're building and we'll raise it.",
+        "page": "https://saturday.fit/api",
+        "platforms": "Building Saturday into a platform for many athletes? Write to api@saturday.fit about a partnership.",
+        "quickstart": "https://docs.saturday.fit/quickstart",
+        "trial": "Each athlete gets 14 days of exact numbers, up to 42 answers in all; after that, exact numbers come with the athlete's Saturday subscription.",
+        "who_is_this": "Builders whose athletes live in their own system. Coaching athletes who use the Saturday app? The coach portal is your lane, and its API keys come with every paid coach plan: https://coach.saturday.fit"
+      },
       "links": {
         "activity_types": "/v1/activity-types",
         "athletes": "/v1/athletes",
@@ -14,21 +29,7 @@
         "settings_schema": "/v1/settings/schema"
       },
       "name": "Saturday API",
-      "request_id": "req_b58cad7c2aeb",
-      "self_serve": {
-        "docs": "https://docs.saturday.fit",
-        "key_claim": "GET /v1/signup/claim?session_id=… (one-time reveal after checkout; also emailed)",
-        "key_resend": "POST /v1/signup/resend {\"session_id\": \"cs_…\"} → rotates + re-emails your key if it never arrived",
-        "limits": "2 req/s, 200 calls/day (higher limits: api@saturday.fit)",
-        "llms_txt": "https://saturday.fit/llms.txt",
-        "plan": "individual_monthly",
-        "price": "$5.39/month",
-        "quickstart": "https://docs.saturday.fit/quickstart",
-        "signup_api": "POST /v1/signup {\"email\": \"you@example.com\"} → hosted checkout URL",
-        "signup_web": "https://saturday.fit/api",
-        "trial": "Every athlete's first calculate starts a 30-day full-precision trial: 15 calls on day one, then 5/day.",
-        "who_is_this": "Builders whose athletes live in THEIR system. Coaching real Saturday-app athletes? The coach portal is your lane, and its API keys come with the Business and Enterprise plans: https://coach.saturday.fit"
-      },
+      "request_id": "req_cf70d4a780f4",
       "version": "1.0.0"
     }
   },
@@ -57,6 +58,14 @@
           "type": "authentication_error",
           "http_status": 403,
           "message": "The API key has been revoked, or the partner account is suspended.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "invalid_token",
+          "type": "authentication_error",
+          "http_status": 401,
+          "message": "The account routes behind saturday.fit/api got no Saturday sign-in, or one that is invalid, expired or revoked. Sign in again.",
           "retryable": false,
           "documentation_url": "https://docs.saturday.fit/authentication"
         },
@@ -173,10 +182,26 @@
           "documentation_url": "https://docs.saturday.fit/error-handling"
         },
         {
-          "code": "sandbox_signup_closed",
+          "code": "plan_inactive",
           "type": "authorization_error",
           "http_status": 403,
-          "message": "Sandbox keys are issued by Saturday; self-serve signup on the sandbox takes Saturday's own addresses only.",
+          "message": "The key comes with a paid Saturday plan, and the plan on its account has ended. The key works again, with its athletes as they were, once the plan is active.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "paid_plan_required",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "A Saturday API key comes with any paid Saturday plan, and the signed-in account has none now.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/authentication"
+        },
+        {
+          "code": "sandbox_key_by_saturday",
+          "type": "authorization_error",
+          "http_status": 403,
+          "message": "Keys on the sandbox go only to Saturday's own addresses; write to api@saturday.fit for one.",
           "retryable": false,
           "documentation_url": "https://docs.saturday.fit/authentication"
         },
@@ -264,7 +289,7 @@
           "code": "invalid_provider",
           "type": "invalid_request",
           "http_status": 400,
-          "message": "The integration provider is not one of strava, training_peaks, intervals_icu.",
+          "message": "The integration provider is not supported on this route: sync takes intervals_icu; status and disconnect take strava, training_peaks and intervals_icu. message says which.",
           "retryable": false,
           "documentation_url": "https://docs.saturday.fit/error-handling"
         },
@@ -293,6 +318,14 @@
           "documentation_url": "https://docs.saturday.fit/guides/organizations"
         },
         {
+          "code": "athlete_exists",
+          "type": "invalid_request",
+          "http_status": 409,
+          "message": "An athlete with this external_id already exists, so nothing was created; athlete_id names it.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/athletes"
+        },
+        {
           "code": "already_revoked",
           "type": "invalid_request",
           "http_status": 409,
@@ -317,18 +350,18 @@
           "documentation_url": "https://docs.saturday.fit/guides/activities"
         },
         {
-          "code": "claim_used",
+          "code": "key_exists",
           "type": "invalid_request",
-          "http_status": 410,
-          "message": "This claim link was used and cannot be used again.",
+          "http_status": 409,
+          "message": "The signed-in account has a working key. Send replace: true to make a new one; the current key then stops working.",
           "retryable": false,
-          "documentation_url": "https://docs.saturday.fit/error-handling"
+          "documentation_url": "https://docs.saturday.fit/authentication"
         },
         {
-          "code": "sandbox_key_by_email",
+          "code": "key_comes_with_plan",
           "type": "invalid_request",
           "http_status": 410,
-          "message": "On the sandbox a key is sent only by email, to the address it was bought with; the success page does not show it.",
+          "message": "Keys are not bought. A key comes with any paid Saturday plan; sign in at saturday.fit/api to make yours.",
           "retryable": false,
           "documentation_url": "https://docs.saturday.fit/authentication"
         },
@@ -387,6 +420,14 @@
           "message": "The calculator refused a sweep of near-identical calculations. Retry after the Retry-After seconds.",
           "retryable": true,
           "documentation_url": "https://docs.saturday.fit/rate-limiting"
+        },
+        {
+          "code": "simulated_subscriber_daily_limit_reached",
+          "type": "rate_limit_error",
+          "http_status": 429,
+          "message": "On the sandbox, the key has marked its day's allowance of athletes as subscribed with simulate-subscription; athletes already marked keep their simulated subscription. It resets at midnight UTC; Retry-After is the seconds until then.",
+          "retryable": true,
+          "documentation_url": "https://docs.saturday.fit/guides/freemium-model"
         },
         {
           "code": "resource_not_found",
@@ -477,6 +518,14 @@
           "documentation_url": "https://docs.saturday.fit/guides/webhooks"
         },
         {
+          "code": "integration_not_found",
+          "type": "resource_not_found",
+          "http_status": 404,
+          "message": "The athlete never connected this provider, so there is nothing to disconnect.",
+          "retryable": false,
+          "documentation_url": "https://docs.saturday.fit/guides/integrations"
+        },
+        {
           "code": "key_not_found",
           "type": "resource_not_found",
           "http_status": 404,
@@ -517,14 +566,6 @@
           "documentation_url": "https://docs.saturday.fit/error-handling"
         },
         {
-          "code": "payment_error",
-          "type": "api_error",
-          "http_status": 500,
-          "message": "The payment provider could not complete the request. Retry.",
-          "retryable": true,
-          "documentation_url": "https://docs.saturday.fit/error-handling"
-        },
-        {
           "code": "key_generation_error",
           "type": "api_error",
           "http_status": 500,
@@ -537,14 +578,6 @@
           "type": "api_error",
           "http_status": 500,
           "message": "The API key could not be rotated. Retry.",
-          "retryable": true,
-          "documentation_url": "https://docs.saturday.fit/authentication"
-        },
-        {
-          "code": "resend_error",
-          "type": "api_error",
-          "http_status": 500,
-          "message": "The key email could not be sent. Retry.",
           "retryable": true,
           "documentation_url": "https://docs.saturday.fit/authentication"
         },
@@ -584,7 +617,7 @@
           "code": "provider_erasure_incomplete",
           "type": "api_error",
           "http_status": 503,
-          "message": "The athlete's connected-app data could not be erased yet, so nothing was erased. Retry the delete.",
+          "message": "A provider connection you supplied for the athlete could not be revoked yet, so nothing was deleted. Retry the delete.",
           "retryable": true,
           "documentation_url": "https://docs.saturday.fit/guides/athletes"
         },
@@ -661,15 +694,15 @@
           "documentation_url": "https://docs.saturday.fit/error-handling"
         }
       ],
-      "request_id": "req_68a8477bd793",
-      "total": 78
+      "request_id": "req_a888e7f51e71",
+      "total": 82
     }
   },
   "health": {
     "type": "HealthResponse",
     "body": {
       "status": "ok",
-      "timestamp": "2026-11-18T08:57:54Z",
+      "timestamp": "2026-11-19T22:03:31Z",
       "version": "1.0.0"
     }
   },
@@ -751,7 +784,7 @@
           "max_duration_min": 2160
         }
       ],
-      "request_id": "req_db5636b40729",
+      "request_id": "req_71049da7a011",
       "total": 7
     }
   },
@@ -779,14 +812,14 @@
           "max_duration_min": 2160
         }
       ],
-      "request_id": "req_508273978685",
+      "request_id": "req_1bef7ba9e246",
       "total": 0
     }
   },
   "settings_schema": {
     "type": "SettingsSchemaResponse",
     "body": {
-      "request_id": "req_8e9752002726",
+      "request_id": "req_b09679178169",
       "settings": [
         {
           "field": "sweat_level",
@@ -1185,16 +1218,16 @@
           ]
         }
       ],
-      "request_id": "req_0ca3426d32f9",
+      "request_id": "req_dfe4fcfc3e1d",
       "schema_version": "2026-06-12.1"
     }
   },
   "athlete": {
     "type": "Athlete",
     "body": {
-      "id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
-      "external_id": "sdk-node-aefc57c2-a",
+      "external_id": "sdk-node-6987f285-a",
       "sex": "female",
       "year_of_birth": 1990,
       "weight_kg": 62,
@@ -1208,17 +1241,17 @@
         "performance": true,
         "concerns_answered": true
       },
-      "created_at": 1794992275,
-      "updated_at": 1794992275,
+      "created_at": 1795125812,
+      "updated_at": 1795125812,
       "profile_complete": true
     }
   },
   "athlete_get": {
     "type": "Athlete",
     "body": {
-      "id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
-      "external_id": "sdk-node-aefc57c2-a",
+      "external_id": "sdk-node-6987f285-a",
       "sex": "female",
       "year_of_birth": 1990,
       "weight_kg": 62,
@@ -1232,8 +1265,8 @@
         "performance": true,
         "concerns_answered": true
       },
-      "created_at": 1794992275,
-      "updated_at": 1794992275,
+      "created_at": 1795125812,
+      "updated_at": 1795125812,
       "subscription_status": "teaser",
       "profile_sharing": "not_linked",
       "profile_complete": true
@@ -1244,9 +1277,9 @@
     "body": {
       "athletes": [
         {
-          "id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+          "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
-          "external_id": "sdk-node-aefc57c2-a",
+          "external_id": "sdk-node-6987f285-a",
           "sex": "female",
           "year_of_birth": 1990,
           "weight_kg": 62,
@@ -1260,8 +1293,8 @@
             "performance": true,
             "concerns_answered": true
           },
-          "created_at": 1794992275,
-          "updated_at": 1794992275,
+          "created_at": 1795125812,
+          "updated_at": 1795125812,
           "profile_complete": true
         }
       ],
@@ -1269,7 +1302,7 @@
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_0c8763db65af"
+      "request_id": "req_3245f978ed3f"
     }
   },
   "settings": {
@@ -1289,7 +1322,7 @@
     "type": "FuelingProfile",
     "body": {
       "object": "fueling_profile",
-      "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "sharing": "not_linked",
       "message": "This athlete has not connected a Saturday account, so there are no Saturday app answers to share."
     }
@@ -1299,12 +1332,12 @@
     "body": {
       "created": [
         {
-          "id": "5a0f7386-ab28-4e16-8288-3f3530735eeb",
+          "id": "229721c6-dfef-43e8-a20f-ab0f08245dee",
           "partner_id": "partner_example",
-          "external_id": "sdk-node-aefc57c2-c",
+          "external_id": "sdk-node-6987f285-c",
           "settings": {},
-          "created_at": 1794992277,
-          "updated_at": 1794992277,
+          "created_at": 1795125816,
+          "updated_at": 1795125816,
           "profile_complete": false
         }
       ],
@@ -1313,12 +1346,18 @@
           "index": 1,
           "code": "missing_identifier",
           "message": "At least one of name, email, or external_id is required"
+        },
+        {
+          "index": 2,
+          "code": "athlete_exists",
+          "message": "An athlete with external_id \"sdk-node-6987f285-a\" already exists: bd09be88-867b-4d3a-832c-3fd840b60dc0. Nothing was created.",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0"
         }
       ],
-      "total": 2,
+      "total": 3,
       "succeeded": 1,
-      "failed": 1,
-      "request_id": "req_8b58ab48d9ba"
+      "failed": 2,
+      "request_id": "req_be0a257937ff"
     }
   },
   "calculate_exact": {
@@ -1349,7 +1388,7 @@
         "profile_complete": true
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797584278,
+      "trial_ends_at": 1796335417,
       "trial_calls_remaining_today": 14
     }
   },
@@ -1486,7 +1525,7 @@
         }
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797584286,
+      "trial_ends_at": 1796335424,
       "trial_calls_remaining_today": 14
     }
   },
@@ -1720,7 +1759,7 @@
             "profile_complete": true
           },
           "tier_source": "trial",
-          "trial_ends_at": 1797584278,
+          "trial_ends_at": 1796335417,
           "trial_calls_remaining_today": 10
         }
       ],
@@ -1728,22 +1767,22 @@
         {
           "index": 1,
           "code": "invalid_value",
-          "message": "activity_type must be one of: bike, run, swim, row, ski, lift, hike (got \"nope\"). To map another sport name, call POST /v1/infer/activity-type."
+          "message": "activity_type must be one of: bike, run, swim, row, ski, lift, hike, or brick or triathlon with legs (got \"nope\"). To map another sport name, call POST /v1/infer/activity-type."
         }
       ],
       "total": 2,
       "succeeded": 1,
       "failed": 1,
-      "estimated_ms": 1894,
-      "elapsed_ms": 1432,
-      "request_id": "req_a963c4ab22ea"
+      "estimated_ms": 1968,
+      "elapsed_ms": 1456,
+      "request_id": "req_338f27428655"
     }
   },
   "activity": {
     "type": "Activity",
     "body": {
-      "id": "49b2dce8-7635-4c3e-9c1f-8d05cadfb8ee",
-      "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "id": "efc908c9-3256-4ac5-bbde-220be3912e3d",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
       "type": "bike",
       "duration_min": 150,
@@ -1751,16 +1790,16 @@
       "thermal_stress_level": 6,
       "is_race_event": false,
       "meal_before_min": 120,
-      "external_id": "sdk-node-aefc57c2-w1",
-      "created_at": 1794992294,
-      "updated_at": 1794992294
+      "external_id": "sdk-node-6987f285-w1",
+      "created_at": 1795125833,
+      "updated_at": 1795125833
     }
   },
   "activity_get": {
     "type": "Activity",
     "body": {
-      "id": "49b2dce8-7635-4c3e-9c1f-8d05cadfb8ee",
-      "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "id": "efc908c9-3256-4ac5-bbde-220be3912e3d",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
       "type": "bike",
       "duration_min": 150,
@@ -1768,9 +1807,9 @@
       "thermal_stress_level": 6,
       "is_race_event": false,
       "meal_before_min": 120,
-      "external_id": "sdk-node-aefc57c2-w1",
-      "created_at": 1794992294,
-      "updated_at": 1794992294
+      "external_id": "sdk-node-6987f285-w1",
+      "created_at": 1795125833,
+      "updated_at": 1795125833
     }
   },
   "activity_list": {
@@ -1778,8 +1817,8 @@
     "body": {
       "activities": [
         {
-          "id": "49b2dce8-7635-4c3e-9c1f-8d05cadfb8ee",
-          "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+          "id": "efc908c9-3256-4ac5-bbde-220be3912e3d",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
           "type": "bike",
           "duration_min": 150,
@@ -1787,16 +1826,16 @@
           "thermal_stress_level": 6,
           "is_race_event": false,
           "meal_before_min": 120,
-          "external_id": "sdk-node-aefc57c2-w1",
-          "created_at": 1794992294,
-          "updated_at": 1794992294
+          "external_id": "sdk-node-6987f285-w1",
+          "created_at": 1795125833,
+          "updated_at": 1795125833
         }
       ],
       "pagination": {
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_918a4a2125fb"
+      "request_id": "req_3219af83d970"
     }
   },
   "activity_calculate": {
@@ -1810,7 +1849,7 @@
         "carb_g_per_hr": 71,
         "sodium_mg_per_hr": 830,
         "fluid_ml_per_hr": 790,
-        "calculated_at": 1794992294
+        "calculated_at": 1795125834
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1830,7 +1869,7 @@
         "profile_complete": true
       },
       "tier_source": "trial",
-      "trial_ends_at": 1797584278,
+      "trial_ends_at": 1796335417,
       "trial_calls_remaining_today": 9
     }
   },
@@ -1844,7 +1883,7 @@
         "carb_g_per_hr": 71,
         "sodium_mg_per_hr": 830,
         "fluid_ml_per_hr": 790,
-        "calculated_at": 1794992294
+        "calculated_at": 1795125834
       },
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
@@ -1897,7 +1936,7 @@
         "sodium": 86,
         "fluid": 1
       },
-      "note": "The base mix covers the rest: sugar 0g, sodium 300mg from salt, water 2080mL. Products are additions to the base recipe: this gap is normal and often optimal.",
+      "note": "The base mix covers the rest: sugar 0g, sodium 300mg from salt, water 2080mL.",
       "safety": {
         "max_safe_fluid_ml_per_hr": 1500,
         "max_safe_sodium_mg_per_hr": 3000,
@@ -1913,7 +1952,7 @@
     "body": {
       "rating": 4,
       "notes": "live suite",
-      "created_at": 1794992297
+      "created_at": 1795125837
     }
   },
   "activity_import": {
@@ -1921,8 +1960,8 @@
     "body": {
       "imported": [
         {
-          "id": "de74f6c4-63b5-4a63-9dd0-9172fa7e4a55",
-          "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+          "id": "6a768e65-9710-44ab-a258-5203965afc74",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
           "type": "run",
           "duration_min": 45,
@@ -1930,7 +1969,7 @@
           "thermal_stress_level": 4,
           "is_race_event": false,
           "meal_before_min": 120,
-          "external_id": "sdk-node-aefc57c2-i1",
+          "external_id": "sdk-node-6987f285-i1",
           "prescription": {
             "total_carb_g": 15,
             "total_sodium_mg": 0,
@@ -1938,20 +1977,20 @@
             "carb_g_per_hr": 20,
             "sodium_mg_per_hr": 0,
             "fluid_ml_per_hr": 330,
-            "calculated_at": 1794992298
+            "calculated_at": 1795125842
           },
-          "created_at": 1794992297,
-          "updated_at": 1794992297
+          "created_at": 1795125842,
+          "updated_at": 1795125842
         }
       ],
       "total": 1,
       "succeeded": 1,
       "failed": 0,
-      "request_id": "req_ca0a58f9faa0",
+      "request_id": "req_11bfd9f17151",
       "prescriptions": [
         {
           "index": 0,
-          "activity_id": "de74f6c4-63b5-4a63-9dd0-9172fa7e4a55",
+          "activity_id": "6a768e65-9710-44ab-a258-5203965afc74",
           "result": {
             "tier": "full",
             "prescription": {
@@ -1961,7 +2000,7 @@
               "carb_g_per_hr": 20,
               "sodium_mg_per_hr": 0,
               "fluid_ml_per_hr": 330,
-              "calculated_at": 1794992298
+              "calculated_at": 1795125842
             },
             "safety": {
               "max_safe_fluid_ml_per_hr": 1500,
@@ -1981,8 +2020,8 @@
               "profile_complete": true
             },
             "tier_source": "trial",
-            "trial_ends_at": 1797584278,
-            "trial_calls_remaining_today": 8
+            "trial_ends_at": 1796335417,
+            "trial_calls_remaining_today": 7
           }
         }
       ]
@@ -2098,8 +2137,8 @@
   "activity_brick": {
     "type": "Activity",
     "body": {
-      "id": "1a88d3d2-3009-4107-8c91-45caa90f3d4a",
-      "athlete_id": "02e38a5d-31b4-4890-8dcf-3c47426c2cc6",
+      "id": "ed258dc6-5976-4014-942e-48f77299cfd0",
+      "athlete_id": "e21e4cc8-1677-4d5d-9e9b-32e7a02fec8f",
       "partner_id": "partner_example",
       "type": "brick",
       "duration_min": 120,
@@ -2119,9 +2158,9 @@
         }
       ],
       "meal_before_min": 120,
-      "external_id": "sdk-node-aefc57c2-brick",
-      "created_at": 1794992313,
-      "updated_at": 1794992313
+      "external_id": "sdk-node-6987f285-brick",
+      "created_at": 1795125859,
+      "updated_at": 1795125859
     }
   },
   "activity_calculate_brick": {
@@ -2135,7 +2174,7 @@
         "carb_g_per_hr": 70,
         "sodium_mg_per_hr": 550,
         "fluid_ml_per_hr": 700,
-        "calculated_at": 1794992313,
+        "calculated_at": 1795125859,
         "legs": [
           {
             "duration_min": 90,
@@ -2186,7 +2225,7 @@
         "carb_g_per_hr": 70,
         "sodium_mg_per_hr": 550,
         "fluid_ml_per_hr": 700,
-        "calculated_at": 1794992313,
+        "calculated_at": 1795125859,
         "legs": [
           {
             "duration_min": 90,
@@ -2262,7 +2301,7 @@
       "warnings": [
         "Leg 2 (run): Carbs exceed prescription by 45g"
       ],
-      "note": "The base mix covers the rest: sugar 0g, sodium 437mg from salt, water 1340mL. Products are additions to the base recipe: this gap is normal and often optimal.",
+      "note": "The base mix covers the rest: sugar 0g, sodium 437mg from salt, water 1340mL.",
       "legs": [
         {
           "activity_type": "bike",
@@ -2305,7 +2344,7 @@
             "sodium": 71,
             "fluid": 3
           },
-          "note": "The base mix covers the rest: sugar 0g, sodium 247mg from salt, water 1070mL. Products are additions to the base recipe: this gap is normal and often optimal."
+          "note": "The base mix covers the rest: sugar 0g, sodium 247mg from salt, water 1070mL."
         },
         {
           "activity_type": "run",
@@ -2351,7 +2390,7 @@
           "warnings": [
             "Carbs exceed prescription by 45g"
           ],
-          "note": "The base mix covers the rest: sugar 0g, sodium 190mg from salt, water 270mL. Products are additions to the base recipe: this gap is normal and often optimal."
+          "note": "The base mix covers the rest: sugar 0g, sodium 190mg from salt, water 270mL."
         }
       ],
       "safety": {
@@ -2410,7 +2449,7 @@
       "warnings": [
         "Leg 2 (run): Carbs exceed prescription by 20g"
       ],
-      "note": "The base mix covers the rest: sugar 10g, sodium 210mg from salt, water 1380mL. Products are additions to the base recipe: this gap is normal and often optimal.",
+      "note": "The base mix covers the rest: sugar 10g, sodium 210mg from salt, water 1380mL.",
       "legs": [
         {
           "activity_type": "bike",
@@ -2445,7 +2484,7 @@
             "sodium": 100,
             "fluid": 0
           },
-          "note": "The base mix covers the rest: sugar 10g, sodium 0mg from salt, water 1100mL. Products are additions to the base recipe: this gap is normal and often optimal."
+          "note": "The base mix covers the rest: sugar 10g, sodium 0mg from salt, water 1100mL."
         },
         {
           "activity_type": "run",
@@ -2483,7 +2522,7 @@
           "warnings": [
             "Carbs exceed prescription by 20g"
           ],
-          "note": "The base mix covers the rest: sugar 0g, sodium 210mg from salt, water 280mL. Products are additions to the base recipe: this gap is normal and often optimal."
+          "note": "The base mix covers the rest: sugar 0g, sodium 210mg from salt, water 280mL."
         }
       ],
       "safety": {
@@ -2606,7 +2645,7 @@
               "sodium_mg": 230,
               "fluid_ml": 290
             },
-            "verdict": "At 1 servings: provides 83% carbs, 8% sodium. The rest comes from base ingredients (sugar + salt + water)."
+            "verdict": "At 1 serving: provides 83% carbs, 8% sodium. The rest comes from base ingredients (sugar + salt + water)."
           }
         }
       ],
@@ -2918,8 +2957,8 @@
     "body": {
       "imported": [
         {
-          "id": "26dae772-67b7-470a-ab25-bab244e6ffab",
-          "athlete_id": "02e38a5d-31b4-4890-8dcf-3c47426c2cc6",
+          "id": "496e1acd-413a-42f6-b05c-955dc3c27a2f",
+          "athlete_id": "e21e4cc8-1677-4d5d-9e9b-32e7a02fec8f",
           "partner_id": "partner_example",
           "type": "brick",
           "duration_min": 120,
@@ -2939,7 +2978,7 @@
             }
           ],
           "meal_before_min": 120,
-          "external_id": "sdk-node-aefc57c2-i-brick",
+          "external_id": "sdk-node-6987f285-i-brick",
           "prescription": {
             "total_carb_g": 140,
             "total_sodium_mg": 1100,
@@ -2947,7 +2986,7 @@
             "carb_g_per_hr": 70,
             "sodium_mg_per_hr": 550,
             "fluid_ml_per_hr": 700,
-            "calculated_at": 1794992319,
+            "calculated_at": 1795125869,
             "legs": [
               {
                 "duration_min": 90,
@@ -2969,18 +3008,18 @@
               }
             ]
           },
-          "created_at": 1794992319,
-          "updated_at": 1794992319
+          "created_at": 1795125869,
+          "updated_at": 1795125869
         }
       ],
       "total": 1,
       "succeeded": 1,
       "failed": 0,
-      "request_id": "req_88d90afad14a",
+      "request_id": "req_1913f411a75b",
       "prescriptions": [
         {
           "index": 0,
-          "activity_id": "26dae772-67b7-470a-ab25-bab244e6ffab",
+          "activity_id": "496e1acd-413a-42f6-b05c-955dc3c27a2f",
           "result": {
             "tier": "full",
             "prescription": {
@@ -2990,7 +3029,7 @@
               "carb_g_per_hr": 70,
               "sodium_mg_per_hr": 550,
               "fluid_ml_per_hr": 700,
-              "calculated_at": 1794992319,
+              "calculated_at": 1795125869,
               "legs": [
                 {
                   "duration_min": 90,
@@ -3290,8 +3329,8 @@
   "simulate_subscription": {
     "type": "SimulateSubscriptionResponse",
     "body": {
-      "athlete_id": "0ae6c994-cb98-4dc5-947f-2e295cde2622",
-      "request_id": "req_e1d52313d4c8",
+      "athlete_id": "07067441-a9c0-4ed8-873f-ff4a1dca98ec",
+      "request_id": "req_721e884a2df3",
       "simulated_active": true
     }
   },
@@ -3299,18 +3338,22 @@
     "type": "PartnerAccount",
     "body": {
       "id": "partner_example",
-      "name": "SDK live suite",
+      "name": "SDK live suite (Claude, throwaway)",
       "contact_email": "partner@example.com",
       "status": "active",
       "plan": "partner",
       "rate_limits": {
-        "requests_per_second": 50,
-        "burst_size": 100,
-        "requests_per_minute": 3000,
-        "requests_per_day": 10000,
-        "ip_requests_per_day": 5000
+        "requests_per_second": 10,
+        "burst_size": 20,
+        "requests_per_minute": 600,
+        "requests_per_day": 2000,
+        "ip_requests_per_day": 275,
+        "trial_starts_per_day": 50,
+        "trial_profiles_per_athlete": 3,
+        "trial_days": 14,
+        "trial_answers": 42
       },
-      "created_at": 1794992254
+      "created_at": 1795125699
     }
   },
   "usage": {
@@ -3318,16 +3361,16 @@
     "body": {
       "by_endpoint": {
         "/v1/activity-types": 2,
-        "/v1/athletes": 4,
-        "/v1/athletes/batch": 2,
+        "/v1/athletes": 5,
+        "/v1/athletes/batch": 3,
         "/v1/athletes/{athlete_id}": 2,
         "/v1/athletes/{athlete_id}/activities": 3,
         "/v1/athletes/{athlete_id}/activities/import": 2,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}": 9,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 6,
         "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
         "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 4,
-        "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+        "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 4,
         "/v1/athletes/{athlete_id}/delete": 2,
         "/v1/athletes/{athlete_id}/fueling-profile": 1,
         "/v1/athletes/{athlete_id}/settings": 2,
@@ -3342,20 +3385,20 @@
       },
       "daily": [
         {
-          "date": "2026-11-18",
-          "total_calls": 67,
+          "date": "2026-11-19",
+          "total_calls": 74,
           "by_endpoint": {
             "/v1/activity-types": 2,
-            "/v1/athletes": 4,
-            "/v1/athletes/batch": 2,
+            "/v1/athletes": 5,
+            "/v1/athletes/batch": 3,
             "/v1/athletes/{athlete_id}": 2,
             "/v1/athletes/{athlete_id}/activities": 3,
             "/v1/athletes/{athlete_id}/activities/import": 2,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}": 9,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 6,
             "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
             "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 4,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 4,
             "/v1/athletes/{athlete_id}/delete": 2,
             "/v1/athletes/{athlete_id}/fueling-profile": 1,
             "/v1/athletes/{athlete_id}/settings": 2,
@@ -3368,18 +3411,18 @@
             "/v1/settings/schema": 1,
             "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
           },
-          "ip_calls": 33,
-          "own_calls": 34,
+          "ip_calls": 36,
+          "own_calls": 38,
           "unique_athletes": 4,
           "estimate_calculates": 1
         }
       ],
       "period": {
-        "from": "2026-10-19",
-        "to": "2026-11-18"
+        "from": "2026-10-20",
+        "to": "2026-11-19"
       },
-      "request_id": "req_f7edf707a64f",
-      "total_calls": 67
+      "request_id": "req_c8b087a9a40e",
+      "total_calls": 74
     }
   },
   "usage_daily": {
@@ -3387,20 +3430,20 @@
     "body": {
       "daily": [
         {
-          "date": "2026-11-18",
-          "total_calls": 68,
+          "date": "2026-11-19",
+          "total_calls": 75,
           "by_endpoint": {
             "/v1/activity-types": 2,
-            "/v1/athletes": 4,
-            "/v1/athletes/batch": 2,
+            "/v1/athletes": 5,
+            "/v1/athletes/batch": 3,
             "/v1/athletes/{athlete_id}": 2,
             "/v1/athletes/{athlete_id}/activities": 3,
             "/v1/athletes/{athlete_id}/activities/import": 2,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}": 7,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 5,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}": 9,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/calculate": 6,
             "/v1/athletes/{athlete_id}/activities/{activity_id}/feedback": 1,
             "/v1/athletes/{athlete_id}/activities/{activity_id}/prep": 4,
-            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 2,
+            "/v1/athletes/{athlete_id}/activities/{activity_id}/prescription": 4,
             "/v1/athletes/{athlete_id}/delete": 2,
             "/v1/athletes/{athlete_id}/fueling-profile": 1,
             "/v1/athletes/{athlete_id}/settings": 2,
@@ -3414,17 +3457,17 @@
             "/v1/settings/schema": 1,
             "/v1/test/athletes/{athlete_id}/simulate-subscription": 3
           },
-          "ip_calls": 33,
-          "own_calls": 35,
+          "ip_calls": 36,
+          "own_calls": 39,
           "unique_athletes": 4,
           "estimate_calculates": 1
         }
       ],
       "period": {
-        "from": "2026-11-11",
-        "to": "2026-11-18"
+        "from": "2026-11-12",
+        "to": "2026-11-19"
       },
-      "request_id": "req_6ecd4b2454cf"
+      "request_id": "req_220237a7a8f4"
     }
   },
   "api_keys": {
@@ -3432,31 +3475,31 @@
     "body": {
       "api_keys": [
         {
-          "id": "b301fd6443ef23abac75d62b8e489b6c869a706a03ef45364a26ed115c1bd97b",
-          "name": "sdk-live",
+          "id": "a1b073768c30bb052a9361d0aa5e95271676a0dade28d764a004a4b4ed0e20fe",
+          "name": "partner_sdklive_1119b-test-key",
           "environment": "test",
           "scopes": [
             "*"
           ],
-          "created_at": 1794992254,
-          "last_used_at": 1794992322,
+          "created_at": 1795125700,
+          "last_used_at": 1795125874,
           "revoked": false
         }
       ],
-      "request_id": "req_175f4061067f",
+      "request_id": "req_12e7c6e36513",
       "total": 1
     }
   },
   "api_key_created": {
     "type": "CreatedApiKey",
     "body": {
-      "created_at": 1794992322,
+      "created_at": 1795125874,
       "environment": "test",
-      "id": "d0804fff2a43055901b564e51b3aaccb933bfba4dbafd1739e497d3ed5d38c2b",
+      "id": "d63d68a41fbd8009b6578b244b19b614e2849a6c7246d8dd47ac49c2dbfe1305",
       "key": "sk_test_example",
       "message": "Store this key securely — it will not be shown again.",
-      "name": "sdk-node-aefc57c2-key",
-      "request_id": "req_9110497ab7a5",
+      "name": "sdk-node-6987f285-key",
+      "request_id": "req_6c37b7437ec6",
       "scopes": [
         "*"
       ]
@@ -3466,12 +3509,12 @@
     "type": "RotatedApiKey",
     "body": {
       "environment": "test",
-      "id": "97cbff1eb25cd7c3bb94cc876cb5ae31bfe78eab6d149177d0bec8116561decb",
+      "id": "595f6017fde0113b467fcebd24d924c4c07c40bf1cf5602d6a2f0aaabb3b231b",
       "key": "sk_test_example",
       "message": "Store this key securely — it will not be shown again. The old key has been revoked.",
-      "name": "sdk-node-aefc57c2-key",
-      "request_id": "req_e68af05e934e",
-      "rotated_from": "d0804fff2a43055901b564e51b3aaccb933bfba4dbafd1739e497d3ed5d38c2b",
+      "name": "sdk-node-6987f285-key",
+      "request_id": "req_b1ac35346633",
+      "rotated_from": "d63d68a41fbd8009b6578b244b19b614e2849a6c7246d8dd47ac49c2dbfe1305",
       "scopes": [
         "*"
       ]
@@ -3481,17 +3524,17 @@
     "type": "WebhookCreateResponse",
     "body": {
       "message": "Store the secret securely — it will not be shown again. Use it to verify webhook signatures.",
-      "request_id": "req_43781eadbf7c",
+      "request_id": "req_4de3a16c72cb",
       "webhook": {
-        "id": "3c9050dd-37e1-49c1-9c53-a3e420d13bbb",
+        "id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
         "partner_id": "partner_example",
         "url": "https://example.com/saturday-live-suite",
         "events": [
           "prescription.calculated"
         ],
         "active": true,
-        "created_at": 1794992322,
-        "updated_at": 1794992322,
+        "created_at": 1795125875,
+        "updated_at": 1795125875,
         "fail_count": 0,
         "secret": "whsec_example"
       }
@@ -3500,19 +3543,19 @@
   "webhook_list": {
     "type": "WebhookListResponse",
     "body": {
-      "request_id": "req_2b2621a435a5",
+      "request_id": "req_a99e627414db",
       "total": 1,
       "webhooks": [
         {
-          "id": "3c9050dd-37e1-49c1-9c53-a3e420d13bbb",
+          "id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
           "partner_id": "partner_example",
           "url": "https://example.com/saturday-live-suite",
           "events": [
             "prescription.calculated"
           ],
           "active": true,
-          "created_at": 1794992322,
-          "updated_at": 1794992322,
+          "created_at": 1795125875,
+          "updated_at": 1795125875,
           "fail_count": 0
         }
       ]
@@ -3521,15 +3564,15 @@
   "webhook": {
     "type": "Webhook",
     "body": {
-      "id": "3c9050dd-37e1-49c1-9c53-a3e420d13bbb",
+      "id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
       "partner_id": "partner_example",
       "url": "https://example.com/saturday-live-suite",
       "events": [
         "prescription.calculated"
       ],
       "active": true,
-      "created_at": 1794992322,
-      "updated_at": 1794992322,
+      "created_at": 1795125875,
+      "updated_at": 1795125875,
       "fail_count": 0
     }
   },
@@ -3537,20 +3580,20 @@
     "type": "WebhookTestResponse",
     "body": {
       "delivery": {
-        "id": "73f1a2df-a875-4ef6-916a-d42c71c2ed33",
-        "webhook_id": "3c9050dd-37e1-49c1-9c53-a3e420d13bbb",
-        "event_id": "79663471-635d-4a61-a12e-f70e4c3ce266",
+        "id": "2eabd974-3b08-49dc-ab00-83c63a332fd8",
+        "webhook_id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
+        "event_id": "4009f198-badf-4e1f-9e56-13281866f4a8",
         "event_type": "webhook.test",
-        "event_data": "eyJpZCI6Ijc5NjYzNDcxLTYzNWQtNGE2MS1hMTJlLWY3MGU0YzNjZTI2NiIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NDk5MjMyM30=",
+        "event_data": "eyJpZCI6IjQwMDlmMTk4LWJhZGYtNGUxZi05ZTU2LTEzMjgxODY2ZjRhOCIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NTEyNTg3Nn0=",
         "url": "https://example.com/saturday-live-suite",
         "status_code": 405,
         "response_body": "<!doctype html><html lang=\"en\"><head><title>Example Domain</title><link rel=\"icon\" href=\"data:,\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div></body></html>",
         "attempts": 1,
         "status": "failed",
-        "created_at": 1794992323,
+        "created_at": 1795125876,
         "partner_id": "partner_example"
       },
-      "request_id": "req_e25024b944c9"
+      "request_id": "req_fb6b865b5866"
     }
   },
   "webhook_deliveries": {
@@ -3558,48 +3601,48 @@
     "body": {
       "deliveries": [
         {
-          "id": "47ed9ebb-4446-4c6d-b1ca-665d5a43bfec",
-          "webhook_id": "3c9050dd-37e1-49c1-9c53-a3e420d13bbb",
-          "event_id": "cb0130e2-9e1c-449d-87cc-119844aff2db",
+          "id": "9d345795-e0c9-4f4e-9b2a-4d0e6522cd2d",
+          "webhook_id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
+          "event_id": "23c9fd24-f183-4925-b3f1-abd1444b8862",
           "event_type": "prescription.calculated",
-          "event_data": "eyJpZCI6ImNiMDEzMGUyLTllMWMtNDQ5ZC04N2NjLTExOTg0NGFmZjJkYiIsInR5cGUiOiJwcmVzY3JpcHRpb24uY2FsY3VsYXRlZCIsImRhdGEiOnsiYXRobGV0ZV9pZCI6ImIxNmE2NzhkLWZmOGMtNDJiZi1hMWJmLWVhMmJlM2RmNTM5OSIsImF0dHJpYnV0aW9uIjp7ImxpbmsiOiJodHRwczovL3NhdHVyZGF5LmZpdCIsImxvZ29fdXJsIjoiaHR0cHM6Ly9zYXR1cmRheS5maXQvbG9nby5wbmciLCJyZXF1aXJlZCI6dHJ1ZSwidGV4dCI6IlBvd2VyZWQgYnkgU2F0dXJkYXkifSwiY2FyYl9nX3Blcl9ociI6MzAsImZsdWlkX21sX3Blcl9ociI6NDAwLCJwcmVjaXNpb24iOnsicHJvZmlsZV9jb21wbGV0ZSI6dHJ1ZX0sInNhZmV0eSI6eyJjb25maWRlbmNlX3Njb3JlIjoxLCJtYXhfc2FmZV9mbHVpZF9tbF9wZXJfaHIiOjE1MDAsIm1heF9zYWZlX3NvZGl1bV9tZ19wZXJfaHIiOjMwMDAsIm5vdF9pbnN0cnVjdGlvbnMiOnRydWUsInJlcXVpcmVzX2h1bWFuX3JldmlldyI6ZmFsc2UsIndhcm5pbmdzIjpbXX0sInNvZGl1bV9tZ19wZXJfaHIiOjMwMCwidGllciI6ImZ1bGwiLCJ0aWVyX3NvdXJjZSI6InRyaWFsIiwidG90YWxfY2FyYl9nIjozMCwidG90YWxfZmx1aWRfbWwiOjQwMCwidG90YWxfc29kaXVtX21nIjozMDAsInRyaWFsX2NhbGxzX3JlbWFpbmluZ190b2RheSI6NywidHJpYWxfZW5kc19hdCI6MTc5NzU4NDI3OH0sImNyZWF0ZWRfYXQiOjE3OTQ5OTIzMjN9",
+          "event_data": "eyJpZCI6IjIzYzlmZDI0LWYxODMtNDkyNS1iM2YxLWFiZDE0NDRiODg2MiIsInR5cGUiOiJwcmVzY3JpcHRpb24uY2FsY3VsYXRlZCIsImRhdGEiOnsiYXRobGV0ZV9pZCI6ImJkMDliZTg4LTg2N2ItNGQzYS04MzJjLTNmZDg0MGI2MGRjMCIsImF0dHJpYnV0aW9uIjp7ImxpbmsiOiJodHRwczovL3NhdHVyZGF5LmZpdCIsImxvZ29fdXJsIjoiaHR0cHM6Ly9zYXR1cmRheS5maXQvbG9nby5wbmciLCJyZXF1aXJlZCI6dHJ1ZSwidGV4dCI6IlBvd2VyZWQgYnkgU2F0dXJkYXkifSwiY2FyYl9nX3Blcl9ociI6MzAsImZsdWlkX21sX3Blcl9ociI6NDAwLCJwcmVjaXNpb24iOnsicHJvZmlsZV9jb21wbGV0ZSI6dHJ1ZX0sInNhZmV0eSI6eyJjb25maWRlbmNlX3Njb3JlIjoxLCJtYXhfc2FmZV9mbHVpZF9tbF9wZXJfaHIiOjE1MDAsIm1heF9zYWZlX3NvZGl1bV9tZ19wZXJfaHIiOjMwMDAsIm5vdF9pbnN0cnVjdGlvbnMiOnRydWUsInJlcXVpcmVzX2h1bWFuX3JldmlldyI6ZmFsc2UsIndhcm5pbmdzIjpbXX0sInNvZGl1bV9tZ19wZXJfaHIiOjMwMCwidGllciI6ImZ1bGwiLCJ0aWVyX3NvdXJjZSI6InRyaWFsIiwidG90YWxfY2FyYl9nIjozMCwidG90YWxfZmx1aWRfbWwiOjQwMCwidG90YWxfc29kaXVtX21nIjozMDAsInRyaWFsX2NhbGxzX3JlbWFpbmluZ190b2RheSI6MiwidHJpYWxfZW5kc19hdCI6MTc5NjMzNTQxN30sImNyZWF0ZWRfYXQiOjE3OTUxMjU4NzZ9",
           "url": "https://example.com/saturday-live-suite",
           "status_code": 405,
           "response_body": "<!doctype html><html lang=\"en\"><head><title>Example Domain</title><link rel=\"icon\" href=\"data:,\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div></body></html>",
           "attempts": 1,
-          "next_retry_at": 1794992383,
+          "next_retry_at": 1795125936,
           "status": "failed",
-          "created_at": 1794992323,
+          "created_at": 1795125876,
           "partner_id": "partner_example"
         },
         {
-          "id": "73f1a2df-a875-4ef6-916a-d42c71c2ed33",
-          "webhook_id": "3c9050dd-37e1-49c1-9c53-a3e420d13bbb",
-          "event_id": "79663471-635d-4a61-a12e-f70e4c3ce266",
+          "id": "2eabd974-3b08-49dc-ab00-83c63a332fd8",
+          "webhook_id": "7d1b9c7f-22bf-4c6b-99e3-e165937c3065",
+          "event_id": "4009f198-badf-4e1f-9e56-13281866f4a8",
           "event_type": "webhook.test",
-          "event_data": "eyJpZCI6Ijc5NjYzNDcxLTYzNWQtNGE2MS1hMTJlLWY3MGU0YzNjZTI2NiIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NDk5MjMyM30=",
+          "event_data": "eyJpZCI6IjQwMDlmMTk4LWJhZGYtNGUxZi05ZTU2LTEzMjgxODY2ZjRhOCIsInR5cGUiOiJ3ZWJob29rLnRlc3QiLCJkYXRhIjp7Im1lc3NhZ2UiOiJUaGlzIGlzIGEgdGVzdCB3ZWJob29rIGRlbGl2ZXJ5IGZyb20gU2F0dXJkYXkifSwiY3JlYXRlZF9hdCI6MTc5NTEyNTg3Nn0=",
           "url": "https://example.com/saturday-live-suite",
           "status_code": 405,
           "response_body": "<!doctype html><html lang=\"en\"><head><title>Example Domain</title><link rel=\"icon\" href=\"data:,\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div></body></html>",
           "attempts": 1,
           "status": "failed",
-          "created_at": 1794992323,
+          "created_at": 1795125876,
           "partner_id": "partner_example"
         }
       ],
-      "request_id": "req_6264d33437c1",
+      "request_id": "req_33a2b4d4e278",
       "total": 2
     }
   },
   "organization": {
     "type": "Organization",
     "body": {
-      "id": "eb067513-ef59-4ca9-9d82-cc3dc97acfee",
+      "id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
       "partner_id": "partner_example",
-      "display_name": "sdk-node-aefc57c2 team",
+      "display_name": "sdk-node-6987f285 team",
       "sport": "triathlon",
-      "created_at": 1794992325,
-      "updated_at": 1794992325,
+      "created_at": 1795125879,
+      "updated_at": 1795125879,
       "member_count": 0
     }
   },
@@ -3608,12 +3651,12 @@
     "body": {
       "organizations": [
         {
-          "id": "eb067513-ef59-4ca9-9d82-cc3dc97acfee",
+          "id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
           "partner_id": "partner_example",
-          "display_name": "sdk-node-aefc57c2 team",
+          "display_name": "sdk-node-6987f285 team",
           "sport": "triathlon",
-          "created_at": 1794992325,
-          "updated_at": 1794992325,
+          "created_at": 1795125879,
+          "updated_at": 1795125879,
           "member_count": 0
         }
       ],
@@ -3621,17 +3664,17 @@
         "total": 1,
         "has_more": false
       },
-      "request_id": "req_c45663b1cf49"
+      "request_id": "req_8a9b8f16fbeb"
     }
   },
   "organization_member": {
     "type": "OrganizationMember",
     "body": {
-      "id": "28c704e4-0011-4a3c-aa19-37961cd91bfc",
-      "email": "sdk-node-aefc57c2@example.com",
+      "id": "d2cab873-491d-4199-b5b0-d95ab925a85c",
+      "email": "sdk-node-6987f285@example.com",
       "role": "member",
-      "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
-      "joined_at": 1794992326
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
+      "joined_at": 1795125879
     }
   },
   "organization_members": {
@@ -3639,43 +3682,43 @@
     "body": {
       "members": [
         {
-          "id": "28c704e4-0011-4a3c-aa19-37961cd91bfc",
-          "email": "sdk-node-aefc57c2@example.com",
+          "id": "d2cab873-491d-4199-b5b0-d95ab925a85c",
+          "email": "sdk-node-6987f285@example.com",
           "role": "member",
-          "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
-          "joined_at": 1794992326
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
+          "joined_at": 1795125879
         }
       ],
-      "request_id": "req_c699045565c3",
+      "request_id": "req_a2eaabfb631a",
       "total": 1
     }
   },
   "organization_offer": {
     "type": "OrganizationOffer",
     "body": {
-      "id": "799a6ed0-1fa8-4940-ad57-e798611dcd83",
-      "org_id": "eb067513-ef59-4ca9-9d82-cc3dc97acfee",
+      "id": "d1c4d39e-4272-45f6-9156-1b0a41bd1a73",
+      "org_id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
       "discount_percent": 10,
       "active": true,
-      "created_at": 1794992326,
+      "created_at": 1795125880,
       "stack_cap_percent": 30
     }
   },
   "organization_offer_get": {
     "type": "OrganizationOffer",
     "body": {
-      "id": "799a6ed0-1fa8-4940-ad57-e798611dcd83",
-      "org_id": "eb067513-ef59-4ca9-9d82-cc3dc97acfee",
+      "id": "d1c4d39e-4272-45f6-9156-1b0a41bd1a73",
+      "org_id": "105fdd3b-fcd4-46bf-b894-32bbb287b0cc",
       "discount_percent": 10,
       "active": true,
-      "created_at": 1794992326,
+      "created_at": 1795125880,
       "stack_cap_percent": 30
     }
   },
   "organization_subscriptions": {
     "type": "OrganizationSubscriptionListResponse",
     "body": {
-      "request_id": "req_66f2af909b41",
+      "request_id": "req_5772409f1218",
       "subscriptions": [],
       "total": 0
     }
@@ -3683,12 +3726,12 @@
   "consent": {
     "type": "ConsentRecord",
     "body": {
-      "id": "24ec4b26-6eb4-41b3-93d4-1f731944b273",
-      "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "id": "9271203b-62b4-4219-923a-88d692e80990",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
       "consent_type": "analytics",
       "granted": true,
-      "granted_at": 1794992326,
+      "granted_at": 1795125881,
       "ip_address": "192.0.2.1"
     }
   },
@@ -3697,29 +3740,29 @@
     "body": {
       "consent": [
         {
-          "id": "24ec4b26-6eb4-41b3-93d4-1f731944b273",
-          "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+          "id": "9271203b-62b4-4219-923a-88d692e80990",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "partner_id": "partner_example",
           "consent_type": "analytics",
           "granted": true,
-          "granted_at": 1794992326,
+          "granted_at": 1795125881,
           "ip_address": "192.0.2.1"
         }
       ],
-      "request_id": "req_7a5715b33d92",
+      "request_id": "req_03e83206f23b",
       "total": 1
     }
   },
   "export": {
     "type": "AthleteDataExport",
     "body": {
-      "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+      "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
       "partner_id": "partner_example",
-      "exported_at": 1794992326,
+      "exported_at": 1795125881,
       "profile": {
-        "created_at": 1794992275,
-        "external_id": "sdk-node-aefc57c2-a",
-        "id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+        "created_at": 1795125812,
+        "external_id": "sdk-node-6987f285-a",
+        "id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
         "name": "Live Suite",
         "partner_id": "partner_example",
         "profile_complete": true,
@@ -3734,24 +3777,28 @@
           "usual_carb_consumption": "range_60_80"
         },
         "sex": "female",
-        "trial_started_at": 1794992278,
-        "updated_at": 1794992277,
+        "trial_answers": 13,
+        "trial_profiles": [
+          "1251fa8cb67d"
+        ],
+        "trial_started_at": 1795125817,
+        "updated_at": 1795125816,
         "weight_kg": 62,
         "year_of_birth": 1990
       },
       "activities": [
         {
-          "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
-          "created_at": 1794992297,
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
+          "created_at": 1795125842,
           "duration_min": 45,
-          "external_id": "sdk-node-aefc57c2-i1",
-          "id": "de74f6c4-63b5-4a63-9dd0-9172fa7e4a55",
+          "external_id": "sdk-node-6987f285-i1",
+          "id": "6a768e65-9710-44ab-a258-5203965afc74",
           "intensity_level": 5,
           "is_race_event": false,
           "meal_before_min": 120,
           "partner_id": "partner_example",
           "prescription": {
-            "calculated_at": 1794992298,
+            "calculated_at": 1795125842,
             "carb_g_per_hr": 20,
             "confidence": 1,
             "fluid_ml_per_hr": 330,
@@ -3762,19 +3809,19 @@
           },
           "thermal_stress_level": 4,
           "type": "run",
-          "updated_at": 1794992298
+          "updated_at": 1795125842
         }
       ],
       "consent": [
         {
-          "athlete_id": "b16a678d-ff8c-42bf-a1bf-ea2be3df5399",
+          "athlete_id": "bd09be88-867b-4d3a-832c-3fd840b60dc0",
           "consent_type": "analytics",
           "granted": true,
-          "granted_at": 1794992326,
-          "id": "24ec4b26-6eb4-41b3-93d4-1f731944b273",
+          "granted_at": 1795125881,
+          "id": "9271203b-62b4-4219-923a-88d692e80990",
           "ip_address": "192.0.2.1",
           "partner_id": "partner_example",
-          "revoked_at": 1794992326
+          "revoked_at": 1795125881
         }
       ]
     }
@@ -3782,9 +3829,9 @@
   "integration_status": {
     "type": "IntegrationStatusResponse",
     "body": {
-      "request_id": "req_e1a6f578b651",
+      "request_id": "req_5884bc57bada",
       "status": {
-        "provider": "strava",
+        "provider": "intervals_icu",
         "connected": false,
         "sync_count": 0
       }

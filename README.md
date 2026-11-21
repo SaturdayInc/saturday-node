@@ -13,6 +13,10 @@ npm install @saturdayinc/sdk
 
 Node.js 18 or later. No runtime dependencies.
 
+## Get a key
+
+A key comes with any paid Saturday plan, member or coach: sign in at [saturday.fit/api](https://saturday.fit/api) to make yours. It is shown once and emailed to you. A new key covers 10 athletes; to cover more, write to [api@saturday.fit](mailto:api@saturday.fit) about what you're building. Platform partners get keys with their agreement.
+
 ## Quick start
 
 Create an athlete with a complete profile, then calculate a session for them. Use an `sk_test_` key while you build.
@@ -71,7 +75,7 @@ A calculation carries exact per-hour numbers and totals only when the athlete's 
 - `precision.missing_session_inputs` names the session inputs your call left out. Send every session input on every call: `intensity_level`, `thermal_stress_level`, `meal_before_min` and `is_race`. One left out returns ranges even for a complete profile; `precision.onboarding` comes only when profile answers are missing.
 - Per-hour figures are whole numbers, as the Saturday app's Fuel card shows them, which is not always the total divided by the session's hours. Totals are for the whole session.
 - A zero may be omitted from the response, so read numbers with `?? 0`.
-- A new athlete's first calculation starts a 30-day trial of the full tier: 15 calls on the first day, then 5 a day. `trial_calls_remaining_today` and `trial_ends_at` show where it stands.
+- A new athlete's first calculation, product fit or compare starts a trial of the full tier: 15 calls on the first day, then 5 a day, each fit and compare spending one. `trial_calls_remaining_today` and `trial_ends_at` show where it stands, and `saturday.partner.get()` gives the trial's length in `rate_limits.trial_days` and the exact answers it gives in all in `rate_limits.trial_answers`. Past a bound the answer is ranges with a flag and a note you can show the athlete: `trial_cap_reached` (today's calls are used), `trial_start_deferred` (your key has started its new trials for the day), `trial_profile_limit_reached` (the trial covers a set number of distinct profiles) or `trial_answers_used_up` (the trial has given all its exact answers), each with `trial_cap_note` or `trial_note`.
 
 ## Prep and product fit
 
@@ -129,7 +133,9 @@ for (const leg of brickFit.legs ?? []) console.log(`${leg.activity_type}: ${leg.
 
 A stored activity uses `type` and `is_race_event`; a calculation uses `activity_type` and `is_race`. The API refuses the other spelling with a `ValidationError` whose `code` is `unsupported_field`.
 
-When the athlete's profile or the session is missing inputs, prep, product fit and compare plan from the middle of the athlete's ranges and say so in `plan_basis`: its `source` is `profile_incomplete`, `session_incomplete` or both, `missing_profile_fields` and `missing_session_inputs` list what is missing, and `onboarding` comes only when profile answers are. Show `plan_basis.message` with the plan. Product answers follow the athlete's Saturday subscription or trial: without one, `tier` is `'teaser'` and the response carries product categories in place of the fit.
+When the athlete's profile or the session is missing inputs, prep, product fit and compare plan from the middle of the athlete's ranges and say so in `plan_basis`: its `source` is `profile_incomplete`, `session_incomplete` or both, `missing_profile_fields` and `missing_session_inputs` list what is missing, and `onboarding` comes only when profile answers are. A trial past today's calls or its exact answers plans from ranges too, with `source` `trial_allowance`. Show `plan_basis.message` with the plan. Product answers follow the athlete's Saturday subscription or trial: without one, `tier` is `'teaser'` and the response carries product categories in place of the fit.
+
+`activities.update` with a change to the session (`type`, `legs`, `duration_min`, effort, heat, `is_race_event` or `meal_before_min`) removes the stored prescription: `getPrescription` answers `NotFoundError` (`prescription_not_found`) until you calculate the activity again. A field sent at its stored value changes nothing.
 
 ## Bricks and triathlons
 
@@ -180,7 +186,7 @@ for (const leg of prep.legs ?? []) console.log(leg.activity_type, leg.products.l
 - A leg's sport is `activity_type` on a calculation and `type` on an activity, as for a single session.
 - `activities.update` with `legs` replaces them; a brick or triathlon refuses a top-level effort or heat. Changing `type` to a single sport drops the legs.
 - Prep, product fit and compare answer `legs` too: each leg's share with the products sized against it, as the Saturday app's Prep page for that leg sizes them. Fit and compare also size the whole session at the top level; prep's top level is its legs added up, each product once. A plan from ranges (`plan_basis`) carries no legs.
-- Prep takes `products`, sized against each leg with its `servings` counting per leg, or `legs`, one product list per leg in order. Per-leg lists on a single session, or a count other than the activity's legs, are refused with a `ValidationError` on `legs`.
+- Prep takes `products`, sized against each leg with its `servings` counting per leg, or `legs`, one product list per leg in order, never both (a `ValidationError` on `products`). Per-leg lists on a single session, or a count other than the activity's legs, are refused with a `ValidationError` on `legs`.
 - `saturday.reference.activityTypes()` lists the rules under `linked_session_types`.
 
 ## Resources
@@ -196,7 +202,7 @@ for (const leg of prep.legs ?? []) console.log(leg.activity_type, leg.products.l
 | `saturday.partner` | `get`, `usage`, `usageDaily`, `listApiKeys`, `createApiKey`, `revokeApiKey`, `rotateApiKey` |
 | `saturday.webhooks` | `create`, `list`, `get`, `update`, `delete`, `test`, `listDeliveries` |
 | `saturday.organizations` | `create`, `list`, `get`, `update`, `addMember`, `listMembers`, `removeMember`, `setOffer`, `getOffer`, `deleteOffer`, `createSubscription`, `listSubscriptions`, `updateSubscription`, `addLicenses`, `listLicenses`, `removeLicense` |
-| `saturday.integrations` | `sync`, `status`, `disconnect` |
+| `saturday.integrations` | `sync` (intervals.icu), `status`, `disconnect` |
 | `saturday.testing` | `simulateSubscription` (test keys only) |
 | `saturday.meta` | `discovery`, `errors`, `health` |
 | `saturday.knowledge` | `search`, `listTopics`, `getArticle` (early access) |
@@ -206,21 +212,29 @@ Every method returns the API's JSON as typed. Lists keep their array under its n
 
 Every timestamp a partner key receives is a number of Unix seconds: on athletes, activities, webhooks and their deliveries, API keys, your account, `trial_ends_at`, the fueling profile's `updated_at`, the export's `exported_at` and every time in its records. Coach routes answer in Unix milliseconds.
 
-`athletes.updateSettings` replaces the whole settings object: send every setting you want kept. `athletes.delete` removes the athlete and everything stored under them in your account. `athletes.erase` is for a right-to-erasure request: it also ends the athlete's connected-provider grants, erases what those providers sent, and keeps an audit record of the deletion.
+`athletes.updateSettings` replaces the whole settings object: send every setting you want kept. `athletes.delete` removes the athlete and everything stored under them in your account. `athletes.erase` is for a right-to-erasure request: it first revokes, at the provider, each connection you supplied for the athlete with `integrations.sync`, then deletes the athlete, everything stored under them and their link to a Saturday account. A linked athlete's own Saturday account is not changed. A 503 with code `provider_erasure_incomplete` means nothing was deleted yet: call `erase` again.
+
+`integrations.sync('intervals_icu', ...)` fetches the activities of the intervals.icu user an access token belongs to, a token your intervals.icu app obtained, and stores them under your athlete; it is the only provider sync takes. Send TrainingPeaks workouts with `activities.importActivities` once the athlete agrees to share them. `integrations.disconnect` ends the connection you supplied and keeps the activities already synced; for a provider the athlete never connected it throws `NotFoundError` (`integration_not_found`).
 
 Nutrition and knowledge sit behind [feature gates](https://docs.saturday.fit/guides/feature-gates) that Saturday opens per partner. Until a gate is open for your key, its routes answer `403` with code `feature_alpha` (`PermissionError`); ask api@saturday.fit to open one.
 
-## Finding an athlete by your own id
+## Your own athlete ids
 
-`athletes.list({ externalId })` returns the athletes you created with that `external_id`, newest first, in one page. The API does not deduplicate `external_id`, so look an athlete up this way before creating one when a create may have been interrupted.
+`external_id` is unique within your account. A create, batch item or update with an `external_id` another of your athletes holds changes nothing and throws a `ConflictError` (409, code `athlete_exists`) whose `athleteId` names that athlete, so a retried create is safe. `athletes.list({ externalId })` finds the athlete too.
 
 ```typescript
-import Saturday from '@saturdayinc/sdk';
+import Saturday, { ConflictError } from '@saturdayinc/sdk';
 
 const saturday = new Saturday({ apiKey: process.env.SATURDAY_API_KEY! });
-const { athletes } = await saturday.athletes.list({ externalId: 'user-42' });
-const athlete = athletes[0] ?? await saturday.athletes.create({ external_id: 'user-42', name: 'Sam' });
-console.log(athlete.id);
+async function athleteFor(externalId: string) {
+  try {
+    return await saturday.athletes.create({ external_id: externalId, name: 'Sam' });
+  } catch (error) {
+    if (error instanceof ConflictError && error.athleteId) return saturday.athletes.get(error.athleteId);
+    throw error;
+  }
+}
+console.log((await athleteFor('user-42')).id);
 ```
 
 ## Webhooks
@@ -253,7 +267,7 @@ await coach.coach.setNotificationRules('overall', { ...rules, hourly_cap: { enab
 
 ## Errors, retries and limits
 
-Every API error is a `SaturdayError` with `status`, `code`, `message`, `requestId` and the full `error` object. Subclasses: `ValidationError` (400, with `param`, and `suggestion` for a field the request does not take), `AuthenticationError` (401), `PermissionError` (403), `NotFoundError` (404), `RateLimitError` (429).
+Every API error is a `SaturdayError` with `status`, `code`, `message`, `requestId` and the full `error` object. Subclasses: `ValidationError` (400, with `param`, and `suggestion` for a field the request does not take), `AuthenticationError` (401), `PermissionError` (403: `feature_alpha`; `plan_inactive` when the paid plan a key comes with has ended; `resource_limit_exceeded` when the key's athletes are at their limit), `NotFoundError` (404), `ConflictError` (409, with `athleteId`), `RateLimitError` (429).
 
 ```typescript
 import Saturday, { RateLimitError, ValidationError } from '@saturdayinc/sdk';
@@ -287,6 +301,7 @@ A `RateLimitError`'s `code` says which limit was hit:
 | `intelligence_daily_limit_reached` | Your daily ceiling on calculations, products, inference, knowledge and AI; your athletes, activities and other data keep working | Same |
 | `athlete_free_daily_limit_reached` | Your daily budget of calculations sent without an `athlete_id` | Same |
 | `distinct_lookup_daily_limit_reached` | Your daily budget of distinct product lookups; repeat lookups keep working | Same |
+| `simulated_subscriber_daily_limit_reached` | Test environment: your key has marked its day's athletes with `testing.simulateSubscription`; athletes already marked keep their simulated subscription | Same |
 
 A 5xx is retried after its `Retry-After` (usually 5 seconds) or after 1 s, 2 s and 4 s, up to `maxRetries` times, except on a `POST` that creates or changes a record (an athlete, an activity, an import, a webhook), since the server may have done the write; the calculation, product, inference, prep and export `POST`s are retried. The client never sleeps longer than 30 seconds inside one call. `saturday.partner.get()` shows your limits and `saturday.partner.usage()` what you have used.
 
@@ -306,7 +321,7 @@ const saturday = new Saturday({
 const delegated = new Saturday({ apiKey: 'sk_live_...', bearerToken: 'eyJ...' });
 ```
 
-Partner keys start `sk_live_` or `sk_test_`; coach keys start `cp_live_` or `cp_test_`. A test key reaches the test environment, where `saturday.testing.simulateSubscription(athleteId)` gives an athlete the full tier.
+Partner keys start `sk_live_` or `sk_test_`; coach keys start `cp_live_` or `cp_test_`. A test key reaches the test environment, where `saturday.testing.simulateSubscription(athleteId)` gives an athlete the full tier: by default up to 10 athletes a key a UTC day, each with up to 100 exact answers over 3 distinct profiles, then ranges with `simulated_limit_reached`.
 
 ## Athlete profile sharing
 
