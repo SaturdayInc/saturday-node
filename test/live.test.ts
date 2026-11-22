@@ -107,7 +107,7 @@ function expectLegsAddUp(prep: PrepResponse) {
 
 describeLive('live API', () => {
   jest.setTimeout(180000);
-  const saturday = new Saturday({ apiKey: KEY ?? '', baseUrl: BASE, maxRetries: 0, timeout: 60000 });
+  const saturday = new Saturday({ apiKey: KEY ?? 'sk_test_placeholder', baseUrl: BASE, maxRetries: 0, timeout: 60000 });
   const run = `sdk-node-${randomUUID().slice(0, 8)}`;
   let complete: Athlete;
   let partial: Athlete;
