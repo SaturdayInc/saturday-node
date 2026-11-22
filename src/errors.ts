@@ -17,7 +17,7 @@ function safeDetail(status: number, error: SaturdayErrorDetail): SaturdayErrorDe
  * and, when set, `param`, `documentation_url` and `request_id`.
  */
 export class SaturdayError extends Error {
-  /** HTTP status. 0 for a timeout. */
+  /** HTTP status. 0 for a timeout (`code` `timeout`) or a request that got no answer (`connection_error`). */
   readonly status: number;
   readonly error: SaturdayErrorDetail;
   /** Quote this when you contact Saturday about a request. */

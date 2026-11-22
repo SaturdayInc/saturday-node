@@ -132,7 +132,7 @@ describe('request timer cleanup', () => {
       const outcome = await result.catch((error: unknown) => error);
       if (fixture === 'missing' || fixture === 'malformed-error') expect(outcome).toBeInstanceOf(NotFoundError);
       if (fixture === 'malformed-success') expect(outcome).toMatchObject({ name: 'SyntaxError' });
-      if (fixture === 'network-error') expect(outcome).toBeInstanceOf(TypeError);
+      if (fixture === 'network-error') expect(outcome).toMatchObject({ name: 'SaturdayError', status: 0, code: 'connection_error' });
       expect(jest.getTimerCount()).toBe(0);
       await jest.advanceTimersByTimeAsync(200);
       expect(signal?.aborted).toBe(false);

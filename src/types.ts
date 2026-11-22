@@ -780,7 +780,11 @@ export interface Athlete {
   updated_at: number;
 }
 
-/** At least one of `name`, `email` or `external_id` is required. */
+/**
+ * Every field is optional on a single create; the answer carries the athlete's `id`. In
+ * `batchCreate`, each item needs at least one of `name`, `email` or `external_id`, or it fails
+ * with `missing_identifier`.
+ */
 export interface CreateAthleteRequest {
   /**
    * Your platform's identifier for this athlete, unique within your partner account. A create or
@@ -1245,6 +1249,7 @@ export interface ErrorCatalogEntry {
   type: string;
   http_status: number;
   message: string;
+  /** Whether a client may retry the same call automatically after `Retry-After`. False for the daily ceilings, which clear only at midnight UTC. */
   retryable: boolean;
   documentation_url: string;
 }
@@ -1792,7 +1797,8 @@ export type CoachCadence = 'realtime' | 'digest';
 export type CoachPreset = 'hands_off' | 'balanced' | 'hands_on';
 
 /** Concern-event types a webhook can subscribe to. */
-export type CoachWebhookEvent = 'concern.detected' | 'athlete.needs_attention';
+/** `'*'` subscribes to every coach event. `coach.message.sent` fires only for Enterprise coaches. */
+export type CoachWebhookEvent = 'concern.detected' | 'athlete.needs_attention' | 'coach.message.sent' | 'athlete.deleted' | '*';
 
 /**
  * On a Coach API answer about an athlete who connected an app whose data stays on Saturday:
