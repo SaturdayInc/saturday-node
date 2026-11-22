@@ -51,7 +51,7 @@ function retrySafeOnServerError(method: string, path: string): boolean {
     || /^\/v1\/athletes\/[^/]+\/activities\/[^/]+\/(calculate|prep)$/.test(bare)
     || /^\/v1\/athletes\/[^/]+\/(export|onboarding-link)$/.test(bare);
 }
-const SDK_VERSION = '0.8.0';
+const SDK_VERSION = '0.9.0';
 
 type Query = Record<string, string | number | boolean | undefined>;
 
