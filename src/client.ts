@@ -160,8 +160,11 @@ export class Saturday {
   readonly coach: CoachResource;
 
   constructor(config: T.SaturdayConfig) {
-    if (typeof config?.apiKey !== 'string' || config.apiKey.length === 0 || /[\u0000-\u001F\u007F]/.test(config.apiKey)) {
+    if (typeof config?.apiKey !== 'string' || (config.apiKey.length === 0 && !config.bearerToken) || /[\u0000-\u001F\u007F]/.test(config.apiKey)) {
       throw new TypeError('Invalid apiKey: apiKey must be a non-empty string with no control characters');
+    }
+    if (config.bearerToken !== undefined && (typeof config.bearerToken !== 'string' || /[\u0000-\u001F\u007F]/.test(config.bearerToken))) {
+      throw new TypeError('Invalid bearerToken: bearerToken must be a string with no control characters');
     }
     if (config.timeout !== undefined && (typeof config.timeout !== 'number' || !Number.isFinite(config.timeout) || config.timeout <= 0)) {
       throw new TypeError('Invalid timeout: timeout must be a finite number above 0');

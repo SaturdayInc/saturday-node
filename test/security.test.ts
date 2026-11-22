@@ -317,3 +317,20 @@ describe('#12 computed backoff is capped at the Retry-After maximum', () => {
     expect(await outcome).toMatchObject({ status: 503 });
   });
 });
+
+describe('bearer token clients', () => {
+  it('accepts an empty apiKey when a bearerToken is sent', async () => {
+    const calls: Array<{ url: string; auth: string | null }> = [];
+    global.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, auth: new Headers(init.headers).get('Authorization') });
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    const client = new Saturday({ apiKey: '', bearerToken: 'eyJ.test.token', maxRetries: 0 });
+    await client.request('GET', '/v1/athletes');
+    expect(calls[0].auth).toBe('Bearer eyJ.test.token');
+  });
+
+  it('rejects control characters in a bearerToken', () => {
+    expect(() => new Saturday({ apiKey: '', bearerToken: 'eyJ\r\nX-Evil: 1' })).toThrow(/bearerToken/);
+  });
+});
