@@ -317,6 +317,23 @@ export interface OnboardingInvite {
   message: string;
 }
 
+/** A language the hosted onboarding page opens in. */
+export type OnboardingLocale = 'en' | 'es' | 'fr' | 'pt' | 'de' | 'ja';
+
+export interface CreateOnboardingLinkParams {
+  /** Opens the page in this language. */
+  locale?: OnboardingLocale;
+}
+
+/** `POST /v1/athletes/{athlete_id}/onboarding-link`: a fresh link to the hosted onboarding page. */
+export interface OnboardingLink {
+  object: 'onboarding_link';
+  athlete_id: string;
+  url: string;
+  /** Unix seconds; the link stops working then, 90 days after it was made. */
+  expires_at: number;
+}
+
 /**
  * Why a plan is from ranges:
  * - `profile_incomplete`: the athlete's profile answers are missing (`missing_profile_fields`).
@@ -1252,6 +1269,13 @@ export interface PartnerAccount {
   };
   /** Unix seconds. */
   created_at: number;
+  /** Where the hosted onboarding page sends athletes back to you. Absent when none is set. */
+  return_url?: string;
+  /**
+   * Where an athlete who opens an expired onboarding link is sent, with `athlete_id` and `locale`
+   * in the query, so your server can get a fresh link and send them on. Absent when none is set.
+   */
+  refresh_url?: string;
 }
 
 /** One UTC day of usage. */

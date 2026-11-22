@@ -4,6 +4,7 @@
 import { Saturday } from '../src/client';
 import type {
   NutritionCalculateResponse,
+  OnboardingLink,
   OnboardingQuestionsResponse,
   Precision,
 } from '../src/types';
@@ -140,5 +141,41 @@ describe('precision object on calculate', () => {
     expect(res.precision?.profile_complete).toBe(true);
     expect(res.precision?.missing_fields).toBeUndefined();
     expect(res.carb_g_per_hr).toBe(70);
+  });
+});
+
+
+describe('athletes.createOnboardingLink()', () => {
+  it('POSTs the locale to /v1/athletes/{id}/onboarding-link and returns the typed link', async () => {
+    const link: OnboardingLink = {
+      object: 'onboarding_link',
+      athlete_id: 'ath_1',
+      url: 'https://saturday.fit/onboard?ot=abc&test=1&locale=de',
+      expires_at: 1771200000,
+    };
+    let sent: { url: string; method: string; body?: string } | null = null;
+    (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (url: string, init?: { method?: string; body?: string }) => {
+      sent = { url, method: init?.method ?? 'GET', body: init?.body };
+      return { ok: true, status: 200, json: async () => link, headers: new Map() } as unknown as Response;
+    }) as unknown as jest.Mock;
+
+    const saturday = new Saturday({ apiKey: 'sk_test_x' });
+    const res = await saturday.athletes.createOnboardingLink('ath 1', { locale: 'de' });
+
+    expect(sent!.method).toBe('POST');
+    expect(sent!.url).toBe('https://api.saturday.fit/v1/athletes/ath%201/onboarding-link');
+    expect(JSON.parse(sent!.body ?? '{}')).toEqual({ locale: 'de' });
+    expect(res.url).toContain('locale=de');
+    expect(res.expires_at).toBe(1771200000);
+  });
+
+  it('sends an empty body when no locale is given', async () => {
+    let body: string | undefined;
+    (global as unknown as { fetch: jest.Mock }).fetch = jest.fn(async (_url: string, init?: { body?: string }) => {
+      body = init?.body;
+      return { ok: true, status: 200, json: async () => ({}), headers: new Map() } as unknown as Response;
+    }) as unknown as jest.Mock;
+    await new Saturday({ apiKey: 'sk_test_x' }).athletes.createOnboardingLink('ath_1');
+    expect(JSON.parse(body ?? '{}')).toEqual({});
   });
 });

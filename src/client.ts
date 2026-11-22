@@ -42,14 +42,14 @@ const DEFAULT_MAX_RETRIES = 3;
 /**
  * A 5xx is retried only where a repeat cannot make a second record: every GET, PUT, PATCH and
  * DELETE, and the POSTs that compute or read (calculations, product fit and compare, label
- * reading, inference, an activity's calculate and prep, export).
+ * reading, inference, an activity's calculate and prep, export, an onboarding link).
  */
 function retrySafeOnServerError(method: string, path: string): boolean {
   if (method !== 'POST') return true;
   const bare = path.split('?')[0];
   return bare.startsWith('/v1/nutrition/') || bare.startsWith('/v1/infer/')
     || /^\/v1\/athletes\/[^/]+\/activities\/[^/]+\/(calculate|prep)$/.test(bare)
-    || /^\/v1\/athletes\/[^/]+\/export$/.test(bare);
+    || /^\/v1\/athletes\/[^/]+\/(export|onboarding-link)$/.test(bare);
 }
 const SDK_VERSION = '0.8.0';
 
@@ -330,6 +330,16 @@ class AthletesResource {
   /** The athlete's Saturday app answers while they share them with you. Narrow on `sharing`. */
   getFuelingProfile(athleteId: string): Promise<T.FuelingProfile> {
     return this.client.request('GET', `/v1/athletes/${seg(athleteId)}/fueling-profile`);
+  }
+
+  /**
+   * A fresh link to the hosted onboarding page for the athlete, valid for 90 days. Call it from your
+   * refresh address, once your signed-in user owns `athleteId`, and redirect the athlete to `url`.
+   * Production refuses it with a `PermissionError` (`hosted_onboarding_unavailable`) until the page
+   * opens there.
+   */
+  createOnboardingLink(athleteId: string, params?: T.CreateOnboardingLinkParams): Promise<T.OnboardingLink> {
+    return this.client.request('POST', `/v1/athletes/${seg(athleteId)}/onboarding-link`, params?.locale ? { locale: params.locale } : {});
   }
 
   /**
