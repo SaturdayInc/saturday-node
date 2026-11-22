@@ -204,6 +204,15 @@ export class Saturday {
             message: `Request timed out after ${this.config.timeout}ms`,
           });
         }
+        if (e instanceof TypeError) {
+          // fetch rejects with a TypeError when the request never got an answer (DNS, refused, reset).
+          const cause = (e as { cause?: { message?: string } }).cause?.message;
+          throw new SaturdayError(0, {
+            type: 'api_error',
+            code: 'connection_error',
+            message: cause ? `${e.message}: ${cause}` : e.message,
+          });
+        }
         throw e;
       } finally {
         clearTimeout(timeoutId);
@@ -253,9 +262,14 @@ class NutritionResource {
     return this.client.request('POST', '/v1/nutrition/calculate', req);
   }
 
-  /** Calculate up to 50 sessions in one call. Each scenario counts as one call against your limits. */
-  batchCalculate(scenarios: T.NutritionCalculateRequest[]): Promise<T.BatchCalculateResponse> {
-    return this.client.request('POST', '/v1/nutrition/calculate/batch', { scenarios });
+  /**
+   * Calculate up to 50 sessions in one call. Each scenario counts as one call against your limits.
+   * With `estimateOnly: true` nothing is calculated or counted: the answer carries only `total` and
+   * `estimated_ms`, the expected wall time of the real call.
+   */
+  batchCalculate(scenarios: T.NutritionCalculateRequest[], options?: { estimateOnly?: boolean }): Promise<T.BatchCalculateResponse> {
+    return this.client.request('POST', '/v1/nutrition/calculate/batch',
+      options?.estimateOnly ? { scenarios, estimate_only: true } : { scenarios });
   }
 
   /**
@@ -343,7 +357,8 @@ class AthletesResource {
   }
 
   /**
-   * Create up to 100 athletes in one call. An item whose `external_id` one of your athletes holds,
+   * Create up to 100 athletes in one call. Each item needs at least one of `name`, `email` or
+   * `external_id` (else `missing_identifier`). An item whose `external_id` one of your athletes holds,
    * an earlier item of the same batch included, fails with `athlete_exists` and that athlete's id
    * in `errors[].athlete_id`.
    */
@@ -569,8 +584,9 @@ class OrganizationsResource {
     return this.client.request('POST', '/v1/organizations', org);
   }
 
-  list(): Promise<T.OrganizationListResponse> {
-    return this.client.request('GET', '/v1/organizations');
+  /** One page of organizations, newest first: `limit` 1 to 200 (default 50). Pass `pagination.next_cursor` back as `cursor`. */
+  list(params?: { limit?: number; cursor?: string }): Promise<T.OrganizationListResponse> {
+    return this.client.request('GET', withQuery('/v1/organizations', { limit: params?.limit, cursor: params?.cursor }));
   }
 
   get(orgId: string): Promise<T.Organization> {
@@ -814,7 +830,11 @@ class CoachResource {
     return this.client.request('GET', '/v1/coach/webhooks');
   }
 
-  /** Register a webhook endpoint. The signing secret is returned ONCE — store it. */
+  /**
+   * Register a webhook endpoint. The signing secret is returned once: store it. Leave `events` out
+   * (or empty) for `concern.detected` and `athlete.needs_attention`; `['*']` subscribes to every
+   * coach event, `coach.message.sent` included.
+   */
   async registerWebhook(url: string, events?: CoachWebhookEvent[]): Promise<CoachWebhookWithSecret> {
     return this.client.request('POST', '/v1/coach/webhooks', { url, events });
   }

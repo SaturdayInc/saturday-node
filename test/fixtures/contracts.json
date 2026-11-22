@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "backend_sha": "c5382f6d157b4d8074719e25c033adf95887d3b1",
+    "backend_sha": "5ff56d7cfc79610f728473c77a1aa8bda8c33818",
     "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling, and the profile-sharing types in pkg/api, pkg/partner and pkg/webhook; synthetic values, no API calls"
   },
   "activity": {
@@ -61,7 +61,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     }
   },
   "activity_full_banded": {
@@ -85,7 +85,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "precision": {
       "profile_complete": false,
@@ -123,7 +123,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "subscription_cta": {
       "message": "Subscribe",
@@ -150,7 +150,7 @@
         "message": "Complete your profile"
       }
     },
-    "trial_ends_at": 1700000500000,
+    "trial_ends_at": 1700000500,
     "trial_cap_reached": true,
     "trial_cap_note": "Daily cap reached"
   },
@@ -177,10 +177,10 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "tier_source": "trial",
-    "trial_ends_at": 1700000500000,
+    "trial_ends_at": 1700000500,
     "trial_calls_remaining_today": 0
   },
   "athlete": {
@@ -288,7 +288,7 @@
           "text": "Powered by Saturday",
           "logo_url": "https://saturday.fit/logo.png",
           "link": "https://saturday.fit",
-          "required": false
+          "required": true
         }
       },
       {
@@ -308,7 +308,7 @@
           "text": "Powered by Saturday",
           "logo_url": "https://saturday.fit/logo.png",
           "link": "https://saturday.fit",
-          "required": false
+          "required": true
         },
         "precision": {
           "profile_complete": false,
@@ -692,7 +692,7 @@
         "calculations_use": "saturday_app"
       }
     },
-    "updated_at": 1760000000000
+    "updated_at": 1760000000
   },
   "import_all_failed": {
     "imported": [],
@@ -794,7 +794,7 @@
             "text": "Powered by Saturday",
             "logo_url": "https://saturday.fit/logo.png",
             "link": "https://saturday.fit",
-            "required": false
+            "required": true
           },
           "precision": {
             "profile_complete": false,
@@ -926,7 +926,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "precision": {
       "profile_complete": false,
@@ -964,7 +964,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "precision": {
       "profile_complete": false,
@@ -1000,7 +1000,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     }
   },
   "nutrition_teaser": {
@@ -1020,7 +1020,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "subscription_cta": {
       "message": "Subscribe",
@@ -1070,10 +1070,10 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     },
     "tier_source": "trial",
-    "trial_ends_at": 1700000500000,
+    "trial_ends_at": 1700000500,
     "trial_calls_remaining_today": 0
   },
   "nutrition_zero": {
@@ -1090,7 +1090,7 @@
       "text": "Powered by Saturday",
       "logo_url": "https://saturday.fit/logo.png",
       "link": "https://saturday.fit",
-      "required": false
+      "required": true
     }
   },
   "onboarding_link": {
@@ -1197,7 +1197,7 @@
       "subscription_status": "full",
       "updated_at": 1700000000
     },
-    "created_at": 1765467600000
+    "created_at": 1765467600
   },
   "webhook_profile_sharing_changed": {
     "id": "evt_4f9a2c7e1b8d3a6f0c5e9b2d7a1f4c8e",
@@ -1213,6 +1213,6 @@
       "subscription_status": "teaser",
       "updated_at": 1700000000
     },
-    "created_at": 1765467600000
+    "created_at": 1765467600
   }
 }
