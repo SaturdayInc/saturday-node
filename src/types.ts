@@ -106,8 +106,11 @@ export interface CalculateLeg {
   thermal_stress_level: number;
 }
 
-/** A satiety or fitness level the Saturday app stores; the API refuses any other value with 400 invalid_value. */
+/** A sweat, satiety or fitness level the Saturday app stores; the API refuses any other value with 400 invalid_value. */
 export type AppLevel = 1 | 3 | 5 | 7 | 9;
+
+/** A saltiness the Saturday app stores; the API refuses any other value with 400 invalid_value. */
+export type AppSaltiness = 1 | 5 | 9;
 
 /** The profile and session fields every calculate request may carry. */
 interface CalculateRequestFields {
@@ -119,8 +122,10 @@ interface CalculateRequestFields {
   is_race?: boolean;
   sex?: Sex;
   age?: number;
-  sweat_level?: number;
-  saltiness?: number;
+  /** 1, 3, 5, 7 or 9. */
+  sweat_level?: AppLevel;
+  /** 1, 5 or 9. */
+  saltiness?: AppSaltiness;
   /** 1, 3, 5, 7 or 9. */
   satiety_level?: AppLevel;
   /** 1, 3, 5, 7 or 9. */
@@ -779,7 +784,9 @@ export interface CreateAthleteRequest {
 
 /** Flat profile settings; concerns are flat flags. */
 export interface AthleteSettings {
+  /** A write takes 1, 3, 5, 7 or 9 and refuses any other value with 400 invalid_value. */
   sweat_level?: number;
+  /** A write takes 1, 5 or 9 and refuses any other value with 400 invalid_value. */
   saltiness?: number;
   /** A write takes 1, 3, 5, 7 or 9 and refuses any other value with 400 invalid_value. */
   satiety_level?: number;
@@ -1123,7 +1130,7 @@ export interface SettingsFieldSchema {
   default: number | string | boolean;
   /** The accepted values of a string setting. */
   options?: string[];
-  /** The only values an integer setting takes, when it takes fewer than every whole number from min to max (satiety_level and fitness_level: 1, 3, 5, 7, 9). */
+  /** The only values an integer setting takes, when it takes fewer than every whole number from min to max (sweat_level, satiety_level and fitness_level: 1, 3, 5, 7, 9; saltiness: 1, 5, 9). */
   values?: number[];
   /** The spacing of the values an integer setting takes from min to max (carb_upper_limit_override: 10). */
   step?: number;
