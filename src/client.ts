@@ -706,7 +706,7 @@ class MetaResource {
     return this.client.request('GET', '/v1/');
   }
 
-  /** Every error code the API can return, with its HTTP status and whether a retry can succeed. */
+  /** Every error code the API can return, with its HTTP status and whether to retry it automatically (`retryable`). */
   errors(): Promise<T.ErrorCatalogResponse> {
     return this.client.request('GET', '/v1/errors');
   }

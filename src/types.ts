@@ -1229,6 +1229,7 @@ export interface ErrorCatalogEntry {
   type: string;
   http_status: number;
   message: string;
+  /** Whether a client may retry the same call automatically after `Retry-After`. False for the daily ceilings, which clear only at midnight UTC. */
   retryable: boolean;
   documentation_url: string;
 }
