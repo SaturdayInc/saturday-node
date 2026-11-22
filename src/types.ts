@@ -106,6 +106,9 @@ export interface CalculateLeg {
   thermal_stress_level: number;
 }
 
+/** A satiety or fitness level the Saturday app stores; the API refuses any other value with 400 invalid_value. */
+export type AppLevel = 1 | 3 | 5 | 7 | 9;
+
 /** The profile and session fields every calculate request may carry. */
 interface CalculateRequestFields {
   athlete_id?: string;
@@ -118,10 +121,13 @@ interface CalculateRequestFields {
   age?: number;
   sweat_level?: number;
   saltiness?: number;
-  satiety_level?: number;
-  fitness_level?: number;
+  /** 1, 3, 5, 7 or 9. */
+  satiety_level?: AppLevel;
+  /** 1, 3, 5, 7 or 9. */
+  fitness_level?: AppLevel;
   carb_experience?: CarbExperience;
   usual_carb_consumption?: UsualCarbConsumption;
+  /** 50 to 150 g/hr in steps of 10; any other value is refused with 400 out_of_range. */
   carb_upper_limit_override?: number;
   concerns?: Concerns;
 }
@@ -775,10 +781,13 @@ export interface CreateAthleteRequest {
 export interface AthleteSettings {
   sweat_level?: number;
   saltiness?: number;
+  /** A write takes 1, 3, 5, 7 or 9 and refuses any other value with 400 invalid_value. */
   satiety_level?: number;
+  /** A write takes 1, 3, 5, 7 or 9 and refuses any other value with 400 invalid_value. */
   fitness_level?: number;
   carb_experience?: CarbExperience;
   usual_carb_consumption?: UsualCarbConsumption;
+  /** A write takes 50 to 150 g/hr in steps of 10, or 0 to clear it; any other value is refused with 400 out_of_range. */
   carb_upper_limit_override?: number;
   muscle_cramps?: boolean;
   gut_distress?: boolean;
@@ -1114,6 +1123,10 @@ export interface SettingsFieldSchema {
   default: number | string | boolean;
   /** The accepted values of a string setting. */
   options?: string[];
+  /** The only values an integer setting takes, when it takes fewer than every whole number from min to max (satiety_level and fitness_level: 1, 3, 5, 7, 9). */
+  values?: number[];
+  /** The spacing of the values an integer setting takes from min to max (carb_upper_limit_override: 10). */
+  step?: number;
 }
 
 export interface SettingsSchemaResponse {

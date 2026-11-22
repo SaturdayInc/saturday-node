@@ -21,6 +21,7 @@ Breaking changes:
 - `PlanBasis.source` is `PlanBasisSource` (`profile_incomplete`, `session_incomplete`, `profile_and_session_incomplete`, `stored_ranges`), with `missing_profile_fields` and `missing_session_inputs`. `ProductSession` documents no defaults: a session input left out plans from ranges.
 - `ApiKeyInfo.last_used_at` is always present: 0 for a key never used.
 - `ProductSession` is a union of `SingleProductSession` and `LinkedProductSession`, and `ProductCompareRequest` is a type, no longer an interface: product fit and compare take a brick or triathlon with `legs`. Compare's `winner` is the named `ComparisonWinner`.
+- `satiety_level` and `fitness_level` on a calculate request are `AppLevel` (`1 | 3 | 5 | 7 | 9`), the levels the Saturday app stores; the API refuses any other value with a `ValidationError` of code `invalid_value`, and on an athlete's settings too. `carb_upper_limit_override` takes 50 to 150 g/hr in steps of 10 (code `out_of_range` otherwise). `SettingsFieldSchema` gains `values` and `step`.
 
 Added:
 
