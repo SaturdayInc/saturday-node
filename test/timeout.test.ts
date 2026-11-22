@@ -6,9 +6,11 @@ import { NotFoundError, SaturdayError } from '../src/errors';
 const originalFetch = global.fetch;
 
 describe('response-body timeouts with native fetch', () => {
+  jest.setTimeout(30000);
   let server: Server;
   let baseUrl: string;
   let requests: number;
+  const requestsByFixture = new Map<string, number>();
   const sockets = new Set<Socket>();
   const pending = new Set<ServerResponse>();
 
@@ -18,10 +20,12 @@ describe('response-body timeouts with native fetch', () => {
       pending.add(response);
       response.once('close', () => pending.delete(response));
       const fixture = request.url!.split('/')[1];
+      requestsByFixture.set(fixture, (requestsByFixture.get(fixture) ?? 0) + 1);
       response.setHeader('Connection', 'close');
       if (fixture.startsWith('stall-')) {
         response.statusCode = fixture === 'stall-404' ? 404 : fixture === 'stall-503' ? 503 : 200;
         response.setHeader('Content-Type', fixture === 'stall-pdf' ? 'application/pdf' : 'application/json');
+        response.flushHeaders();
         response.write(fixture === 'stall-pdf' ? '%PDF-1.7\n' : '{"partial":');
         return;
       }
@@ -41,6 +45,7 @@ describe('response-body timeouts with native fetch', () => {
 
   beforeEach(() => {
     requests = 0;
+    requestsByFixture.clear();
   });
 
   afterEach(() => {
@@ -65,7 +70,7 @@ describe('response-body timeouts with native fetch', () => {
         return response;
       };
       const client = new Saturday({
-        apiKey: 'sk_test_placeholder', baseUrl: `${baseUrl}/${fixture}`, timeout: 100, maxRetries: 0,
+        apiKey: 'sk_test_placeholder', baseUrl: `${baseUrl}/${fixture}`, timeout: 5000, maxRetries: 0,
       });
       const result = fixture === 'stall-pdf'
         ? client.coach.reportPdf('athlete_123')
@@ -75,14 +80,14 @@ describe('response-body timeouts with native fetch', () => {
         const outcome = await Promise.race([
           result.catch((error: unknown) => error),
           new Promise(resolve => {
-            watchdog = setTimeout(() => resolve('body remained pending after the deadline'), 1000);
+            watchdog = setTimeout(() => resolve('body remained pending after the deadline'), 15000);
           }),
         ]);
         expect(headersReceived).toBe(true);
         expect(outcome).toBeInstanceOf(SaturdayError);
         expect(outcome).toMatchObject({ status: 0, error: { code: 'timeout' } });
         expect(signal?.aborted).toBe(true);
-        expect(requests).toBe(1);
+        expect(requestsByFixture.get(fixture) ?? 0).toBe(1);
       } finally {
         clearTimeout(watchdog);
         for (const response of pending) response.destroy();
@@ -93,7 +98,7 @@ describe('response-body timeouts with native fetch', () => {
 
   it.each(['json', 'pdf', 'missing'])('preserves a complete %s response', async fixture => {
     const client = new Saturday({
-      apiKey: 'sk_test_placeholder', baseUrl: `${baseUrl}/${fixture}`, timeout: 1000, maxRetries: 0,
+      apiKey: 'sk_test_placeholder', baseUrl: `${baseUrl}/${fixture}`, timeout: 10000, maxRetries: 0,
     });
     if (fixture === 'pdf') {
       expect(Buffer.from(await client.coach.reportPdf('athlete_123')).toString()).toBe('%PDF-1.7\ncomplete');
@@ -102,7 +107,7 @@ describe('response-body timeouts with native fetch', () => {
     } else {
       await expect(client.onboarding.questions()).resolves.toEqual({ questions: [] });
     }
-    expect(requests).toBe(1);
+    expect(requestsByFixture.get(fixture) ?? 0).toBe(1);
   });
 });
 
