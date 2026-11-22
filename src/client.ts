@@ -55,8 +55,46 @@ const SDK_VERSION = '0.8.0';
 
 type Query = Record<string, string | number | boolean | undefined>;
 
-/** Encode one path segment. */
-const seg = (value: string) => encodeURIComponent(value);
+/** Encode one path segment. Bare "." and ".." would survive encoding and traverse, so reject them. */
+const seg = (value: string): string => {
+  if (value === '.' || value === '..') {
+    throw new TypeError(`Invalid path segment: ${JSON.stringify(value)}`);
+  }
+  return encodeURIComponent(value);
+};
+
+function parseRetryAfter(header: string | null | undefined): number | undefined {
+  if (header == null) return undefined;
+  const trimmed = header.trim();
+  if (trimmed === '') return undefined;
+  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    return Number.isFinite(seconds) ? Math.max(0, seconds) : undefined;
+  }
+  const dateMs = Date.parse(trimmed);
+  if (Number.isFinite(dateMs)) return Math.max(0, (dateMs - Date.now()) / 1000);
+  return undefined;
+}
+
+function errorDetailFor(status: number, errorBody: unknown): T.SaturdayErrorDetail {
+  let raw: unknown = errorBody;
+  if (raw !== null && typeof raw === 'object' && !Array.isArray(raw) && 'error' in raw) {
+    raw = (raw as { error: unknown }).error;
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { type: 'api_error', code: 'unknown', message: `HTTP ${status}` };
+  }
+  const detail = raw as Record<string, unknown>;
+  if (typeof detail.message !== 'string') {
+    return { type: 'api_error', code: 'unknown', message: `HTTP ${status}` };
+  }
+  return {
+    ...detail,
+    type: typeof detail.type === 'string' ? detail.type : 'api_error',
+    code: typeof detail.code === 'string' ? detail.code : 'unknown',
+    message: detail.message,
+  } as T.SaturdayErrorDetail;
+}
 
 function withQuery(path: string, query?: Query): string {
   const params = new URLSearchParams();
@@ -122,10 +160,22 @@ export class Saturday {
   readonly coach: CoachResource;
 
   constructor(config: T.SaturdayConfig) {
+    if (typeof config?.apiKey !== 'string' || (config.apiKey.length === 0 && !config.bearerToken) || /[\u0000-\u001F\u007F]/.test(config.apiKey)) {
+      throw new TypeError('Invalid apiKey: apiKey must be a non-empty string with no control characters');
+    }
+    if (config.bearerToken !== undefined && (typeof config.bearerToken !== 'string' || /[\u0000-\u001F\u007F]/.test(config.bearerToken))) {
+      throw new TypeError('Invalid bearerToken: bearerToken must be a string with no control characters');
+    }
+    if (config.timeout !== undefined && (typeof config.timeout !== 'number' || !Number.isFinite(config.timeout) || config.timeout <= 0)) {
+      throw new TypeError('Invalid timeout: timeout must be a finite number above 0');
+    }
+    if (config.maxRetries !== undefined && (typeof config.maxRetries !== 'number' || !Number.isInteger(config.maxRetries) || config.maxRetries < 0)) {
+      throw new TypeError('Invalid maxRetries: maxRetries must be an integer of 0 or more');
+    }
     this.config = {
       apiKey: config.apiKey,
       baseUrl: (config.baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, ''),
-      timeout: config.timeout || DEFAULT_TIMEOUT,
+      timeout: config.timeout ?? DEFAULT_TIMEOUT,
       maxRetries: config.maxRetries ?? DEFAULT_MAX_RETRIES,
       bearerToken: config.bearerToken,
     };
@@ -153,6 +203,10 @@ export class Saturday {
    * ceilings, blocks, waits over 30 seconds and every other 4xx throw at once.
    */
   async request<R>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<R> {
+    method = method.toUpperCase();
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path) || path.startsWith('//')) {
+      throw new TypeError(`Invalid path: path must be a relative path, not an absolute URL: ${path}`);
+    }
     const url = `${this.config.baseUrl}${path}`;
     let lastError: SaturdayError | undefined;
 
@@ -183,7 +237,7 @@ export class Saturday {
           if ((error as Error)?.name === 'AbortError') throw error;
           return { error: { type: 'api_error', code: 'unknown', message: `HTTP ${response.status}` } };
         });
-        const error = this.mapError(response.status, errorBody?.error || errorBody, response.headers);
+        const error = this.mapError(response.status, errorDetailFor(response.status, errorBody), response.headers);
         lastError = error;
 
         if (error instanceof RateLimitError) {
@@ -191,7 +245,7 @@ export class Saturday {
           retryDelayMs = error.retryAfter! * 1000;
         } else if (response.status >= 500 && retrySafeOnServerError(method, path)) {
           if (error.retryAfter !== undefined && error.retryAfter > MAX_RETRY_WAIT_SECONDS) throw error;
-          retryDelayMs = (error.retryAfter ?? Math.pow(2, attempt)) * 1000;
+          retryDelayMs = (error.retryAfter ?? Math.min(Math.pow(2, attempt), MAX_RETRY_WAIT_SECONDS)) * 1000;
         } else {
           throw error;
         }
@@ -214,10 +268,8 @@ export class Saturday {
     throw lastError!;
   }
 
-  private mapError(status: number, detail: any, headers: Headers): SaturdayError {
-    const header = headers.get('Retry-After');
-    const parsed = header === null ? NaN : Number(header);
-    const retryAfter = Number.isFinite(parsed) ? Math.max(0, parsed) : undefined;
+  private mapError(status: number, detail: T.SaturdayErrorDetail, headers: Headers): SaturdayError {
+    const retryAfter = parseRetryAfter(headers.get('Retry-After'));
     switch (status) {
       case 400:
       case 422:
@@ -752,7 +804,7 @@ class CoachResource {
 
   /** One athlete's in-window fueling rollup + concern summary (roster-confined). */
   async fuelingRollup(athleteUid: string, params?: { window?: CoachWindow; focus?: CoachFocus }): Promise<FuelingRollup> {
-    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/fueling-rollup${coachQuery(params)}`);
+    return this.client.request('GET', `/v1/coach/athletes/${seg(athleteUid)}/fueling-rollup${coachQuery(params)}`);
   }
 
   /** The AI fueling report (narrative + structured). Pass `refresh: true` to force regeneration. */
@@ -762,7 +814,7 @@ class CoachResource {
     if (params?.focus) q.set('focus', params.focus);
     if (params?.refresh) q.set('refresh', 'true');
     const qs = q.toString();
-    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/report${qs ? '?' + qs : ''}`);
+    return this.client.request('GET', `/v1/coach/athletes/${seg(athleteUid)}/report${qs ? '?' + qs : ''}`);
   }
 
   /** The report as a downloadable PDF (returns the raw bytes). */
@@ -770,12 +822,12 @@ class CoachResource {
     const q = new URLSearchParams({ format: 'pdf' });
     if (params?.window) q.set('window', String(params.window));
     if (params?.focus) q.set('focus', params.focus);
-    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/report?${q}`, undefined, 'arrayBuffer');
+    return this.client.request('GET', `/v1/coach/athletes/${seg(athleteUid)}/report?${q}`, undefined, 'arrayBuffer');
   }
 
   /** Drill into one session by activity id (planned-vs-actual + markers). */
   async sessionDetail(athleteUid: string, activityId: string): Promise<SessionDetail> {
-    return this.client.request('GET', `/v1/coach/athletes/${athleteUid}/sessions/${activityId}`);
+    return this.client.request('GET', `/v1/coach/athletes/${seg(athleteUid)}/sessions/${seg(activityId)}`);
   }
 
   // --- Config: alert rules ---
@@ -821,17 +873,17 @@ class CoachResource {
 
   /** Delete a webhook endpoint by id. */
   async deleteWebhook(id: string): Promise<{ ok: boolean }> {
-    return this.client.request('DELETE', `/v1/coach/webhooks/${id}`);
+    return this.client.request('DELETE', `/v1/coach/webhooks/${seg(id)}`);
   }
 
   /** Disable a webhook endpoint (stops delivery without deleting it). */
   async disableWebhook(id: string): Promise<{ ok: boolean; active: boolean }> {
-    return this.client.request('POST', `/v1/coach/webhooks/${id}/disable`);
+    return this.client.request('POST', `/v1/coach/webhooks/${seg(id)}/disable`);
   }
 
   /** Re-enable a previously disabled webhook endpoint. */
   async enableWebhook(id: string): Promise<{ ok: boolean; active: boolean }> {
-    return this.client.request('POST', `/v1/coach/webhooks/${id}/enable`);
+    return this.client.request('POST', `/v1/coach/webhooks/${seg(id)}/enable`);
   }
 
   // --- Billing (read-only; the key must carry billing:read) ---

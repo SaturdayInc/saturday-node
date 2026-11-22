@@ -307,6 +307,47 @@ it('integrations.sync posts to the intervals.icu route and sends sync_types when
   });
 });
 
+it('sends coach reads and config writes to the documented routes with the documented bodies', async () => {
+  const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+  global.fetch = fetchMock;
+  const client = new Saturday({ apiKey: 'cp_test_placeholder', maxRetries: 0 });
+
+  await client.coach.roster({ window: 7 });
+  await client.coach.rosterDigest({ window: 14 });
+  await client.coach.fuelingRollup('ath_1', { window: 7, focus: 'worst' });
+  await client.coach.sessionDetail('ath_1', 'act_1');
+  const rules = await client.coach.getNotificationRules({ scope: 'group', scopeId: 'grp_1' });
+  await client.coach.setNotificationRules('group', rules, 'grp_1');
+  await client.coach.applyPreset({ scope: 'overall', preset: 'balanced' });
+  await client.coach.getReportSettings({ scope: 'athlete', scopeId: 'ath_1' });
+  await client.coach.setReportSettings('athlete', { ai_report_window_days: 7 }, 'ath_1');
+  await client.coach.listWebhooks();
+  await client.coach.registerWebhook('https://example.com/hook', ['concern.detected']);
+  await client.coach.deleteWebhook('cwh_1');
+  await client.coach.disableWebhook('cwh_1');
+  await client.coach.enableWebhook('cwh_1');
+
+  const calls = fetchMock.mock.calls.map(([url, init]) => [
+    init.method, url, init.body === undefined ? undefined : JSON.parse(init.body),
+  ]);
+  expect(calls).toEqual([
+    ['GET', 'https://api.saturday.fit/v1/coach/roster?window=7', undefined],
+    ['GET', 'https://api.saturday.fit/v1/coach/roster/digest?window=14', undefined],
+    ['GET', 'https://api.saturday.fit/v1/coach/athletes/ath_1/fueling-rollup?window=7&focus=worst', undefined],
+    ['GET', 'https://api.saturday.fit/v1/coach/athletes/ath_1/sessions/act_1', undefined],
+    ['GET', 'https://api.saturday.fit/v1/coach/config/notification-rules?scope=group&scope_id=grp_1', undefined],
+    ['PUT', 'https://api.saturday.fit/v1/coach/config/notification-rules', { scope: 'group', scope_id: 'grp_1', rules }],
+    ['POST', 'https://api.saturday.fit/v1/coach/config/preset', { scope: 'overall', preset: 'balanced' }],
+    ['GET', 'https://api.saturday.fit/v1/coach/config/report-settings?scope=athlete&scope_id=ath_1', undefined],
+    ['PUT', 'https://api.saturday.fit/v1/coach/config/report-settings', { scope: 'athlete', scope_id: 'ath_1', settings: { ai_report_window_days: 7 } }],
+    ['GET', 'https://api.saturday.fit/v1/coach/webhooks', undefined],
+    ['POST', 'https://api.saturday.fit/v1/coach/webhooks', { url: 'https://example.com/hook', events: ['concern.detected'] }],
+    ['DELETE', 'https://api.saturday.fit/v1/coach/webhooks/cwh_1', undefined],
+    ['POST', 'https://api.saturday.fit/v1/coach/webhooks/cwh_1/disable', undefined],
+    ['POST', 'https://api.saturday.fit/v1/coach/webhooks/cwh_1/enable', undefined],
+  ]);
+});
+
 it('a POST erase answered 503 provider_erasure_incomplete is returned, not retried', async () => {
   const fetchMock = jest.fn().mockResolvedValue(Response.json({
     error: { type: 'api_error', code: 'provider_erasure_incomplete', message: 'A provider connection you supplied for this athlete could not be revoked yet, so nothing was deleted. Retry the request.' },

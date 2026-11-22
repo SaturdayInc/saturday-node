@@ -1,5 +1,17 @@
 import type { SaturdayErrorDetail } from './types';
 
+function safeDetail(status: number, error: SaturdayErrorDetail): SaturdayErrorDetail {
+  if (error === null || typeof error !== 'object' || Array.isArray(error) || typeof (error as { message?: unknown }).message !== 'string') {
+    return { type: 'api_error', code: 'unknown', message: `HTTP ${status}` };
+  }
+  return {
+    ...error,
+    type: typeof error.type === 'string' ? error.type : 'api_error',
+    code: typeof error.code === 'string' ? error.code : 'unknown',
+    message: error.message,
+  };
+}
+
 /**
  * Base class for every API error. `error` is the API's error object: `type`, `code`, `message`
  * and, when set, `param`, `documentation_url` and `request_id`.
@@ -14,11 +26,11 @@ export class SaturdayError extends Error {
   readonly retryAfter?: number;
 
   constructor(status: number, error: SaturdayErrorDetail, retryAfter?: number) {
-    super(error.message);
+    super(safeDetail(status, error).message);
     this.name = 'SaturdayError';
     this.status = status;
-    this.error = error;
-    this.requestId = error.request_id;
+    this.error = safeDetail(status, error);
+    this.requestId = this.error.request_id;
     this.retryAfter = retryAfter;
   }
 
@@ -90,7 +102,7 @@ export class RateLimitError extends SaturdayError {
     super(429, error, retryAfter);
     this.name = 'RateLimitError';
     // An API that predates the daily codes marks a daily ceiling by sending no Retry-After.
-    this.dailyLimit = (DAILY_LIMIT_CODES as readonly string[]).includes(error.code) || retryAfter === undefined;
+    this.dailyLimit = (DAILY_LIMIT_CODES as readonly string[]).includes(this.error.code) || retryAfter === undefined;
     if (this.dailyLimit) {
       this.resetsAt = retryAfter !== undefined
         ? new Date(now.getTime() + retryAfter * 1000)
@@ -118,8 +130,8 @@ export class ValidationError extends SaturdayError {
   constructor(error: SaturdayErrorDetail, status = 400) {
     super(status, error);
     this.name = 'ValidationError';
-    this.param = error.param;
-    this.suggestion = error.code === 'unsupported_field' ? suggestedField(error.message) : undefined;
+    this.param = this.error.param;
+    this.suggestion = this.error.code === 'unsupported_field' ? suggestedField(this.error.message) : undefined;
   }
 }
 
@@ -149,6 +161,6 @@ export class ConflictError extends SaturdayError {
   constructor(error: SaturdayErrorDetail) {
     super(409, error);
     this.name = 'ConflictError';
-    this.athleteId = error.athlete_id;
+    this.athleteId = this.error.athlete_id;
   }
 }

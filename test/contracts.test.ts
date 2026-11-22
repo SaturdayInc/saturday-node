@@ -245,6 +245,45 @@ it.each(['fueling_profile_on', 'fueling_profile_off', 'fueling_profile_not_linke
   expect(mock.mock.calls[0][1].body).toBeUndefined();
 });
 
+it.each([
+  ['nutrition.extract', (c: Saturday) => c.nutrition.extract({ image_base64: 'AA==' }),
+    'POST', '/v1/nutrition/extract', { image_base64: 'AA==' }],
+  ['infer.activityType', (c: Saturday) => c.infer.activityType({ activity_name: 'Morning Ride', tags: ['bike'] }),
+    'POST', '/v1/infer/activity-type', { activity_name: 'Morning Ride', tags: ['bike'] }],
+  ['infer.brickTypes', (c: Saturday) => c.infer.brickTypes({ activity_name: 'Brick session' }),
+    'POST', '/v1/infer/brick-types', { activity_name: 'Brick session' }],
+  ['integrations.disconnect', (c: Saturday) => c.integrations.disconnect('intervals_icu', 'ath_1'),
+    'POST', '/v1/integrations/intervals_icu/disconnect', { athlete_id: 'ath_1' }],
+  ['organizations.updateSubscription', (c: Saturday) => c.organizations.updateSubscription('org_1', 'sub_1', { seats: 10 }),
+    'PATCH', '/v1/organizations/org_1/subscriptions/sub_1', { seats: 10 }],
+  ['organizations.addLicenses', (c: Saturday) => c.organizations.addLicenses('org_1', 'sub_1', [{ athlete_id: 'ath_1' }]),
+    'POST', '/v1/organizations/org_1/subscriptions/sub_1/licenses', { licenses: [{ athlete_id: 'ath_1' }] }],
+  ['organizations.listLicenses', (c: Saturday) => c.organizations.listLicenses('org_1', 'sub_1'),
+    'GET', '/v1/organizations/org_1/subscriptions/sub_1/licenses', undefined],
+  ['organizations.removeLicense', (c: Saturday) => c.organizations.removeLicense('org_1', 'sub_1', 'ath_1'),
+    'DELETE', '/v1/organizations/org_1/subscriptions/sub_1/licenses/ath_1', undefined],
+  ['knowledge.listTopics', (c: Saturday) => c.knowledge.listTopics(),
+    'GET', '/v1/knowledge/topics', undefined],
+  ['knowledge.getArticle', (c: Saturday) => c.knowledge.getArticle('art_1'),
+    'GET', '/v1/knowledge/articles/art_1', undefined],
+  ['activities.get', (c: Saturday) => c.activities.get('ath_1', 'act_1'),
+    'GET', '/v1/athletes/ath_1/activities/act_1', undefined],
+  ['organizations.get', (c: Saturday) => c.organizations.get('org_1'),
+    'GET', '/v1/organizations/org_1', undefined],
+  ['organizations.update', (c: Saturday) => c.organizations.update('org_1', { description: 'Weekend riders' }),
+    'PATCH', '/v1/organizations/org_1', { description: 'Weekend riders' }],
+  ['organizations.getOffer', (c: Saturday) => c.organizations.getOffer('org_1'),
+    'GET', '/v1/organizations/org_1/offer', undefined],
+])('%s sends the documented request', async (_name, call, method, path, body) => {
+  const mock = jest.fn().mockResolvedValue(Response.json({ ok: true }));
+  global.fetch = mock;
+  await call(new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 }));
+  expect(mock.mock.calls[0][0]).toBe(`https://api.saturday.fit${path}`);
+  expect(mock.mock.calls[0][1].method).toBe(method);
+  const sent = mock.mock.calls[0][1].body;
+  expect(sent === undefined ? undefined : JSON.parse(sent)).toEqual(body);
+});
+
 it('the shared profile fixture carries every shared answer and the unshared ones carry none', () => {
   expect(Object.keys(fixtures.fueling_profile_on.profile).sort()).toEqual([
     'age', 'athlete_weight_kg', 'carb_experience', 'concerns', 'fitness_level', 'saltiness',
