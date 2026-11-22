@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "backend_sha": "aae11b6dd0d6814810d8b337f8e9cbee27b2a310",
+    "backend_sha": "c5382f6d157b4d8074719e25c033adf95887d3b1",
     "source": "pkg/api Go JSON types, stored-prescription/list/settings HTTP handlers, the coach billing structs in pkg/purchase, pkg/connect and pkg/coachbilling, and the profile-sharing types in pkg/api, pkg/partner and pkg/webhook; synthetic values, no API calls"
   },
   "activity": {
@@ -1092,6 +1092,33 @@
       "link": "https://saturday.fit",
       "required": false
     }
+  },
+  "onboarding_link": {
+    "object": "onboarding_link",
+    "athlete_id": "ath_1",
+    "url": "https://saturday.fit/onboard?ot=eyJwaWQiOiJwYXJ0bmVyXzEifQ.sig",
+    "expires_at": 1707776000
+  },
+  "partner_profile": {
+    "id": "partner_1",
+    "name": "Fixture Partner",
+    "contact_email": "partner@example.com",
+    "status": "active",
+    "plan": "partner",
+    "return_url": "https://partner.example/fueling",
+    "refresh_url": "https://partner.example/saturday/refresh",
+    "rate_limits": {
+      "requests_per_second": 10,
+      "burst_size": 20,
+      "requests_per_minute": 600,
+      "requests_per_day": 2000,
+      "ip_requests_per_day": 1000,
+      "trial_starts_per_day": 50,
+      "trial_profiles_per_athlete": 3,
+      "trial_days": 14,
+      "trial_answers": 42
+    },
+    "created_at": 1700000000
   },
   "settings_empty": {},
   "settings_full": {
