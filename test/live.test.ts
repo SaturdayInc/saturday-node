@@ -166,8 +166,8 @@ describeLive('live API', () => {
     expect(renamed.name).toBe('Live Suite');
 
     capture('settings', 'AthleteSettings', await saturday.athletes.getSettings(complete.id));
-    const settings = await saturday.athletes.updateSettings(complete.id, { ...COMPLETE.settings, sweat_level: 6 });
-    expect(settings.sweat_level).toBe(6);
+    const settings = await saturday.athletes.updateSettings(complete.id, { ...COMPLETE.settings, sweat_level: 7 });
+    expect(settings.sweat_level).toBe(7);
 
     const fueling = capture('fueling_profile', 'FuelingProfile', await saturday.athletes.getFuelingProfile(complete.id));
     expect(fueling.sharing).toBe('not_linked');
