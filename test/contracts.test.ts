@@ -284,6 +284,196 @@ it.each([
   expect(sent === undefined ? undefined : JSON.parse(sent)).toEqual(body);
 });
 
+// Offline wire coverage for the methods that previously ran only in the live suite
+// (which CI skips) or only as type text. Mocked transport: method, path and body only.
+it.each([
+  ['nutrition.compareProducts', (c: Saturday) => c.nutrition.compareProducts({
+    athlete_id: 'ath_1', product_a: { product_query: 'maurten gel 100' },
+    product_b: { product_query: 'tailwind endurance fuel' }, activity_type: 'bike', duration_min: 180,
+  }),
+    'POST', '/v1/nutrition/products/compare', {
+      athlete_id: 'ath_1', product_a: { product_query: 'maurten gel 100' },
+      product_b: { product_query: 'tailwind endurance fuel' }, activity_type: 'bike', duration_min: 180,
+    }],
+  ['athletes.update', (c: Saturday) => c.athletes.update('ath_1', { name: 'Live Suite' }),
+    'PATCH', '/v1/athletes/ath_1', { name: 'Live Suite' }],
+  ['athletes.export', (c: Saturday) => c.athletes.export('ath_1'),
+    'POST', '/v1/athletes/ath_1/export', undefined],
+  ['athletes.listConsent', (c: Saturday) => c.athletes.listConsent('ath_1'),
+    'GET', '/v1/athletes/ath_1/consent', undefined],
+  ['athletes.recordConsent', (c: Saturday) => c.athletes.recordConsent('ath_1', { consent_type: 'analytics', granted: true }),
+    'POST', '/v1/athletes/ath_1/consent', { consent_type: 'analytics', granted: true }],
+  ['athletes.revokeConsent', (c: Saturday) => c.athletes.revokeConsent('ath_1', 'con_1'),
+    'DELETE', '/v1/athletes/ath_1/consent/con_1', undefined],
+  ['activities.create', (c: Saturday) => c.activities.create('ath_1', { type: 'bike', duration_min: 150 }),
+    'POST', '/v1/athletes/ath_1/activities', { type: 'bike', duration_min: 150 }],
+  ['activities.update', (c: Saturday) => c.activities.update('ath_1', 'act_1', { duration_min: 160 }),
+    'PATCH', '/v1/athletes/ath_1/activities/act_1', { duration_min: 160 }],
+  ['activities.delete', (c: Saturday) => c.activities.delete('ath_1', 'act_1'),
+    'DELETE', '/v1/athletes/ath_1/activities/act_1', undefined],
+  ['reference.settingsSchema', (c: Saturday) => c.reference.settingsSchema(),
+    'GET', '/v1/settings/schema', undefined],
+  ['reference.activityTypes filtered', (c: Saturday) => c.reference.activityTypes({ activityType: 'run' }),
+    'GET', '/v1/activity-types?activity_type=run', undefined],
+  ['partner.get', (c: Saturday) => c.partner.get(),
+    'GET', '/v1/partner', undefined],
+  ['partner.usage', (c: Saturday) => c.partner.usage(),
+    'GET', '/v1/partner/usage', undefined],
+  ['partner.usageDaily', (c: Saturday) => c.partner.usageDaily(),
+    'GET', '/v1/partner/usage/daily', undefined],
+  ['partner.listApiKeys', (c: Saturday) => c.partner.listApiKeys(),
+    'GET', '/v1/partner/api-keys', undefined],
+  ['partner.createApiKey', (c: Saturday) => c.partner.createApiKey('ci-key'),
+    'POST', '/v1/partner/api-keys', { name: 'ci-key' }],
+  ['partner.createApiKey with scopes', (c: Saturday) => c.partner.createApiKey('ci-key', { scopes: ['read'] }),
+    'POST', '/v1/partner/api-keys', { name: 'ci-key', scopes: ['read'] }],
+  ['partner.revokeApiKey', (c: Saturday) => c.partner.revokeApiKey('key_1'),
+    'DELETE', '/v1/partner/api-keys/key_1', undefined],
+  ['partner.rotateApiKey', (c: Saturday) => c.partner.rotateApiKey('key_1'),
+    'POST', '/v1/partner/api-keys/key_1/rotate', undefined],
+  ['webhooks.list', (c: Saturday) => c.webhooks.list(),
+    'GET', '/v1/webhooks', undefined],
+  ['webhooks.get', (c: Saturday) => c.webhooks.get('wh_1'),
+    'GET', '/v1/webhooks/wh_1', undefined],
+  ['webhooks.update', (c: Saturday) => c.webhooks.update('wh_1', { active: false }),
+    'PATCH', '/v1/webhooks/wh_1', { active: false }],
+  ['webhooks.delete', (c: Saturday) => c.webhooks.delete('wh_1'),
+    'DELETE', '/v1/webhooks/wh_1', undefined],
+  ['webhooks.test', (c: Saturday) => c.webhooks.test('wh_1'),
+    'POST', '/v1/webhooks/wh_1/test', undefined],
+  ['organizations.create', (c: Saturday) => c.organizations.create({ display_name: 'Example Club', sport: 'triathlon' }),
+    'POST', '/v1/organizations', { display_name: 'Example Club', sport: 'triathlon' }],
+  ['organizations.addMember', (c: Saturday) => c.organizations.addMember('org_1', { email: 'a@example.com', role: 'member', athlete_id: 'ath_1' }),
+    'POST', '/v1/organizations/org_1/members', { email: 'a@example.com', role: 'member', athlete_id: 'ath_1' }],
+  ['organizations.listMembers', (c: Saturday) => c.organizations.listMembers('org_1'),
+    'GET', '/v1/organizations/org_1/members', undefined],
+  ['organizations.removeMember', (c: Saturday) => c.organizations.removeMember('org_1', 'mem_1'),
+    'DELETE', '/v1/organizations/org_1/members/mem_1', undefined],
+  ['organizations.setOffer', (c: Saturday) => c.organizations.setOffer('org_1', { discount_percent: 10 }),
+    'PUT', '/v1/organizations/org_1/offer', { discount_percent: 10 }],
+  ['organizations.deleteOffer', (c: Saturday) => c.organizations.deleteOffer('org_1'),
+    'DELETE', '/v1/organizations/org_1/offer', undefined],
+  ['organizations.createSubscription', (c: Saturday) => c.organizations.createSubscription('org_1', {
+    type: 'team', seats: 5, start_date: 1700000000, end_date: 1700086400,
+  }),
+    'POST', '/v1/organizations/org_1/subscriptions', { type: 'team', seats: 5, start_date: 1700000000, end_date: 1700086400 }],
+  ['organizations.listSubscriptions', (c: Saturday) => c.organizations.listSubscriptions('org_1'),
+    'GET', '/v1/organizations/org_1/subscriptions', undefined],
+  ['integrations.status', (c: Saturday) => c.integrations.status('intervals_icu', 'ath_1'),
+    'GET', '/v1/integrations/intervals_icu/status?athlete_id=ath_1', undefined],
+  ['testing.simulateSubscription off', (c: Saturday) => c.testing.simulateSubscription('ath_1', false),
+    'POST', '/v1/test/athletes/ath_1/simulate-subscription', { active: false }],
+  ['meta.discovery', (c: Saturday) => c.meta.discovery(),
+    'GET', '/v1/', undefined],
+  ['meta.errors', (c: Saturday) => c.meta.errors(),
+    'GET', '/v1/errors', undefined],
+  ['meta.health', (c: Saturday) => c.meta.health(),
+    'GET', '/v1/health', undefined],
+  // Coach optional-argument variants: bare reads send no query string, and an
+  // unset scope_id is dropped from the JSON body rather than sent as null.
+  ['coach.roster bare', (c: Saturday) => c.coach.roster(),
+    'GET', '/v1/coach/roster', undefined],
+  ['coach.rosterDigest bare', (c: Saturday) => c.coach.rosterDigest(),
+    'GET', '/v1/coach/roster/digest', undefined],
+  ['coach.fuelingRollup bare', (c: Saturday) => c.coach.fuelingRollup('ath_1'),
+    'GET', '/v1/coach/athletes/ath_1/fueling-rollup', undefined],
+  ['coach.report refresh', (c: Saturday) => c.coach.report('ath_1', { refresh: true }),
+    'GET', '/v1/coach/athletes/ath_1/report?refresh=true', undefined],
+  ['coach.getNotificationRules bare', (c: Saturday) => c.coach.getNotificationRules(),
+    'GET', '/v1/coach/config/notification-rules', undefined],
+  ['coach.getReportSettings bare', (c: Saturday) => c.coach.getReportSettings(),
+    'GET', '/v1/coach/config/report-settings', undefined],
+  ['coach.setNotificationRules overall', (c: Saturday) => c.coach.setNotificationRules('overall', {} as never),
+    'PUT', '/v1/coach/config/notification-rules', { scope: 'overall', rules: {} }],
+  ['coach.setReportSettings overall', (c: Saturday) => c.coach.setReportSettings('overall', { ai_report_window_days: 7 }),
+    'PUT', '/v1/coach/config/report-settings', { scope: 'overall', settings: { ai_report_window_days: 7 } }],
+  ['coach.applyPreset scoped', (c: Saturday) => c.coach.applyPreset({ scope: 'group', preset: 'hands_on', scopeId: 'grp_1' }),
+    'POST', '/v1/coach/config/preset', { scope: 'group', scope_id: 'grp_1', preset: 'hands_on' }],
+])('%s sends the documented request', async (_name, call, method, path, body) => {
+  const mock = jest.fn().mockResolvedValue(Response.json({ ok: true }));
+  global.fetch = mock;
+  await call(new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 }));
+  expect(mock.mock.calls[0][0]).toBe(`https://api.saturday.fit${path}`);
+  expect(mock.mock.calls[0][1].method).toBe(method);
+  const sent = mock.mock.calls[0][1].body;
+  expect(sent === undefined ? undefined : JSON.parse(sent)).toEqual(body);
+});
+
+it('athletes.list sends profileComplete as profile_complete, true and false alike', async () => {
+  const mock = jest.fn().mockImplementation(async () => Response.json({
+    athletes: [], pagination: { total: 0, has_more: false }, request_id: 'req_1',
+  }));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 });
+  await client.athletes.list({ profileComplete: true });
+  await client.athletes.list({ profileComplete: false });
+  await client.athletes.list({ limit: 5, cursor: '1700000000', externalId: 'user-42', profileComplete: true });
+  expect(mock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/athletes?profile_complete=true');
+  expect(mock.mock.calls[1][0]).toBe('https://api.saturday.fit/v1/athletes?profile_complete=false');
+  expect(mock.mock.calls[2][0]).toBe(
+    'https://api.saturday.fit/v1/athletes?limit=5&cursor=1700000000&external_id=user-42&profile_complete=true',
+  );
+});
+
+it('partner usage sends the from and to dates it is given', async () => {
+  const mock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 });
+  await client.partner.usage({ from: '2026-11-01', to: '2026-11-07' });
+  await client.partner.usageDaily({ from: '2026-11-01', to: '2026-11-07' });
+  await client.partner.usage({ from: '2026-11-01' });
+  expect(mock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/partner/usage?from=2026-11-01&to=2026-11-07');
+  expect(mock.mock.calls[1][0]).toBe('https://api.saturday.fit/v1/partner/usage/daily?from=2026-11-01&to=2026-11-07');
+  expect(mock.mock.calls[2][0]).toBe('https://api.saturday.fit/v1/partner/usage?from=2026-11-01');
+});
+
+it('walks two athlete pages by feeding next_cursor back as cursor to has_more false', async () => {
+  const page1 = {
+    athletes: [{ id: 'ath_1' }],
+    pagination: { total: 1, has_more: true, next_cursor: '1700000000' }, request_id: 'req_1',
+  };
+  const page2 = {
+    athletes: [{ id: 'ath_2' }],
+    pagination: { total: 1, has_more: false }, request_id: 'req_2',
+  };
+  const mock = jest.fn()
+    .mockResolvedValueOnce(Response.json(page1))
+    .mockResolvedValueOnce(Response.json(page2));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 });
+  const first = await client.athletes.list({ limit: 1 });
+  expect(first.pagination.has_more).toBe(true);
+  const second = await client.athletes.list({ limit: 1, cursor: first.pagination.next_cursor });
+  expect(second.pagination.has_more).toBe(false);
+  expect(mock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/athletes?limit=1');
+  expect(mock.mock.calls[1][0]).toBe('https://api.saturday.fit/v1/athletes?limit=1&cursor=1700000000');
+});
+
+it('walks two ledger pages by feeding the top-level next_cursor back as cursor', async () => {
+  const page1 = { entries: [{ id: 'led_1' }], next_cursor: '1749480000000', request_id: 'req_1' };
+  const page2 = { entries: [{ id: 'led_2' }], request_id: 'req_2' };
+  const mock = jest.fn()
+    .mockResolvedValueOnce(Response.json(page1))
+    .mockResolvedValueOnce(Response.json(page2));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'cp_test_fixture', maxRetries: 0 });
+  const first = await client.coach.ledger({ limit: 1 }) as unknown as { next_cursor?: string };
+  const second = await client.coach.ledger({ limit: 1, cursor: first.next_cursor });
+  expect(second).toEqual(page2);
+  expect(mock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/coach/billing/ledger?limit=1');
+  expect(mock.mock.calls[1][0]).toBe('https://api.saturday.fit/v1/coach/billing/ledger?limit=1&cursor=1749480000000');
+});
+
+it('sends an arbitrary cursor verbatim (form-encoded) for the API to judge', async () => {
+  const mock = jest.fn().mockImplementation(async () => Response.json({
+    athletes: [], pagination: { total: 0, has_more: false }, request_id: 'req_1',
+  }));
+  global.fetch = mock;
+  const client = new Saturday({ apiKey: 'sk_test_fixture', maxRetries: 0 });
+  await client.athletes.list({ cursor: 'not a/cursor' });
+  expect(mock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/athletes?cursor=not+a%2Fcursor');
+});
+
 it('the shared profile fixture carries every shared answer and the unshared ones carry none', () => {
   expect(Object.keys(fixtures.fueling_profile_on.profile).sort()).toEqual([
     'age', 'athlete_weight_kg', 'carb_experience', 'concerns', 'fitness_level', 'saltiness',
