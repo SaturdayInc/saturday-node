@@ -132,3 +132,40 @@ describe('the constructor validates baseUrl like the other options', () => {
     ]);
   });
 });
+
+describe('an unserializable body is the caller TypeError, not a connection_error', () => {
+  // JSON.stringify ran inside the fetch try, whose catch maps every
+  // TypeError to SaturdayError connection_error ("the request never got an
+  // answer"). A circular or BigInt body was reported as a network failure
+  // even though fetch was never called.
+  it('a circular body throws TypeError and never reaches fetch', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_fake', maxRetries: 0 });
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const error = await captureError(() => client.request('POST', '/v1/health', circular));
+    expect(error).toBeInstanceOf(TypeError);
+    expect(error).not.toMatchObject({ name: 'SaturdayError', code: 'connection_error' });
+    expect((error as Error).message).toMatch(/circular/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('a BigInt body throws TypeError and never reaches fetch', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_fake', maxRetries: 0 });
+    const error = await captureError(() => client.request('POST', '/v1/health', { count: 10n }));
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).toMatch(/BigInt/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('a normal body still serializes and sends', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_fake', maxRetries: 0 });
+    await expect(client.request('POST', '/v1/health', { count: 10 })).resolves.toEqual({ ok: true });
+    expect(fetchMock.mock.calls[0][1].body).toBe('{"count":10}');
+  });
+});

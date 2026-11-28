@@ -218,6 +218,10 @@ export class Saturday {
       throw new TypeError(`Invalid path: path must be a relative path, not an absolute URL: ${path}`);
     }
     const url = `${this.config.baseUrl}${path}`;
+    // Serialize before the fetch try: its catch maps a fetch TypeError to
+    // connection_error, and a body JSON.stringify cannot handle (circular,
+    // BigInt) is the caller's TypeError, not a network failure.
+    const payload = body === undefined ? undefined : JSON.stringify(body);
     let lastError: SaturdayError | undefined;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
@@ -233,7 +237,7 @@ export class Saturday {
             'X-SDK-Version': SDK_VERSION,
             Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
           },
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body: payload,
           signal: controller.signal,
         });
 
