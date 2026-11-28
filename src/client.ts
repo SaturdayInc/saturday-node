@@ -55,9 +55,13 @@ const SDK_VERSION = '0.9.0';
 
 type Query = Record<string, string | number | boolean | undefined>;
 
-/** Encode one path segment. Bare "." and ".." would survive encoding and traverse, so reject them. */
+/**
+ * Encode one path segment. Bare "." and ".." would survive encoding and traverse, so reject
+ * them. An empty segment would collapse onto the parent route (an empty athlete id read the
+ * athlete list), and a non-string would be silently coerced ("undefined"), so reject both.
+ */
 const seg = (value: string): string => {
-  if (value === '.' || value === '..') {
+  if (typeof value !== 'string' || value === '' || value === '.' || value === '..') {
     throw new TypeError(`Invalid path segment: ${JSON.stringify(value)}`);
   }
   return encodeURIComponent(value);
@@ -166,6 +170,9 @@ export class Saturday {
     if (config.bearerToken !== undefined && (typeof config.bearerToken !== 'string' || /[\u0000-\u001F\u007F]/.test(config.bearerToken))) {
       throw new TypeError('Invalid bearerToken: bearerToken must be a string with no control characters');
     }
+    if (config.baseUrl !== undefined && (typeof config.baseUrl !== 'string' || /[\u0000-\u001F\u007F]/.test(config.baseUrl))) {
+      throw new TypeError('Invalid baseUrl: baseUrl must be a string with no control characters');
+    }
     if (config.timeout !== undefined && (typeof config.timeout !== 'number' || !Number.isFinite(config.timeout) || config.timeout <= 0)) {
       throw new TypeError('Invalid timeout: timeout must be a finite number above 0');
     }
@@ -204,10 +211,17 @@ export class Saturday {
    */
   async request<R>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<R> {
     method = method.toUpperCase();
+    if (!path.startsWith('/')) {
+      throw new TypeError(`Invalid path: path must start with "/": ${path}`);
+    }
     if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path) || path.startsWith('//')) {
       throw new TypeError(`Invalid path: path must be a relative path, not an absolute URL: ${path}`);
     }
     const url = `${this.config.baseUrl}${path}`;
+    // Serialize before the fetch try: its catch maps a fetch TypeError to
+    // connection_error, and a body JSON.stringify cannot handle (circular,
+    // BigInt) is the caller's TypeError, not a network failure.
+    const payload = body === undefined ? undefined : JSON.stringify(body);
     let lastError: SaturdayError | undefined;
 
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
@@ -223,7 +237,7 @@ export class Saturday {
             'X-SDK-Version': SDK_VERSION,
             Authorization: `Bearer ${this.config.bearerToken || this.config.apiKey}`,
           },
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body: payload,
           signal: controller.signal,
         });
 
@@ -808,14 +822,12 @@ class CoachResource {
 
   /** List the roster with per-athlete needs-attention markers. */
   async roster(params?: { window?: CoachWindow }): Promise<Roster> {
-    const qs = params?.window ? `?window=${params.window}` : '';
-    return this.client.request('GET', `/v1/coach/roster${qs}`);
+    return this.client.request('GET', withQuery('/v1/coach/roster', { window: params?.window }));
   }
 
   /** The flagged-only digest: only athletes who crossed a concern bar this window. */
   async rosterDigest(params?: { window?: CoachWindow }): Promise<RosterDigest> {
-    const qs = params?.window ? `?window=${params.window}` : '';
-    return this.client.request('GET', `/v1/coach/roster/digest${qs}`);
+    return this.client.request('GET', withQuery('/v1/coach/roster/digest', { window: params?.window }));
   }
 
   /** One athlete's in-window fueling rollup + concern summary (roster-confined). */
