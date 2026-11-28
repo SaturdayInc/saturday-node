@@ -26,8 +26,9 @@ it('re-exports every type and interface declared in src/types.ts', () => {
   const typesSource = readFileSync(join(__dirname, '..', 'src', 'types.ts'), 'utf8');
   const declared = [...typesSource.matchAll(/^export (?:interface|type) (\w+)/gm)].map(m => m[1]);
   const indexSource = readFileSync(join(__dirname, '..', 'src', 'index.ts'), 'utf8');
-  const block = /export type \{([\s\S]*?)\} from '\.\/types';/.exec(indexSource)![1];
-  const reExported = new Set(block.split(',').map(s => s.trim()).filter(Boolean));
+  const end = indexSource.indexOf("} from './types';");
+  const block = indexSource.slice(indexSource.lastIndexOf('export type {', end), end);
+  const reExported = new Set([...block.matchAll(/\b[A-Z]\w+\b/g)].map(m => m[0]));
   expect(declared.filter(name => !reExported.has(name))).toEqual([]);
   expect(declared.length).toBeGreaterThan(150);
 });
