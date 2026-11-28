@@ -208,6 +208,9 @@ export class Saturday {
    */
   async request<R>(method: string, path: string, body?: unknown, responseType: 'json' | 'arrayBuffer' = 'json'): Promise<R> {
     method = method.toUpperCase();
+    if (!path.startsWith('/')) {
+      throw new TypeError(`Invalid path: path must start with "/": ${path}`);
+    }
     if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path) || path.startsWith('//')) {
       throw new TypeError(`Invalid path: path must be a relative path, not an absolute URL: ${path}`);
     }

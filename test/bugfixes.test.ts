@@ -86,3 +86,26 @@ describe('coach roster windows are query-encoded', () => {
     ]);
   });
 });
+
+describe('request() requires a path starting with a slash', () => {
+  // Before the fix, request('GET', 'v1/health') concatenated baseUrl and
+  // path into https://api.saturday.fitv1/health (a different host) and sent
+  // the Authorization header there. An empty path requested the bare base URL.
+  it.each([['v1/health'], ['']])('refuses path %j without calling fetch', async path => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_fake', maxRetries: 0 });
+    const error = await captureError(() => client.request('GET', path));
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).toMatch(/Invalid path/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('still allows a normal absolute path', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'sk_test_fake', maxRetries: 0 });
+    await expect(client.request('GET', '/v1/health')).resolves.toEqual({ ok: true });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/health');
+  });
+});
