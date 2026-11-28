@@ -109,3 +109,26 @@ describe('request() requires a path starting with a slash', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.saturday.fit/v1/health');
   });
 });
+
+describe('the constructor validates baseUrl like the other options', () => {
+  // baseUrl was the only unvalidated option: a non-string died on
+  // ".replace is not a function" without naming the option, and control
+  // characters were stored and prepended to every request URL.
+  it.each([
+    [123], [['https://example.test']], ['https://example.test\r\nInjected: 1'], ['https://example.test\u0000'],
+  ])('rejects baseUrl %j naming the option', bad => {
+    expect(() => new Saturday({ apiKey: 'sk_test_fake', baseUrl: bad as never })).toThrow(TypeError);
+    expect(() => new Saturday({ apiKey: 'sk_test_fake', baseUrl: bad as never })).toThrow(/Invalid baseUrl/);
+  });
+
+  it('keeps the empty-string and unset default, and a custom value with trailing slashes', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    await new Saturday({ apiKey: 'sk_test_fake', baseUrl: '', maxRetries: 0 }).meta.health();
+    await new Saturday({ apiKey: 'sk_test_fake', baseUrl: 'https://example.test/api/', maxRetries: 0 }).meta.health();
+    expect(fetchMock.mock.calls.map(c => c[0])).toEqual([
+      'https://api.saturday.fit/v1/health',
+      'https://example.test/api/v1/health',
+    ]);
+  });
+});

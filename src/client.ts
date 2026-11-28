@@ -170,6 +170,9 @@ export class Saturday {
     if (config.bearerToken !== undefined && (typeof config.bearerToken !== 'string' || /[\u0000-\u001F\u007F]/.test(config.bearerToken))) {
       throw new TypeError('Invalid bearerToken: bearerToken must be a string with no control characters');
     }
+    if (config.baseUrl !== undefined && (typeof config.baseUrl !== 'string' || /[\u0000-\u001F\u007F]/.test(config.baseUrl))) {
+      throw new TypeError('Invalid baseUrl: baseUrl must be a string with no control characters');
+    }
     if (config.timeout !== undefined && (typeof config.timeout !== 'number' || !Number.isFinite(config.timeout) || config.timeout <= 0)) {
       throw new TypeError('Invalid timeout: timeout must be a finite number above 0');
     }
