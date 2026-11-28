@@ -812,14 +812,12 @@ class CoachResource {
 
   /** List the roster with per-athlete needs-attention markers. */
   async roster(params?: { window?: CoachWindow }): Promise<Roster> {
-    const qs = params?.window ? `?window=${params.window}` : '';
-    return this.client.request('GET', `/v1/coach/roster${qs}`);
+    return this.client.request('GET', withQuery('/v1/coach/roster', { window: params?.window }));
   }
 
   /** The flagged-only digest: only athletes who crossed a concern bar this window. */
   async rosterDigest(params?: { window?: CoachWindow }): Promise<RosterDigest> {
-    const qs = params?.window ? `?window=${params.window}` : '';
-    return this.client.request('GET', `/v1/coach/roster/digest${qs}`);
+    return this.client.request('GET', withQuery('/v1/coach/roster/digest', { window: params?.window }));
   }
 
   /** One athlete's in-window fueling rollup + concern summary (roster-confined). */

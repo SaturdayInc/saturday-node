@@ -57,3 +57,32 @@ describe('empty and non-string path ids are rejected before any request', () => 
     ]);
   });
 });
+
+describe('coach roster windows are query-encoded', () => {
+  // roster and rosterDigest interpolated the window into the URL raw, unlike
+  // every other query in the client (URLSearchParams or encodeURIComponent).
+  // A JS caller passing '7&admin=1' injected a second query parameter.
+  it('form-encodes a window carrying query syntax, for the API to judge as one value', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'cp_test_fake', maxRetries: 0 });
+    await client.coach.roster({ window: '7&admin=1' as never });
+    await client.coach.rosterDigest({ window: '7#x' as never });
+    expect(fetchMock.mock.calls.map(c => c[0])).toEqual([
+      'https://api.saturday.fit/v1/coach/roster?window=7%26admin%3D1',
+      'https://api.saturday.fit/v1/coach/roster/digest?window=7%23x',
+    ]);
+  });
+
+  it('keeps a valid window and a bare roster read unchanged', async () => {
+    const fetchMock = jest.fn().mockImplementation(async () => Response.json({ ok: true }));
+    global.fetch = fetchMock;
+    const client = new Saturday({ apiKey: 'cp_test_fake', maxRetries: 0 });
+    await client.coach.roster({ window: 14 });
+    await client.coach.rosterDigest();
+    expect(fetchMock.mock.calls.map(c => c[0])).toEqual([
+      'https://api.saturday.fit/v1/coach/roster?window=14',
+      'https://api.saturday.fit/v1/coach/roster/digest',
+    ]);
+  });
+});
