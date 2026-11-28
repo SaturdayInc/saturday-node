@@ -36,6 +36,8 @@ export type {
   Attribution,
   Concerns,
   CalculateLeg,
+  AppLevel,
+  AppSaltiness,
   SingleSessionCalculateRequest,
   LinkedSessionCalculateRequest,
   NutritionCalculateRequest,
