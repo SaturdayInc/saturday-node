@@ -55,9 +55,13 @@ const SDK_VERSION = '0.9.0';
 
 type Query = Record<string, string | number | boolean | undefined>;
 
-/** Encode one path segment. Bare "." and ".." would survive encoding and traverse, so reject them. */
+/**
+ * Encode one path segment. Bare "." and ".." would survive encoding and traverse, so reject
+ * them. An empty segment would collapse onto the parent route (an empty athlete id read the
+ * athlete list), and a non-string would be silently coerced ("undefined"), so reject both.
+ */
 const seg = (value: string): string => {
-  if (value === '.' || value === '..') {
+  if (typeof value !== 'string' || value === '' || value === '.' || value === '..') {
     throw new TypeError(`Invalid path segment: ${JSON.stringify(value)}`);
   }
   return encodeURIComponent(value);
